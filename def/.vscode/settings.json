@@ -1,0 +1,4 @@
+{
+    "": ["Don't really use VS Code but maybe good to leave this?", "It came from 'cargo generate' / esp-template"],
+    "rust-analyzer.check.allTargets": false,
+}
