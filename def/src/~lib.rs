@@ -1,5 +1,7 @@
 #![no_std]
 
+unimplemented!()
+
 pub fn cycles() -> u64 {
     #[cfg(feature = "esp32")]
     {

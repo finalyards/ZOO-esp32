@@ -22,12 +22,7 @@ use esp_hal::{
     dma_buffers,
     gpio::Io,
     parl_io::{
-        BitPackOrder,
-        ClkOutPin,
-        ParlIoTxOnly,
-        SampleEdge,
-        TxFourBits,
-        TxPinConfigWithValidPin,
+        BitPackOrder, ClkOutPin, ParlIoTxOnly, SampleEdge, TxFourBits, TxPinConfigWithValidPin,
     },
     peripherals::Peripherals,
     prelude::*,

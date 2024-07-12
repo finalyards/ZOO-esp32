@@ -21,9 +21,7 @@ use esp_hal::{
     timer::{timg::TimerGroup, ErasedTimer, OneShotTimer},
     uart::{
         config::{AtCmdConfig, Config},
-        Uart,
-        UartRx,
-        UartTx,
+        Uart, UartRx, UartTx,
     },
     Async,
 };
