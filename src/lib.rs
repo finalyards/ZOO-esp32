@@ -5,9 +5,14 @@
 //!
 #![no_std]
 
-use esp_println::println;
+use defmt::debug;
+use defmt_rtt as _;
 
-struct VL53L5CX {
+//use core::ffi::{/*c_int,*/ c_size_t};     // this would be the nice way to use C types
+//#[allow(non_camel_case_types)]
+//type c_size_t = usize;
+
+pub struct VL53L5CX {
     
 }
 
@@ -20,3 +25,21 @@ impl VL53L5CX {
         debug!("Hello!")
     }
 }
+
+// VL53L5CX C API
+//
+// References:
+//  - ...
+//
+#[link(name = "snappy")]
+extern {
+    fn snappy_max_compressed_length(source_length: usize) -> usize;
+}
+
+pub fn dummy() {
+    unsafe {
+        snappy_max_compressed_length(0 as usize);
+        ()
+    }
+}
+

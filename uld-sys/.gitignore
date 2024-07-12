@@ -1,3 +1,8 @@
 /target/
 
 /Cargo.lock
+/tmp/
+
+# Generated
+/src/platform-raw.rs
+

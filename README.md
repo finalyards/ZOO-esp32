@@ -54,6 +54,35 @@ The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.h
 
 1. Fetch it from ST (link above)
 2. Place the folder `VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API` to `VL53L5CX_ULD_API`
+3. Install these (for `bindgen` to work) on the VM:
+
+	```
+	$ sudo apt install llvm-dev libclang-dev clang
+	```
+
+### Rest...
+
+We use `bindgen` from the command line.
+
+```
+$ cargo install bindgen-cli
+```
+
+Some parts want `nightly`. GOING to work to get this away, but for now: `#sorry!`
+
+```
+$ rustup toolchain install nightly
+```
+
+```
+$ rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+```
+
+..and for Rust code generation:
+
+```
+$ rustup component add --toolchain nightly-x86_64-unknown-linux-gnu rustfmt
+```
 
 ## Compilation (no hardware needed)
 

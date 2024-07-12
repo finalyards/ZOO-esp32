@@ -5,7 +5,8 @@ fn main() {
         println!("cargo::rustc-link-arg=-Trom_phy.x");
     }
 
+    /* disabled (keep)
     if cfg!(feature = "esp-wifi") {
         println!("cargo::rustc-link-arg=-Trom_functions.x");
-    }
+    }*/
 }

@@ -1,8 +1,10 @@
-// From 'esp-hal-template'
+// From 'esp-hal-template' https://github.com/jessebraham/esp-hal-template/blob/main/embassy/src/bin/firmware.rs
 
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
+
+// Cannot do conditional on attributes, right?  Maybe can set this in the Makefile. #ohwell
+#![feature(type_alias_impl_trait)]    // needs 'nightly'
 
 use defmt::info;
 use defmt_rtt as _;
@@ -17,7 +19,21 @@ use esp_hal::{
     system::SystemControl,
     timer::{timg::TimerGroup, OneShotTimer},
 };
-use static_cell::make_static;
+use static_cell::{
+    //*,
+    make_static     // nightly
+};
+
+/*** #[rustversion::stable]
+// Stable
+macro_rules! mk_static {
+    ($t:ty,$val:expr) => {{
+        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
+        #[deny(unused_attributes)]
+        let x = STATIC_CELL.uninit().write(($val));
+        x
+    }};
+}***/
 
 #[main]
 async fn main(spawner: Spawner) {
@@ -34,7 +50,15 @@ async fn main(spawner: Spawner) {
     // Initialize the SYSTIMER peripheral, and then Embassy:
     let timg0 = TimerGroup::new(peripherals.TIMG0, &clocks, None);
     let timers = [OneShotTimer::new(timg0.timer0.into())];
-    let timers = make_static!(timers);
+
+    /*** tbd. just need one solution, for now.
+    //#[rustversion::stable]
+    let timers = mk_static!([OneShotTimer<Timer>; 1], timers);
+    ***/
+
+    //#[rustversion::nightly]
+    let timers = make_static!(timers);  // nightly
+
     esp_hal_embassy::init(&clocks, timers);
     info!("Embassy initialized!");
 
