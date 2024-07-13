@@ -13,7 +13,10 @@
 #		We take a conventional approach, building the static library here in the Makefile. Mostly a matter of taste.
 #
 
-TARGET?=riscv32imac-unknown-none-elf
+# tbd. apply the 'patch' to the provided ULD_API sources, once
+#		- or... treat the source as read-only and make a local copy (of only the needed files) under 'tmp'? :) +1
+
+#TARGET?=riscv32imac-unknown-none-elf
   # C3: riscv32imc-unknown-none-elf
   # C6: riscv32imac-unknown-none-elf
 
@@ -21,11 +24,11 @@ _ULD_PATH:=../VL53L5CX_ULD_API
 _ULD_SRC:=$(_ULD_PATH)/src/vl53l5cx_api.c
 
 _TMP:=./tmp/
-_SO:=$(_TMP)/$(TARGET)/uld.so
+#_SO:=$(_TMP)/$(TARGET)/uld.so
 
 _OBJ_PATH:=$(_TMP)/$(TARGET)
 
-_CLANG_FLAGS:=--target riscv32
+_INCS:=$(_ULD_PATH)/inc/* platform.h fake/*.h
 
 all: #${_OUTPUT}
 	@false
@@ -33,18 +36,19 @@ all: #${_OUTPUT}
 #${_OUTPUT}: ./wrapper.h ${_API_INC_PATH}/vl53l5cx_api.h
 #	cargo build --target ${TARGET}
 
-x: $(_SO)		#TEMP
-
 # Build the static library
 #
 # Note: We don't need to optimize this piece-meal. If something in the sources has changed, we'll recompile and link
 #		everything.
 #
-$(_SO): $(_ULD_PATH)/inc/* $(_ULD_PATH)/src/*
-	@false	# unfinished - how to provide the target to the compiler???
-	clang $(_CLANG_FLAGS) -c -o $(_OBJ_PATH) $(_ULD_SRC)
-	#ar rcs $(_LIB_PATH) $(_OBJ_PATH)
+tmp/_.a: tmp/vl53l5cx_api.o
+	ar rcs --thin $@ $<
 
+tmp/%.o: $(_ULD_PATH)/src/%.c $(_INCS)
+	@echo $<
+	clang -nostdinc --target=riscv32-unknown-elf -Ifake -I. -I$(_ULD_PATH)/inc -c -o $@ $<
+
+#---
 # Generate
 #
 # Notes:

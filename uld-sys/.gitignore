@@ -4,5 +4,4 @@
 /tmp/
 
 # Generated
-/src/platform-raw.rs
-
+/src/platform*.templ.rs

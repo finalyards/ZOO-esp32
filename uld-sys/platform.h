@@ -16,7 +16,7 @@
  * layer.
  */
 typedef struct {
-    // platform specific fields (I2C address)
+    // platform specific fields
 } VL53L5CX_Platform;
 
 /*

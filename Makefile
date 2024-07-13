@@ -5,10 +5,16 @@
 #_MCU=esp32c3
 _MCU=esp32c6
 
-ifneq (,$(findstring $(_MCU),esp32c3))
-_TARGET=riscv32imc-unknown-none-elf
-else ifneq (,$(findstring $(_MCU),esp32c6))
-_TARGET=riscv32imac-unknown-none-elf
+# Xtensa
+ifeq ($(_MCU),esp32)
+_TARGET:=xtensa-esp32-none-elf
+else ifeq ($(_MCU),$(findstring $(_MCU),esp32s2 esp32s3))
+_TARGET:=xtensa-$(_MCU)-none-elf
+# RISC-V below
+else ifneq (,$(findstring $(_MCU),esp32c2 esp32c3))
+_TARGET:=riscv32imc-unknown-none-elf
+else ifneq (,$(findstring $(_MCU),esp32c6 esp32h2))
+_TARGET:=riscv32imac-unknown-none-elf
 else
 $(error Unexpected MCU: $(_MCU))
 endif

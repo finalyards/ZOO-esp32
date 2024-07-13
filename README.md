@@ -124,3 +124,11 @@ etc..
 
 - [Breakout Boards for VL53L5CX](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) (ST.com)
 - [Ultra Lite Driver (ULD) for VL53L5CX multi-zone sensor](https://www.st.com/en/embedded-software/stsw-img023.html) (ST.com)
+
+### Other projects / prior art
+
+- [`kriswiner/VL53L5CX`](https://github.com/kriswiner/VL53L5CX) (GitHub; 2021)
+- [`simondlevy/VL53L5CX`](https://github.com/simondlevy/VL53L5CX) (GitHub; 2021)
+
+	<!-- tbd.!!! Once public, mention to those two, especially Simon - he's worked on ESP32, at some point.
+-->
