@@ -4,4 +4,4 @@
 /tmp/
 
 # Generated
-/src/platform*.templ.rs
+/src/uld-raw.rs

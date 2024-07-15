@@ -17,6 +17,9 @@ pub struct Platform {
 }
 
 impl Platform {
+    pub fn new() -> Self {
+        Self {}
+    }
 
     fn rd_byte(&self) -> u8 {
         unimplemented!()
@@ -34,7 +37,9 @@ impl Platform {
         unimplemented!()
     }
 
-    // optional; not used by ULD API
+    // optional; not used by ULD API (why would we want to use something like this, from our code,
+    //      via 'ULD_API' - and not directly?  Makes no sense. Omit. :)
+    #[cfg(disable)]
     fn reset_sensor(&mut self) -> () {
         unimplemented!()
     }
@@ -121,6 +126,7 @@ extern "C" pub fn VL53L5CX_WrMulti(
 ///         Not needed if the user don't want to reset the sensor.
 /// @param (Platform*) p_platform : platform structure
 /// @return (uint8_t) status : 0 if OK
+#[cfg(disable)]
 #[no_mangle]
 extern "C" pub fn VL53L5CX_Reset_Sensor(p_platform: *mut Platform) -> u8 {
     //let p: &Platform = p_platform;
