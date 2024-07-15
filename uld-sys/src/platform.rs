@@ -61,7 +61,7 @@ impl Platform {
 /// @param (uint8_t) *p_value : Where to store the value
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
-extern "C" pub fn VL53L5CX_RdByte(
+pub extern "C" fn VL53L5CX_RdByte(
     p_platform: *mut Platform,
     address: u16,       // note: it's weird address is 'u16'; practical I2C addresses are 7/8 bit
     p_value: *mut u8
@@ -76,7 +76,7 @@ extern "C" pub fn VL53L5CX_RdByte(
 /// @param (uint8_t) value : value to write
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
-extern "C" pub fn VL53L5CX_WrByte(
+pub extern "C" fn VL53L5CX_WrByte(
     p_platform: *mut Platform,
     address: u16,
     value: u8
@@ -93,7 +93,7 @@ extern "C" pub fn VL53L5CX_WrByte(
 /// @param (uint32_t) size : Size of 'p_values' buffer
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
-extern "C" pub fn VL53L5CX_RdMulti(
+pub extern "C" fn VL53L5CX_RdMulti(
     p_platform: *mut Platform,
     address: u16,
     p_values: *mut u8,
@@ -111,7 +111,7 @@ extern "C" pub fn VL53L5CX_RdMulti(
 /// @param (uint32_t) size : Size of 'p_values'
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
-extern "C" pub fn VL53L5CX_WrMulti(
+pub extern "C" fn VL53L5CX_WrMulti(
     p_platform: *mut Platform,
     address: u16,
     p_values: *mut u8,
@@ -128,7 +128,7 @@ extern "C" pub fn VL53L5CX_WrMulti(
 /// @return (uint8_t) status : 0 if OK
 #[cfg(disable)]
 #[no_mangle]
-extern "C" pub fn VL53L5CX_Reset_Sensor(p_platform: *mut Platform) -> u8 {
+pub extern "C" fn VL53L5CX_Reset_Sensor(p_platform: *mut Platform) -> u8 {
     //let p: &Platform = p_platform;
     //p.reset_sensor();
     unimplemented!()    // return value
@@ -141,7 +141,7 @@ extern "C" pub fn VL53L5CX_Reset_Sensor(p_platform: *mut Platform) -> u8 {
 /// @param (uint8_t*) buffer : Buffer to swap
 /// @param (uint16_t) size : Buffer size in bytes; always multiple of 4.
 #[no_mangle]
-extern "C" pub fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size_t*/) {
+pub extern "C" fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size_t*/) {
 
     // Note: Since we don't actually _know_, whether 'buffer' is 4-byte aligned (to be used as '*mut u32'),
     // The original doc mentions a blurry "generally uint32_t" (what does THAT mean?!!)
@@ -177,7 +177,7 @@ extern "C" pub fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size_t*/) {
 /// @param (uint32_t) time_ms : Time to wait in ms
 /// @return (uint8_t) status : 0 if wait is finished
 #[no_mangle]
-extern "C" pub fn VL53L5CX_WaitMs(_p_platform: *mut Platform, time_ms: u32) -> u8 {
+pub extern "C" fn VL53L5CX_WaitMs(_p_platform: *mut Platform, time_ms: u32) -> u8 {
 
     if time_ms > 100 {
         panic!("Unexpected long wish for wait: {}ms", time_ms);     // could be 'warn!' (but we know from the code there's no >100)
@@ -187,10 +187,19 @@ extern "C" pub fn VL53L5CX_WaitMs(_p_platform: *mut Platform, time_ms: u32) -> u
     // the sensor to do something. We cannot do 'async' waits from a regular function, so need to
     // resort to busy-wait.
     //
+    /*** COULD BE
     let t_until: Duration = Instant::now() + Duration::from_millis(time_ms);
 
     while Instant::now() < t_until {
         hint::spin_loop()       // converts to 'crate::arch::riscv32::pause()' on RISC-V
     }
+    0***/
+
+    // From -> https://github.com/esp-rs/esp-hal/blob/0363169084ac6c25ba40196a977f8cd789652880/esp-wifi/src/compat/common.rs#L329-L332
+    let us = ms * 1000;
+    extern "C" {
+        fn esp_rom_delay_us(us: u32);
+    }
+    unsafe { esp_rom_delay_us(us); }
     0
 }

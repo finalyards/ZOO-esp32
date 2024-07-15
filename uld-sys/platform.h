@@ -1,5 +1,5 @@
 /*
-* Plain interfaces cannot be copyrighted, so this code CANNOT BE under the BSD 3 - as claimed by the vendor.
+* Plain interfaces cannot be copyrighted, so placed this code verbatim.
 */
 #ifndef _PLATFORM_H_
 #define _PLATFORM_H_

@@ -1,5 +1,5 @@
 #
-# Makefile for 'VL53L5CX_ULD_API' wrapper
+# Makefile for ULD (= C driver) wrapper
 #
 # Usage:
 #	<<
@@ -8,53 +8,60 @@
 #
 # Requires:
 #	- bindgen
+#	- patch
 #
-# Note: 'bindgen' docs show how that tool can also build the static library (as part of the 'cargo build' command run).
-#		We take a conventional approach, building the static library here in the Makefile. Mostly a matter of taste.
+# Note: 'bindgen' docs show how that tool can also build the static library as part of the 'cargo build' command run.
+#		We kind of follow that approach, but wrap all the C side actions still under a 'Makefile'.
 #
 
-# tbd. apply the 'patch' to the provided ULD_API sources, once
-#		- or... treat the source as read-only and make a local copy (of only the needed files) under 'tmp'? :) +1
-
+# NOTE: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the more fine grained ones.
+#	<<
+#	  $ clang -print-targets | grep risc
+#     riscv32     - 32-bit RISC-V
+#	  riscv64     - 64-bit RISC-V
+#	<<
+#
+#	Related:
+#		- "RISC-V has different triples for clang and rustc" (2021; closed)
+#			-> https://github.com/rust-lang/rust-bindgen/issues/2136
+#		- "RISC-V target not passed on correctly to clang" (2019; open)
+#			-> https://github.com/rust-lang/rust-bindgen/issues/1555
+#
 #TARGET?=riscv32imac-unknown-none-elf
-  # C3: riscv32imc-unknown-none-elf
-  # C6: riscv32imac-unknown-none-elf
+#  # C3: riscv32imc-unknown-none-elf
+#  # C6: riscv32imac-unknown-none-elf
 
-_ULD_PATH:=../VL53L5CX_ULD_API
-_ULD_SRC:=$(_ULD_PATH)/src/vl53l5cx_api.c
+_VL53L5CX_ULD_API=VL53L5CX_ULD_API
 
 _TMP:=./tmp/
-#_SO:=$(_TMP)/$(TARGET)/uld.so
+_C_SRC:=tmp/c_src
 
 _OBJ_PATH:=$(_TMP)/$(TARGET)
 
-_INCS:=$(_ULD_PATH)/inc/* platform.h fake/*.h
+_OTHER_INCS:=platform.h fake/*.h
 
-all: #${_OUTPUT}
+all:
 	@false
-
-#${_OUTPUT}: ./wrapper.h ${_API_INC_PATH}/vl53l5cx_api.h
-#	cargo build --target ${TARGET}
 
 #---
 # Build the static library
 #
-# Note: We don't really _need_ a static library: it's just a single '.o' file, but in order to follow the normal
+# Note: We wouldn't _really_need_ a static library: it's just a single '.o' file, but in order to follow the normal
 #		workflow, also 'ar' is used.
 #
 # Note 2: '--thin' means the archive simply points to the '.o' file, which is expected to remain available. This is
 #		way over-optimization, but since I happened to read the whole 'man ar', why not.. :)
 #		[[it would work without '--thin']]
 #
-tmp/_.a: tmp/vl53l5cx_api.o
+tmp/vendor_uld.a: tmp/vl53l5cx_api.o
 	ar rcs --thin $@ $<
 
-tmp/%.o: $(_ULD_PATH)/src/%.c $(_INCS)
+tmp/%.o: $(_C_SRC)/%.c $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS)
 	@echo $<
-	clang -nostdinc --target=riscv32-unknown-elf -Ifake -I. -I$(_ULD_PATH)/inc -c -o $@ $<
+	clang -nostdinc --target=riscv32-unknown-elf -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
 #---
-# Generate
+# Generate Rust
 #
 # Notes:
 #	- '--formatter=prettyplease' (not needing nightly?) didn't work
@@ -70,30 +77,66 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 	  | sed s/TimeMs/time_ms/ \
 	  | sed s/RegisterAdress/register_address/ > $@
 
-# 'vl53l5cx_api.h' conversion is ...[[tbd.]]
+# 'vl53l5cx_api.h' conversion is automatic (changes to 'src/uld_raw.rs' WILL BE LOST; modify this instead)
 #
-src/uld-raw.rs: $(_ULD_PATH)/inc/vl53l5cx_api.h Makefile
+# About 'bindgen' (v.0.69.4):
+#	- prints errors to stdout, which is .... a bit unkind.
+#	- does not process lines like:
+#		<<
+#			define VL53L5CX_RESOLUTION_4X4			((uint8_t) 16U)
+#		<<
+#	  If, instead, we turn those to:
+#			const uint8_t VL53L5CX_RESOLUTION_4X4 = 16;
+#	  ..there is no problem.
+#
+# Note:
+#	The author didn't get '--blocklist-file' to work. It didn't deny the functions in 'platform.h' - but that's just 8 names.
+#
+src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h Makefile
 	rustup run nightly \
 	  bindgen $< \
 	  	--allowlist-var 'VL53L5CX_.+' --allowlist-type 'VL53L5CX_.+' \
 		--allowlist-item 'VL53L5CX_.+' \
 		--allowlist-function 'vl53l5cx_.+' \
+		--allowlist-file 'wrap.h' \
 		\
 		--blocklist-type 'VL53L5CX_Platform' \
-		--blocklist-function 'VL53L5CX_RdByte' \
-		--blocklist-function 'VL53L5CX_WrByte' \
-		--blocklist-function 'VL53L5CX_RdMulti' \
-		--blocklist-function 'VL53L5CX_WrMulti' \
-		--blocklist-function 'VL53L5CX_Reset_Sensor' \
-		--blocklist-function 'VL53L5CX_SwapBuffer' \
-		--blocklist-function 'VL53L5CX_WaitMs' \
+		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
 	    --use-core \
-	    --no-layout-tests \
-	    -- -I. \
+	    -- -I. -I$(_C_SRC) \
 	  | sed s/VL53L5CX_Platform/Platform/ \
 	  > $@
-	@# tbd. enable layout tests once done!
-	@# tbd. how to NOT have the things from 'platform.h'?  '--blocklist-file=platform.h' did not cut!
+
+# Test for the above (for development, only)
+x: src/uld_raw.rs
+	grep -q DEFAULT_I2C_ADDRESS $<
+	grep -q VL53L5CX_POWER_MODE_SLEEP $<
+	grep -q VL53L5CX_FIRMWARE $<
+	grep -q VL53L5CX_FW_NBTAR_RANGING $<
+	grep -vq VL53L5CX_RdByte $<
+	@#
+	@echo ""
+	@echo "Yay!"
+
+#---
+# Patch ST.com sources from './VL53LCX_ULD_API/**' to 'tmp/c_src/'
+#
+# 	- places e.g. headers and C files in the same folder, for convenience
+#	- removes a nasty! reference to a field in a structure that's supposed to be customer-made and opaque
+#
+$(_C_SRC)/%.h: $(_VL53L5CX_ULD_API)/inc/%.h |_c_src_mkdir
+	@cp $< $@
+
+$(_C_SRC)/vl53l5cx_api.c: $(_VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch |_c_src_mkdir
+	patch $< ./patch -o $@
+
+# Error at Make root level, if vendor sources aren't there
+ifeq ("$(wildcard $(_VL53L5CX_ULD_API)/src/*)", "")
+$(error ST.com ULD driver not found; please download and place in the folder $(_VL53L5CX_ULD_API))
+endif
+
+_c_src_mkdir:
+	@install -d $(_C_SRC)
 
 _clean:
 	cargo clean
@@ -102,4 +145,4 @@ echo:
 	@echo X
 
 #--
-.PHONY: all _clean echo
+.PHONY: all _clean echo _c_src_mkdir

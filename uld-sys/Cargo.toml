@@ -2,6 +2,7 @@
 name = "uld-sys"
 edition = "2021"
 publish = false
+links = "vendor_uld"
 
 [dependencies]
 # {}
