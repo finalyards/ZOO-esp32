@@ -17,6 +17,7 @@
  */
 typedef struct {
     // platform specific fields
+    // Note: This is being placed as-is into 'VL53L5CX_Configuration', on the C side.
 } VL53L5CX_Platform;
 
 /*

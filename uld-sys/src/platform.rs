@@ -3,38 +3,38 @@
 */
 #![allow(non_snake_case)]
 
-#![allow(non_camel_case_types)]
-struct I2C_Addr(u8);
-
+use crate::{I2C_Addr, Status};
 use core::slice;
-use std::hint;
-use std::time::Duration;
+use core::time::Duration;
 
-// The state. Passed opaquely through the ULD (C) layers.
+use core::result::Result;
+use crate::uld_raw::{ST_OK, ST_ERROR};
+
+// The state. Provided by the application (opaque to us, and the vendor ULD).
 //
-pub struct Platform {
+trait Platform {
 
-}
+    // provided by the app
+    fn delay_blocking(d: &Duration);
+    fn i2c_read(addr: u8, buf: &mut[u8]) -> Result<()>;
+    fn i2c_write(addr: u8, data: &[u8]) -> Result<()>;
 
-impl Platform {
-    pub fn new() -> Self {
-        Self {}
+    // functions to vendor ULD
+    fn rd_byte(&self, a: I2C_Addr) -> Result<u8> {
+        let buf: u8 = 0;
+        self.rd_bytes(a, &mut buf)
     }
 
-    fn rd_byte(&self) -> u8 {
-        unimplemented!()
+    fn wr_byte(&mut self, a: I2C_Addr, v: u8) -> Result<()> {
+        self.wr_bytes(a, &v)
     }
 
-    fn wr_byte(&mut self, a: I2C_Addr, v: u8) -> () {     // tbd. can we fail; return 'Result'?
-        unimplemented!()
+    fn rd_bytes(&mut self, a: I2C_Addr, buf: &mut [u8]) -> Result<()> {
+        self.i2c_read(a.num, buf)
     }
 
-    fn rd_bytes(&mut self, a: I2C_Addr, vs: &mut [u8]) -> () {     // tbd. can we fail; return 'Result'?
-        unimplemented!()
-    }
-
-    fn wr_bytes(&mut self, a: I2C_Addr, vs: &[u8]) -> () {     // tbd. can we fail; return 'Result'?
-        unimplemented!()
+    fn wr_bytes(&mut self, _a: I2C_Addr, _vs: &[u8]) -> Result<()> {
+        self.i2c_write(a.num, vs)
     }
 
     // optional; not used by ULD API (why would we want to use something like this, from our code,
@@ -62,12 +62,14 @@ impl Platform {
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_RdByte(
-    p_platform: *mut Platform,
+    pt: &mut impl Platform,
     address: u16,       // note: it's weird address is 'u16'; practical I2C addresses are 7/8 bit
     p_value: *mut u8
 ) -> u8 {
-    let p: &Platform = p_platform;
-    p.rd_byte()
+    match pt.rd_byte(I2C_Addr::from(address)) {
+        Ok(v) => { unsafe { *p_value = v }; ST_OK },
+        Error(_) => ST_ERR
+    }
 }
 
 /// @brief write one single byte
@@ -77,13 +79,14 @@ pub extern "C" fn VL53L5CX_RdByte(
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_WrByte(
-    p_platform: *mut Platform,
+    pt: &mut impl Platform,
     address: u16,
-    value: u8
+    v: u8
 ) -> u8 {
-    let p: &Platform = p_platform;
-    p.wr_byte( I2C_Addr(address as u8), v);
-    unimplemented!()    // return value
+    match pt.wr_byte( I2C_Addr(address as u8), v) {
+        Ok(()) => ST_OK,
+        Error(_) => ST_ERR
+    }
 }
 
 /// @brief read multiples bytes
@@ -94,14 +97,15 @@ pub extern "C" fn VL53L5CX_WrByte(
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_RdMulti(
-    p_platform: *mut Platform,
+    pt: &mut impl Platform,
     address: u16,
     p_values: *mut u8,
     size: u32   // size_t
 ) -> u8 {
-    let p: &Platform = p_platform;
-    p.rd_bytes( I2C_Addr(address as u8), unsafe { slice::from_raw_parts_mut(p_values, size as usize) } );
-    unimplemented!()    // return value
+    match pt.rd_bytes( I2C_Addr(address as u8), unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
+        Ok(()) => ST_OK,
+        Error(_) => ST_ERR
+    }
 }
 
 /// @brief write multiples bytes
@@ -112,14 +116,15 @@ pub extern "C" fn VL53L5CX_RdMulti(
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_WrMulti(
-    p_platform: *mut Platform,
+    pt: &mut impl Platform,
     address: u16,
     p_values: *mut u8,
-    size: u32   // size_t
+    size: u32   // actual values fit 16 bits
 ) -> u8 {
-    let p: &Platform = p_platform;
-    p.wr_bytes( I2C_Addr(address as u8), unsafe { slice::from_raw_parts(p_values, size as usize) } );
-    unimplemented!()    // return value
+    match pt.wr_bytes( I2C_Addr(address as u8), unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
+        Ok(()) => ST_OK,
+        Error(_) => ST_ERR
+    }
 }
 
 /// @brief Perform a hardware reset of the sensor. Not used in the API; can be used by the host.
@@ -141,7 +146,7 @@ pub extern "C" fn VL53L5CX_Reset_Sensor(p_platform: *mut Platform) -> u8 {
 /// @param (uint8_t*) buffer : Buffer to swap
 /// @param (uint16_t) size : Buffer size in bytes; always multiple of 4.
 #[no_mangle]
-pub extern "C" fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size_t*/) {
+pub extern "C" fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size in bytes*/) {
 
     // Note: Since we don't actually _know_, whether 'buffer' is 4-byte aligned (to be used as '*mut u32'),
     // The original doc mentions a blurry "generally uint32_t" (what does THAT mean?!!)
@@ -150,7 +155,7 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size_t*/) {
         panic!("Buffer to swap byte order not 'u32' aligned");
     }
 
-    let s: &mut[u32] = unsafe { slice::from_raw_parts(buffer as *mut u32, size/4 as u32) };
+    let s: &mut[u32] = unsafe { slice::from_raw_parts_mut(buffer as *mut u32, (size as usize)/4) };
 
     for i in 0..size/4 {
         s[i] = u32::swap_bytes(s[i])
@@ -177,12 +182,19 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buffer: *mut u8, size: u16 /*size_t*/) {
 /// @param (uint32_t) time_ms : Time to wait in ms
 /// @return (uint8_t) status : 0 if wait is finished
 #[no_mangle]
-pub extern "C" fn VL53L5CX_WaitMs(_p_platform: *mut Platform, time_ms: u32) -> u8 {
+pub extern "C" fn VL53L5CX_WaitMs(pt: &mut impl Platform, time_ms: u32) -> u8 {
 
     if time_ms > 100 {
         panic!("Unexpected long wish for wait: {}ms", time_ms);     // could be 'warn!' (but we know from the code there's no >100)
     }
 
+    // To allow us not needing to depend on Embassy, the application provides the delay function.
+    // It's a normal, blocking delay.
+    //
+    pt.delay_blocking(Duration::from_millis(time_ms));
+    0
+
+    /*** earlier; keep for now
     // In the code, ST uses this with 1,10 and 100 (ms) values. It seems like it's giving time for
     // the sensor to do something. We cannot do 'async' waits from a regular function, so need to
     // resort to busy-wait.
@@ -196,10 +208,11 @@ pub extern "C" fn VL53L5CX_WaitMs(_p_platform: *mut Platform, time_ms: u32) -> u
     0***/
 
     // From -> https://github.com/esp-rs/esp-hal/blob/0363169084ac6c25ba40196a977f8cd789652880/esp-wifi/src/compat/common.rs#L329-L332
-    let us = ms * 1000;
+    let us = time_ms * 1000;
     extern "C" {
         fn esp_rom_delay_us(us: u32);
     }
     unsafe { esp_rom_delay_us(us); }
     0
+    ***/
 }

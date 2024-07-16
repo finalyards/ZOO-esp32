@@ -8,7 +8,7 @@ fn main() {
         .expect("could not spawn `make`")   // shown if 'make' not found on PATH
         .status;
 
-    st.success() || panic!("Running 'make' failed");    // shown if 'make' returns a non-zero error code
+    assert!(st.success(), "Running 'make' failed");    // shown if 'make' returns a non-zero
 
     // Link with 'tmp/vendor_uld.a'
     println!("cargo:rustc-link-search=tmp");

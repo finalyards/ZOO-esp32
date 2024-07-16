@@ -100,9 +100,12 @@ src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h Mak
 		--allowlist-function 'vl53l5cx_.+' \
 		--allowlist-file 'wrap.h' \
 		\
-		--blocklist-type 'VL53L5CX_Platform' \
 		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
 	    --use-core \
+	    --default-enum-style rust \
+	    --raw-line '#![allow(non_camel_case_types)]' \
+	    --raw-line '#![allow(non_snake_case)]' \
+	    --must-use-type STATUS \
 	    -- -I. -I$(_C_SRC) \
 	  | sed s/VL53L5CX_Platform/Platform/ \
 	  > $@
@@ -110,9 +113,8 @@ src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h Mak
 # Test for the above (for development, only)
 x: src/uld_raw.rs
 	grep -q DEFAULT_I2C_ADDRESS $<
-	grep -q VL53L5CX_POWER_MODE_SLEEP $<
-	grep -q VL53L5CX_FIRMWARE $<
-	grep -q VL53L5CX_FW_NBTAR_RANGING $<
+	grep -q 'pub enum POWER_MODE' $<
+	grep -q 'static VL53L5CX_FIRMWARE' $<
 	grep -vq VL53L5CX_RdByte $<
 	@#
 	@echo ""
