@@ -3,12 +3,14 @@
 */
 #![allow(non_snake_case)]
 
-use crate::{I2C_Addr, Status};
+use crate::{
+    I2C_Addr,
+    Result,     // 'core::result::Result<_,u8>'
+};
 use core::slice;
 use core::time::Duration;
 
-use core::result::Result;
-use crate::uld_raw::{ST_OK, ST_ERROR};
+use crate::uld_raw::{ST_OK, ST_ERROR as ST_ERR};
 
 // The state. Provided by the application (opaque to us, and the vendor ULD).
 //
@@ -20,26 +22,26 @@ trait Platform {
     fn i2c_write(addr: u8, data: &[u8]) -> Result<()>;
 
     // functions to vendor ULD
-    fn rd_byte(&self, a: I2C_Addr) -> Result<u8> {
-        let buf: u8 = 0;
-        self.rd_bytes(a, &mut buf)
+    fn rd_byte(&mut self, a: I2C_Addr) -> Result<u8> {
+        let mut buf: u8 = 0;
+        self.rd_bytes(a, &mut *buf)
     }
 
     fn wr_byte(&mut self, a: I2C_Addr, v: u8) -> Result<()> {
-        self.wr_bytes(a, &v)
+        self.wr_bytes(a, &*v)
     }
 
     fn rd_bytes(&mut self, a: I2C_Addr, buf: &mut [u8]) -> Result<()> {
-        self.i2c_read(a.num, buf)
+        self.i2c_read(a.0, buf)
     }
 
-    fn wr_bytes(&mut self, _a: I2C_Addr, _vs: &[u8]) -> Result<()> {
-        self.i2c_write(a.num, vs)
+    fn wr_bytes(&mut self, a: I2C_Addr, vs: &[u8]) -> Result<()> {
+        self.i2c_write(a.0, vs)
     }
 
     // optional; not used by ULD API (why would we want to use something like this, from our code,
     //      via 'ULD_API' - and not directly?  Makes no sense. Omit. :)
-    #[cfg(disable)]
+    #[cfg(disabled)]
     fn reset_sensor(&mut self) -> () {
         unimplemented!()
     }
@@ -68,7 +70,7 @@ pub extern "C" fn VL53L5CX_RdByte(
 ) -> u8 {
     match pt.rd_byte(I2C_Addr::from(address)) {
         Ok(v) => { unsafe { *p_value = v }; ST_OK },
-        Error(_) => ST_ERR
+        Err(_) => ST_ERR
     }
 }
 
@@ -85,7 +87,7 @@ pub extern "C" fn VL53L5CX_WrByte(
 ) -> u8 {
     match pt.wr_byte( I2C_Addr(address as u8), v) {
         Ok(()) => ST_OK,
-        Error(_) => ST_ERR
+        Err(_) => ST_ERR
     }
 }
 
@@ -104,7 +106,7 @@ pub extern "C" fn VL53L5CX_RdMulti(
 ) -> u8 {
     match pt.rd_bytes( I2C_Addr(address as u8), unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
         Ok(()) => ST_OK,
-        Error(_) => ST_ERR
+        Err(_) => ST_ERR
     }
 }
 
@@ -123,7 +125,7 @@ pub extern "C" fn VL53L5CX_WrMulti(
 ) -> u8 {
     match pt.wr_bytes( I2C_Addr(address as u8), unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
         Ok(()) => ST_OK,
-        Error(_) => ST_ERR
+        Err(_) => ST_ERR
     }
 }
 
@@ -191,7 +193,7 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: &mut impl Platform, time_ms: u32) -> u8 {
     // To allow us not needing to depend on Embassy, the application provides the delay function.
     // It's a normal, blocking delay.
     //
-    pt.delay_blocking(Duration::from_millis(time_ms));
+    pt.delay_blocking(Duration::from_millis(time_ms as _));
     0
 
     /*** earlier; keep for now

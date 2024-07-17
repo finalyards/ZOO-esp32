@@ -3,7 +3,7 @@
 #
 # Usage:
 #	<<
-#	  $ [TARGET=...] make
+#	  $ make
 #	<<
 #
 # Requires:
@@ -14,6 +14,7 @@
 #		We kind of follow that approach, but wrap all the C side actions still under a 'Makefile'.
 #
 
+#---
 # NOTE: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the more fine grained ones.
 #	<<
 #	  $ clang -print-targets | grep risc
@@ -56,7 +57,11 @@ all:
 tmp/vendor_uld.a: tmp/vl53l5cx_api.o
 	ar rcs --thin $@ $<
 
-tmp/%.o: $(_C_SRC)/%.c $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS)
+# Note: Dependency on features is via 'Cargo.toml'. 'build.rs' rebuilds 'tmp/config.h' on each run, so it's not
+#		a good idea to use it (would cause everything to recompile, all the time). This may be overthinking, but
+#		..it works.
+#
+tmp/%.o: $(_C_SRC)/%.c $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Cargo.toml
 	@echo $<
 	clang -nostdinc --target=riscv32-unknown-elf -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
@@ -92,7 +97,7 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 # Note:
 #	The author didn't get '--blocklist-file' to work. It didn't deny the functions in 'platform.h' - but that's just 8 names.
 #
-src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h Makefile
+src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
 	rustup run nightly \
 	  bindgen $< \
 	  	--allowlist-var 'VL53L5CX_.+' --allowlist-type 'VL53L5CX_.+' \
@@ -139,6 +144,12 @@ endif
 
 _c_src_mkdir:
 	@install -d $(_C_SRC)
+
+# Make sure features have been processed.
+# We don't use regular 'tmp/config.h:' target, because it would not work with 'make -B' (force rebuilds).
+ifeq ("$(wildcard tmp/config.h)", "")
+$(error No 'tmp/config.h'. Either create an empty file or run once with 'cargo build')
+endif
 
 _clean:
 	cargo clean

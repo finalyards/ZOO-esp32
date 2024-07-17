@@ -1,8 +1,38 @@
 [package]
-name = "uld-sys"
+name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
 edition = "2021"
 publish = false
 links = "vendor_uld"
 
 [dependencies]
-# {}
+
+[build-dependencies]
+itertools = "0.13.0"
+
+# C compile-time features
+#
+# Note: The names reflect the C side #defines' (except for being lower case)
+#
+# Features define what fields are available in the ranging output.
+# More fields means more I2C comms, so you might want to restrict to .
+#
+[features]
+ambient_per_spad=[]     # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
+nb_spads_enabled=[]     # VL53L5CX_DISABLE_NB_SPADS_ENABLED
+nb_target_detected=[]   # VL53L5CX_DISABLE_NB_TARGET_DETECTED // recommended by vendor docs
+signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
+range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
+distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
+target_status=[]        # VL53L5CX_DISABLE_TARGET_STATUS    // recommended by vendor docs
+reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
+motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
+
+# Default: values are converted to mm.
+# Raw (firmware) format: raw numbers, "provides better accuracy".
+#
+use_raw_format=[]       # VL53L5CX_USE_RAW_FORMAT
+
+default = ["ambient_per_spad", "nb_spads_enabled", "nb_target_detected", "signal_per_spad",
+    "range_sigma_mm", "distance_mm", "target_status", "reflectance_percent"
+    #"motion_indicator"     # <<-- should this also be in, even without the plugin? tbd.
+]
