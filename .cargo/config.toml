@@ -1,54 +1,20 @@
-#---
-# NOTE!!!
-#   Much of these settings are _project_ settings, and should go to -> 'Cargo.toml'.
-#   The problem is that '.cargo/config.toml' cascades from the subprojects, so we unintentionally affect them (if
-#   the settings are here, that is).
-#
-#   Follow: "Tracking Issue: Support project-specific config in manifest"
-#           -> https://github.com/rust-lang/cargo/issues/12738
-#---
-
 #
 # Inspired by:
 #   - 'esp-hal-template'
 #     -> https://github.com/jessebraham/esp-hal-template/blob/main/embassy/.cargo/config.toml
 #
 
-[build]
-#target    = "{{ rust_target }}"  # instead, comes from Makefile;  tbd. can wwe read env.vars in TOML?
-rustflags = [
-  "-C", "link-arg=-Tdefmt.x",
-  "-C", "link-arg=-Tlinkall.x",
-]
-
 # RISC V
 [target.'cfg(target_arch = "riscv32")']
 runner    = "espflash flash --monitor"
 rustflags = [
-  "-C", "link-arg=-Tlinkall.x",
-  # NOTE: This is required to obtain backtraces, however it may negatively
-  #       impact the performance of your application.
-  "-C", "force-frame-pointers",
+    # Required to obtain backtraces, however it may negatively impact the performance of your application.
+    "-C", "force-frame-pointers",
 ]
-
-# Xtensa
-# Note: This is just a placeholder and is NOT TESTED!
-#
-#[target.'cfg(target_arch = "xtensa")']
-#rustflags = [
-#  #  # GNU LD
-#  #  "-C", "link-arg=-Wl,-Tlinkall.x",
-#  #  "-C", "link-arg=-nostartfiles",
-#  #
-#  #  # LLD
-#  #  # "-C", "link-arg=-Tlinkall.x",
-#  #  # "-C", "linker=rust-lld",
-#]
 
 [env]
 DEFMT_LOG="debug"
-ESP_LOGLEVEL = "debug"
-  # tbd. when is either one of those being used?
+#ESP_LOGLEVEL = "debug"
 
 [unstable]
 build-std = ["core"]

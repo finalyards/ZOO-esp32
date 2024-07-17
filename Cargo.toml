@@ -18,13 +18,15 @@ defmt-rtt        = "0.4.1"
 embassy-executor    = { version = "0.5.0", features = ["defmt"] }
 embassy-time     = { version = "0.3.1",  features = ["generic-queue-8"] }
 #esp-alloc           = { version = "0" }
-esp-backtrace    = { version = "0.12.1", features = ["defmt", "exception-handler", "panic-handler"] }   # mcu as feature
-esp-hal          = { version = "0.18.0", features = ["async", "defmt"] }                                # mcu as feature
-esp-hal-embassy  = { version = "0.1.0",  features = [] }                                                 # mcu as feature
+esp-backtrace    = { version = "0.13.0", features = ["defmt", "exception-handler", "panic-handler"] }   # mcu as feature
+esp-hal          = { version = "0.19.0", features = ["async", "defmt"] }                                # mcu as feature
+esp-hal-embassy  = { version = "0.2.0",  features = [] }                                                 # mcu as feature
 #esp-hal-smartled    = { version = "0.11.0", optional = true }
-rustversion = "1.0.17"
 static_cell      = { version = "2.1.0",  features = ["nightly"] }  # needs nightly?
 vl53l5cx_uld    = { path = "uld-sys" }
+    #
+    # tbd. we cannot name it 'uld', right - it might need to be published (and we cannot publish sub-crates along
+    #       the crate itself, can we?) #later
 
 [build-dependencies]
 # {}
@@ -47,13 +49,40 @@ esp32h2 = ["esp-backtrace/esp32h2", "esp-hal/esp32h2", "esp-hal-embassy/esp32h2"
 ##esp32s2 = ["esp-backtrace/esp32s2", "esp-hal/esp32s2",  "esp-hal-embassy/esp32s2", "esp-println/esp32s2", "esp-storage?/esp32s2", "esp-wifi?/esp32s2", "esp-hal-smartled/esp32s2"]
 ##esp32s3 = ["esp-backtrace/esp32s3", "esp-hal/esp32s3",  "esp-hal-embassy/esp32s3", "esp-println/esp32s3", "esp-storage?/esp32s3", "esp-wifi?/esp32s3", "esp-hal-smartled/esp32s3"]
 
+# Passing through the underlying ULD features, so our dependents can switch them on/off at whim.
+ambient_per_spad=[      "vl53l5cx_uld/ambient_per_spad" ]       # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
+nb_spads_enabled=[      "vl53l5cx_uld/nb_spads_enabled"]        # VL53L5CX_DISABLE_NB_SPADS_ENABLED
+nb_target_detected=[    "vl53l5cx_uld/nb_target_detected"]      # VL53L5CX_DISABLE_NB_TARGET_DETECTED // recommended by vendor docs
+signal_per_spad=[       "vl53l5cx_uld/signal_per_spad"]         # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
+range_sigma_mm=[        "vl53l5cx_uld/range_sigma_mm"]          # VL53L5CX_DISABLE_RANGE_SIGMA_MM
+distance_mm=[           "vl53l5cx_uld/distance_mm"]             # VL53L5CX_DISABLE_DISTANCE_MM
+target_status=[         "vl53l5cx_uld/target_status"]           # VL53L5CX_DISABLE_TARGET_STATUS    // recommended by vendor docs
+reflectance_percent=[   "vl53l5cx_uld/reflectance_percent"]     # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
+motion_indicator=[      "vl53l5cx_uld/motion_indicator"]        # VL53L5CX_DISABLE_MOTION_INDICATOR
+
+# Raw (firmware) format: raw numbers, "provides better accuracy".
+use_raw_format=[        "vl53l5cx_uld/use_raw_format"]          # VL53L5CX_USE_RAW_FORMAT
+
+# We don't need to reflect the C driver defaults. These are what seems to be making sense in Rust-land.
+default = [
+    "ambient_per_spad",
+    "nb_spads_enabled",
+    "nb_target_detected",
+    "signal_per_spad",
+    "range_sigma_mm",
+    "distance_mm",
+    "target_status",
+    "reflectance_percent"
+    #"motion_indicator"     # <<-- why is this feature available, even without "motion" (C level) plugin? tbd.
+]
+
+# tbd. Is there a way to make 'cargo build' default to a certain feature/target combo? Would like just 'cargo build' to build.
+#[_]
+#features = ["esp32c3"]
+#default-target = "riscv32imc-unknown-none-elf"
+
 [profile.release]
 debug         = true  # Debug info is useful, and does not affect the size of the final binary
 codegen-units = 1     # LLVM can perform better optimizations using a single thread
 lto           = "fat" # TODO: ???
 opt-level     = "s"   # TODO: ???
-
-[patch.crates-io]
-esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal", rev = "a2883ac" }
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal", rev = "a2883ac" }
-esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal", rev = "a2883ac" }

@@ -83,9 +83,12 @@ ESP32-C3-Devkit-C02 (revision xxx)
 ## Compilation (no hardware needed)
 
 ```
-$ cargo build
+$ cargo build --release \
+	--features esp32c3 \
+	--target riscv32imc-unknown-none-elf
 ```
 
+>For other ESP32 chips, vary the `target` [accordingly](https://docs.esp-rs.org/book/installation/riscv.html).
 
 
 ## Running
@@ -104,10 +107,9 @@ Attach the hardware via USB/IP.
 ></details>
 
 ```
-$ make run!
+$ espflash flash --monitor target/riscv32imc-unknown-none-elf/debug/{tbd.}
 ...
 ```
-
 
 <!--
 ## Tests
@@ -122,6 +124,13 @@ etc..
 
 - [Breakout Boards for VL53L5CX](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) (ST.com)
 - [Ultra Lite Driver (ULD) for VL53L5CX multi-zone sensor](https://www.st.com/en/embedded-software/stsw-img023.html) (ST.com)
+
+	- ["Ultra lite driver (ULD) [...] with wide field of view"](https://www.st.com/resource/en/data_brief/stsw-img023.pdf) (PDF, May'21; 3pp)
+	- ["A guide to using the VL53L5CX multizone [...]"](https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf) (PDF, revised Feb'24; 18pp)
+
+		<font size=5 color=red>⇫</font> The main API usage guide
+
+	- [Software licensing agreement](https://www.st.com/resource/en/license_agreement/dm00484327.pdf) (PDF, Feb'18; 5pp)
 
 ### Other projects / prior art
 

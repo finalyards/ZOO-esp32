@@ -27,12 +27,7 @@ target_status=[]        # VL53L5CX_DISABLE_TARGET_STATUS    // recommended by ve
 reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
 motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
 
-# Default: values are converted to mm.
 # Raw (firmware) format: raw numbers, "provides better accuracy".
-#
 use_raw_format=[]       # VL53L5CX_USE_RAW_FORMAT
 
-default = ["ambient_per_spad", "nb_spads_enabled", "nb_target_detected", "signal_per_spad",
-    "range_sigma_mm", "distance_mm", "target_status", "reflectance_percent"
-    #"motion_indicator"     # <<-- should this also be in, even without the plugin? tbd.
-]
+# Note: No point to have a 'default' here. What the parent crate has matters.

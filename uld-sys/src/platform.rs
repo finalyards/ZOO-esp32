@@ -129,6 +129,9 @@ pub extern "C" fn VL53L5CX_WrMulti(
     }
 }
 
+// n.b. This really seems to be intended for resetting the *host side* pin configuration, potentially
+//      connected to the sensor's 'INT'. Even so, it doesn't need to be here.
+//
 /// @brief Perform a hardware reset of the sensor. Not used in the API; can be used by the host.
 ///         Not needed if the user don't want to reset the sensor.
 /// @param (Platform*) p_platform : platform structure
