@@ -83,6 +83,10 @@ ESP32-C3-Devkit-C02 (revision xxx)
 ## Compilation (no hardware needed)
 
 ```
+$ cd main
+```
+
+```
 $ cargo build --release \
 	--features esp32c3 \
 	--target riscv32imc-unknown-none-elf

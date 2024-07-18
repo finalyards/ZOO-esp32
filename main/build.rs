@@ -1,5 +1,15 @@
+use esp_build::assert_unique_used_features;
 
 fn main() {
+
+    // Similar test as in 'esp-hal' itself
+    //
+    // Note: Without this, we'd still get the error from 'esp-hal'. This just allows us to have
+    //      a saying on how it's formulated.
+    //
+    assert_unique_used_features!(
+        "esp32c2", "esp32c3", "esp32c6", "esp32h2"      // tested only on C3, C6
+    );
 
     // These get printed as 'cargo::rustc-link-arg=...'
     let mut rlas = vec!(        // tbd. could be a Map, to avoid duplicates
@@ -25,7 +35,7 @@ fn main() {
         ***/
     }
 
-    if cfg!(feature = "esp32c6") || cfg!(feature = "esp32h2") {
+    if cfg!(any(feature = "esp32c6", feature = "esp32h2")) {
         rlas.push("-Trom_coexist.x");      // println!("cargo::rustc-link-arg=-Trom_coexist.x");
         rlas.push("-Trom_functions.x");    // println!("cargo::rustc-link-arg=-Trom_functions.x");
         rlas.push("-Trom_phy.x");          // println!("cargo::rustc-link-arg=-Trom_phy.x");

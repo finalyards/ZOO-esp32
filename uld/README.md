@@ -19,6 +19,18 @@ Turns the `VL53L5CX_ULD_API` source code into something that can be touched with
 ><font color=orange>*tbd. CHANGES TO THE IMAGE ARE LIKELY!*</font>
 
 
+## Compiling 
+
+```
+$ cargo build
+```
+
+>Note: Somewhat unintuitively, the cradle doesn't need any Chip-select features. No `esp32c3`-like.
+>
+>This is *either* because
+>
+>- a) the compilation (`clang`) is done using a single target that covers all ESP32 (RISC-V) chips: `riscv32`
+>- b) the author hasn't really cracked it; such features *will* be needed!!
 
 
 ## References

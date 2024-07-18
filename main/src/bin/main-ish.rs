@@ -8,6 +8,8 @@
 use defmt::info;
 use defmt_rtt as _;
 
+use esp_hal::delay::Delay;
+
 use embassy_executor::Spawner;
 //use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
@@ -29,6 +31,10 @@ async fn main(spawner: Spawner) {
     let peripherals = Peripherals::take();
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+
+    info!("Let's do delay");
+    let mut delay = Delay::new(&clocks);
+    delay.delay_ms(1000_u32);
 
     let x = VL53L5CX::new();
     x.say();

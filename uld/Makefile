@@ -1,9 +1,11 @@
 #
 # Makefile for ULD (= C driver) wrapper
 #
+# Gets called by 'cargo build' (but can be used manually as well!).
+#
 # Usage:
 #	<<
-#	  $ make
+#	  $ make {make-target}
 #	<<
 #
 # Requires:
