@@ -14,3 +14,7 @@ impl I2C_Addr {
         Self(v as u8)
     }
 }
+
+pub use uld::{
+    API_REVISION
+};     // pass through

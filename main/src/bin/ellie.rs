@@ -1,6 +1,6 @@
-//! main.rs
+//! ellie.rs
 //!
-//! WIP: interfacing with the ST C library, both ways.
+//! WIP: small moves, Ellie!!
 
 #![no_std]
 #![no_main]
@@ -8,21 +8,16 @@
 use defmt::info;
 use defmt_rtt as _;
 
-use esp_hal::delay::Delay;
-
 use embassy_executor::Spawner;
-//use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 
 use esp_hal::{
     clock::ClockControl,
+    delay::Delay,
     peripherals::Peripherals,
     prelude::*,
     system::SystemControl,
-    //timer::{timg::TimerGroup, ErasedTimer, OneShotTimer},
 };
-
-use vl53l5cx::VL53L5CX;
 
 #[main]
 async fn main(spawner: Spawner) {
@@ -35,9 +30,6 @@ async fn main(spawner: Spawner) {
     info!("Let's do delay");
     let mut delay = Delay::new(&clocks);
     delay.delay_ms(1000_u32);
-
-    let x = VL53L5CX::new();
-    x.say();
 
     info!("Yee!");
 
