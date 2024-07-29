@@ -5,6 +5,7 @@
 //!
 #![no_std]
 
+/*** #later
 //R pub mod api;
 mod result;
 
@@ -87,7 +88,7 @@ impl RangingState {
     // Not necessarily even exposing 'check_data_ready()' - we can hide the complexity
     //  - just do 'async'.
     //
-    #[cfg(consider)]
+    #[cfg(disabled)]    // tbd. consider
     pub fn poll_are_we_there_yet() -> bool {
         // v7_check_data_ready()
     }
@@ -116,3 +117,4 @@ pub struct GeneralInfo {
     #[allow(non_snake_case)]
     API_REVISION: (),     // version of the ULD host side C driver
 }
+***/

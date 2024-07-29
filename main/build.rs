@@ -12,7 +12,7 @@ fn main() {
     );
 
     // These get printed as 'cargo::rustc-link-arg=...'
-    let mut rlas = vec!(        // tbd. could be a Map, to avoid duplicates
+    let mut rlas = vec!(
         "-Tdefmt.x",
         "-Tlinkall.x"
     );

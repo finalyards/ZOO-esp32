@@ -111,7 +111,7 @@ Attach the hardware via USB/IP.
 ></details>
 
 ```
-$ espflash flash --monitor target/riscv32imc-unknown-none-elf/debug/{tbd.}
+$ espflash flash --monitor target/riscv32imc-unknown-none-elf/debug/{tbd. name of binary}
 ...
 ```
 

@@ -13,6 +13,8 @@ use esp_backtrace as _;
 
 use esp_hal::{
     clock::ClockControl,
+    // "The 'Delay' driver provides blocking delay functionalities using the `SYSTIMER` peripheral
+    // for RISC-V devices [...].
     delay::Delay,
     peripherals::Peripherals,
     prelude::*,
@@ -20,7 +22,7 @@ use esp_hal::{
 };
 
 #[main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
 
     info!("Init!");
     let peripherals = Peripherals::take();
@@ -28,8 +30,8 @@ async fn main(spawner: Spawner) {
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
     info!("Let's do delay");
-    let mut delay = Delay::new(&clocks);
-    delay.delay_ms(1000_u32);
+    let delay = Delay::new(&clocks);
+    delay.delay_micros(1000_u32);
 
     info!("Yee!");
 
