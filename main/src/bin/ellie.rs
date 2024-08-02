@@ -12,6 +12,13 @@ use {
     defmt_rtt as _
 };
 
+#[cfg(feature = "non_defmt")]
+#[warn(unused_imports)]
+use {
+    esp_println::logger::init_logger_from_env,
+    log::{debug, info}
+};
+
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
@@ -42,6 +49,9 @@ macro_rules! mk_static {
 
 #[main]
 async fn main(_spawner: Spawner) {
+    #[cfg(feature = "non_defmt")]
+    init_logger_from_env();
+
     let peripherals = Peripherals::take();
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
@@ -52,7 +62,6 @@ async fn main(_spawner: Spawner) {
 
     let timers = mk_static!([OneShotTimer<ErasedTimer>; 1], timers);
     esp_hal_embassy::init(&clocks, timers);
-    #[cfg(feature = "defmt")]
     info!("Embassy initialized!");
 
     // synchronous (busy wait) delays
@@ -62,11 +71,9 @@ async fn main(_spawner: Spawner) {
     };
 
     loop {
-        #[cfg(feature = "defmt")]
         info!("Bing!");
         Timer::after(Duration::from_millis(3_000)).await;   // async wait
 
-        #[cfg(feature = "defmt")]
         debug!("Bong!");
         delay_ms(1000);     // sync wait
     }

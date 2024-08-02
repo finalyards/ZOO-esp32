@@ -57,8 +57,8 @@ esp32c3 = [
     "esp-println?/esp32c3"
 ]
 esp32c6 = [
-    "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6"
-    # 'esp32c6' is always expected to use 'defmt'.
+    "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6",
+    "esp-println?/esp32c6"  # 'esp32c6' is always expected to use 'defmt'.
 ]
 
 # 'nightly' has some benefits over stable (as of 1-Aug-24), but we don't currently see a reason to bring in the heavier
@@ -83,11 +83,13 @@ defmt = [
 
 non_defmt = [
     "dep:esp-println",
+        "esp-println/log",
+        "esp-println/colors",
+        "esp-println/defmt-espflash",
     "dep:log",
       #
     "esp-backtrace/println",
     "esp-hal-embassy/log",
-    "esp-println/log",
 ]
 
 default = ["non_nightly"]

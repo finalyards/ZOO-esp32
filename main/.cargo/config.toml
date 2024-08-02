@@ -3,10 +3,6 @@
 #   - 'esp-hal-template'
 #     -> https://github.com/jessebraham/esp-hal-template/blob/main/embassy/.cargo/config.toml
 #
-#[env]
-#DEFMT_LOG="debug"
-#    # Note: You can give different logging levels to different Rust modules.
-#    #       See -> https://defmt.ferrous-systems.com/filtering
 
 [build]
 # RISC V

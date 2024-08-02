@@ -5,21 +5,22 @@ CHIP?=esp32c6
 PROFILE?=release
 LOG_LEVEL:=debug
 
-# would like to use 'defmt' always (for C3 as well..)
-
 ifneq (,$(findstring $(CHIP),esp32c3 ..))
   TARGET:=riscv32imc-unknown-none-elf
+  DEFMT?=
 else ifneq (,$(findstring $(CHIP),esp32c6 ..))
   TARGET:=riscv32imac-unknown-none-elf
-  DEFMT:=1
+  DEFMT?=1
 else
   $(error Unknown 'CHIP': "$(CHIP)")
 endif
 
-ifdef $(DEFMT)
+ifdef DEFMT
   DEFMT_FEATURE:=defmt
+  LOG_ENV:=DEFMT_LOG=$(LOG_LEVEL)
 else
   DEFMT_FEATURE:=non_defmt
+  LOG_ENV:=ESP_LOGLEVEL=$(LOG_LEVEL)	# for 'init_logger_from_env()'
 endif
 
 _APP:=ellie
@@ -46,7 +47,7 @@ all:
 
 # Simple target with no connection to 'uld'. Test workflow (all the way to flashing and monitoring).
 ellie:
-	DEFMT_LOG=$(LOG_LEVEL) cargo build $(--PROFILE) --bin $(_APP) --features=$(_FEATURES_CSL) --target=$(TARGET)
+	$(LOG_ENV) cargo build $(--PROFILE) --bin $(_APP) --features=$(_FEATURES_CSL) --target=$(TARGET)
 
 # Nightly would have some benefits (tbd. list them; see if it's worth)
 #ellie-with-nightly:
@@ -58,7 +59,7 @@ $(_APP_BIN): src/bin/*.rs Makefile Cargo.toml .cargo/config.toml ./build.rs
 
 ellie-run: $(_APP_BIN)
 ifeq ($(CHIP),esp32c3)
-	$(warn 'probe-rs run' is glitchy for '$(CHIP)')
+	$(warn 'probe-rs run' won't work for '$(CHIP)' if there's '.await' in the code)
 endif
 	probe-rs run --chip $(CHIP) $<
 
@@ -69,7 +70,7 @@ _clean:
 	-cargo clean
 
 echo:
-	@echo X
+	@echo X $(DEFMT)
 
 #---
 .PHONY: all ellie ellie-run ellie-run2 _clean echo
