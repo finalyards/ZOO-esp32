@@ -11,9 +11,6 @@
 [build]
 # RISC V
 rustflags = [
-    "-C", "link-arg=-Tdefmt.x",
-    "-C", "link-arg=-Tlinkall.x",
-
     # Required to obtain backtraces, however it may negatively impact the performance of your application.
     "-C", "force-frame-pointers",
 ]

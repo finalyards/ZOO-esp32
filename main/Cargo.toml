@@ -9,7 +9,8 @@ publish = false
 
 # Profiles are *so* important for (at least the compilation speed), they deserve to be here!
 [profile.dev]
-opt-level = 1               # "basic" optimizations
+opt-level = "z"
+    # 1: "basic" optimizations
 overflow-checks = false     # disable integer overflow checks
 panic = "abort"
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#dev
@@ -17,19 +18,24 @@ panic = "abort"
 [profile.release]
 #debug         = "line-tables-only"
 debug = true
-#codegen-units = 1       # LLVM can perform better optimizations using a single thread
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
 codegen-units = 32
-#opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-opt-level = 1
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
 panic = "abort"
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
-#   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 
 [dependencies]
-defmt            = "0.3.8"
-defmt-rtt        = "0.4.1"
-embassy-executor    = { version = "0.5.0", features = [] }      # +"task-arena-size-xxx" (for stable); +"defmt"
+# 'defmt' feature:
+defmt            = { version = "0.3.8", optional = true }
+defmt-rtt        = { version = "0.4.1", optional = true }
+
+# 'non_defmt' feature ('esp32c' may want to use it?):
+esp-println      = { version = "0.10.0", features = ["log"], optional = true }  # +{mcu}
+log              = { version = "0.4.22", optional = true }
+
+embassy-executor = { version = "0.5.0", features = [] }      # +"task-arena-size-xxx" (for stable); +"defmt"
 embassy-time     = { version = "0.3.1",  features = ["generic-queue-8"] }
 #esp-alloc           = { version = "0" }
 esp-backtrace    = { version = "0.13.0", features = ["exception-handler", "panic-handler"] }   # mcu as feature, +"defmt"
@@ -42,22 +48,17 @@ static_cell      = { version = "2.1.0" }
     # tbd. we cannot name it 'uld', right - it might need to be published (and we cannot publish sub-crates along
     #       the crate itself, can we?) #later
 
-# For 'non_defmt' feature ('esp32c' does not work with 'defmt'):
-esp-println      = { version = "0.10.0", features = ["esp32c3", "log"], optional = true }  # esp32c3 only
-log              = { version = "0.4.22", optional = true }      # esp32c only
-
 [build-dependencies]
 esp-build = "0.1.0"     # 'build.rs' uses it
 
 [features]
 esp32c3 = [
     "esp-backtrace/esp32c3", "esp-hal/esp32c3", "esp-hal-embassy/esp32c3",
-    "non_defmt",
     "esp-println?/esp32c3"
 ]
 esp32c6 = [
-    "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6",
-    "defmt"     # 'a' chip feature so 'defmt' works
+    "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6"
+    # 'esp32c6' is always expected to use 'defmt'.
 ]
 
 # 'nightly' has some benefits over stable (as of 1-Aug-24), but we don't currently see a reason to bring in the heavier
@@ -65,22 +66,28 @@ esp32c6 = [
 #nightly = ["embassy-executor/nightly", "static_cell/nightly"]      # ..if we do... ;)
 
 non_nightly = [
-    "embassy-executor/task-arena-size-8192"     # ignored for 'nightly'; see -> https://github.com/embassy-rs/embassy/blob/main/embassy-executor/README.md#task-arena-size
+    "embassy-executor/task-arena-size-8192"
+    # ignored for 'nightly'; see -> https://github.com/embassy-rs/embassy/blob/main/embassy-executor/README.md#task-arena-size
 ]
 
 # "defmt" works (with 'probe-rs') on ESP32-C6 (native atomics), but NOT on ESP32-C3. See #1.
 defmt = [
+    "dep:defmt",
+    "dep:defmt-rtt",
+      #
     "embassy-executor/defmt",
     "esp-backtrace/defmt",
     "esp-hal/defmt",
-    "esp-hal-embassy/defmt"
+    "esp-hal-embassy/defmt",
 ]
 
 non_defmt = [
+    "dep:esp-println",
+    "dep:log",
+      #
     "esp-backtrace/println",
     "esp-hal-embassy/log",
     "esp-println/log",
-    "log"
 ]
 
 default = ["non_nightly"]

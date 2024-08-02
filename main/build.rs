@@ -14,11 +14,11 @@ fn main() {
     // These get printed as 'cargo::rustc-link-arg=...'
     #[allow(unused_mut)]
     let mut rlas: Vec<&str> = vec!(
-        /*** DISABLED; let's try with '.cargo/config.toml' first
-        "-Tdefmt.x",
         "-Tlinkall.x"
-        ***/
     );
+
+    #[cfg(feature = "defmt")]
+    rlas.push("-Tdefmt.x");
 
     /*** #[allow(unexpected_cfgs)]   // otherwise warns if 'xtensa' toolchain isn't installed
     #[cfg(target_arch = "xtensa")]
@@ -41,16 +41,17 @@ fn main() {
     ***/
 
     /* tbd. Why would we need these?  Where are they from? :)
-    if cfg!(any(feature = "esp32c6", feature = "esp32h2")) {
+    #[cfg(any(feature = "esp32c6", feature = "esp32h2"))
+    {
         rlas.push("-Trom_coexist.x");
         rlas.push("-Trom_functions.x");
         rlas.push("-Trom_phy.x");
     } */
 
     /* disabled (keep)
-    if cfg!(feature = "esp-wifi") {
-        rlas.push("-Trom_functions.x");
-    }*/
+    #[cfg(feature = "esp-wifi")
+    rlas.push("-Trom_functions.x");
+    */
 
     // #screw it - ENABLE IF YOU HAVE ANY PUSHES ABOVE!!!
     rlas.iter().for_each(|s| {

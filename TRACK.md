@@ -1,5 +1,10 @@
 # TRACK
 
+## `probe-rs` support(?) for `esp32c3`
+
+- ["Flashing esp32-s3 with probe-rs causes flash algorithm verification fail"](https://github.com/probe-rs/probe-rs/issues/2338) (probe-rs GitHub)
+
+<!-- hidden; we can overcome this
 ## Reasons keeping us on `nightly`
 
 ### `type_alias_impl_trait`
@@ -21,10 +26,13 @@
     uld-sys/Makefile:       rustup run nightly \
     uld-sys/rustfmt.toml:    # needs nightly
     ```
+-->
 
+<!-- hidden; overcame by placing `main` in its own folder
 ## Avoid using parent's `.cargo/config`
 
 - [How-to: ignore cargo config file in parent folder](https://users.rust-lang.org/t/how-to-ignore-cargo-config-file-in-parent-folder/55232) (Feb'21)
 
 - [Add flag to ignore all parent directory configs](https://github.com/rust-lang/cargo/issues/7621) (GitHub Issue; 2019)
+-->
 

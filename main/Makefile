@@ -5,14 +5,21 @@ CHIP?=esp32c6
 PROFILE?=release
 LOG_LEVEL:=debug
 
+# would like to use 'defmt' always (for C3 as well..)
+
 ifneq (,$(findstring $(CHIP),esp32c3 ..))
   TARGET:=riscv32imc-unknown-none-elf
-  DEFMT_OR_PRINTLN:=println
 else ifneq (,$(findstring $(CHIP),esp32c6 ..))
   TARGET:=riscv32imac-unknown-none-elf
-  DEFMT_OR_PRINTLN:=defmt
+  DEFMT:=1
 else
   $(error Unknown 'CHIP': "$(CHIP)")
+endif
+
+ifdef $(DEFMT)
+  DEFMT_FEATURE:=defmt
+else
+  DEFMT_FEATURE:=non_defmt
 endif
 
 _APP:=ellie
@@ -31,7 +38,7 @@ null  :=
 space := $(null) #
 comma := ,
 
-_FEATURES_CSL := $(subst $(space),$(comma),$(strip $(CHIP) $(DEFMT_OR_PRINTLN)))
+_FEATURES_CSL := $(subst $(space),$(comma),$(strip $(CHIP) $(DEFMT_FEATURE)))
 	# comma separated
 
 all:
@@ -51,7 +58,7 @@ $(_APP_BIN): src/bin/*.rs Makefile Cargo.toml .cargo/config.toml ./build.rs
 
 ellie-run: $(_APP_BIN)
 ifeq ($(CHIP),esp32c3)
-	$(warn 'probe-rs run' isn't compatible with $(CHIP))
+	$(warn 'probe-rs run' is glitchy for '$(CHIP)')
 endif
 	probe-rs run --chip $(CHIP) $<
 
