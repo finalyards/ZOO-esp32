@@ -1,11 +1,27 @@
 # `v53l5cx`
 
-## Lowest hanging fruit
+Rust API.
+
+
+## Dev - check toolchain
 
 ```
-$ cargo build --bin ellie  --features esp32c3 --target riscv32imc-unknown-none-elf
+$ make ellie
 ```
 
+- Should compile
 - Uses Embassy
-- Does not test `vl53l5cx`, at all
+- Does not use `vl53l5cx-uld`, at all
+
+```
+$ make ellie-run!
+# ...tbd. output here...
+```
+
+
+<!-- tbd.
+## Build library
+
+## Test..
+-->
 

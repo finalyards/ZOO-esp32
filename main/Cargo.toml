@@ -1,52 +1,89 @@
-#
-# Derived from 'esp-hal-template' -> https://github.com/jessebraham/esp-hal-template/blob/main/embassy/Cargo.toml
-#   and the 'esp-hal/examples/'
-#
-
 [package]
 name    = "vl53l5cx"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.77.0"     # 1.77.0+ provides `cargo::` syntax for build script output instructions
+rust-version = "1.80"
+    # 1.80: checks for validity of configuration names
+    # 1.77.0 provides `cargo::` syntax for build script output instructions
 publish = false
+
+# Profiles are *so* important for (at least the compilation speed), they deserve to be here!
+[profile.dev]
+opt-level = 1               # "basic" optimizations
+overflow-checks = false     # disable integer overflow checks
+panic = "abort"
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#dev
+
+[profile.release]
+#debug         = "line-tables-only"
+debug = true
+#codegen-units = 1       # LLVM can perform better optimizations using a single thread
+codegen-units = 32
+#opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+opt-level = 1
+panic = "abort"
+lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+#   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 
 [dependencies]
 defmt            = "0.3.8"
 defmt-rtt        = "0.4.1"
-embassy-executor    = { version = "0.5.0", features = ["task-arena-size-40960", "defmt"] }     # 'task-arena-size-40960' is from esp-hal/examples; is it useful?
-#embassy-executor    = { version = "0.5.0", features = ["defmt"] }
+embassy-executor    = { version = "0.5.0", features = [] }      # +"task-arena-size-xxx" (for stable); +"defmt"
 embassy-time     = { version = "0.3.1",  features = ["generic-queue-8"] }
 #esp-alloc           = { version = "0" }
-esp-backtrace    = { version = "0.13.0", features = ["defmt", "exception-handler", "panic-handler"] }   # mcu as feature
-esp-hal          = { version = "0.19.0", features = ["async", "defmt"] }                                # mcu as feature
-esp-hal-embassy  = { version = "0.2.0",  features = ["defmt"] }                                         # mcu as feature
+esp-backtrace    = { version = "0.13.0", features = ["exception-handler", "panic-handler"] }   # mcu as feature, +"defmt"
+esp-hal          = { version = "0.19.0", features = ["async"] }                                # mcu as feature, +"defmt"
+esp-hal-embassy  = { version = "0.2.0",  features = [] }                                       # mcu as feature, +"defmt"
 #esp-hal-smartled    = { version = "0.11.0", optional = true }
-static_cell      = { version = "2.1.0",  features = ["nightly"] }  # needs nightly?
+static_cell      = { version = "2.1.0" }
 #D vl53l5cx_uld    = { path = "../uld" }
     #
     # tbd. we cannot name it 'uld', right - it might need to be published (and we cannot publish sub-crates along
     #       the crate itself, can we?) #later
 
+# For 'non_defmt' feature ('esp32c' does not work with 'defmt'):
+esp-println      = { version = "0.10.0", features = ["esp32c3", "log"], optional = true }  # esp32c3 only
+log              = { version = "0.4.22", optional = true }      # esp32c only
+
 [build-dependencies]
-esp-build = "0.1.0"
+esp-build = "0.1.0"     # 'build.rs' uses it
 
 [features]
-#esp32   = ["esp-backtrace/esp32",   "esp-hal/esp32",   "esp-hal-embassy/esp32",   "esp-hal-smartled/esp32"]
-esp32c2 = ["esp-backtrace/esp32c2", "esp-hal/esp32c2", "esp-hal-embassy/esp32c2"]
-esp32c3 = ["esp-backtrace/esp32c3", "esp-hal/esp32c3", "esp-hal-embassy/esp32c3"]   #, "esp-hal-smartled?/esp32c3"]
-esp32c6 = ["esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6"]   #, "esp-hal-smartled?/esp32c6"]
-esp32h2 = ["esp-backtrace/esp32h2", "esp-hal/esp32h2", "esp-hal-embassy/esp32h2"]   #, "esp-hal-smartled?/esp32h2"]
-#esp32s2 = ["esp-backtrace/esp32s2", "esp-hal/esp32s2",  "esp-hal-embassy/esp32s2", "esp-hal-smartled?/esp32s2"]
-#esp32s3 = ["esp-backtrace/esp32s3", "esp-hal/esp32s3",  "esp-hal-embassy/esp32s3", "esp-hal-smartled?/esp32s3"]
+esp32c3 = [
+    "esp-backtrace/esp32c3", "esp-hal/esp32c3", "esp-hal-embassy/esp32c3",
+    "non_defmt",
+    "esp-println?/esp32c3"
+]
+esp32c6 = [
+    "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6",
+    "defmt"     # 'a' chip feature so 'defmt' works
+]
 
-# Below kept, in case we want 'esp-{println|storage|wifi|smartled|ieee802154}', later
-##esp32   = ["esp-backtrace/esp32",   "esp-hal/esp32",   "esp-hal-embassy/esp32",   "esp-println/esp32",   "esp-storage?/esp32",   "esp-wifi?/esp32",   "esp-hal-smartled/esp32"]
-#esp32c2 = ["esp-backtrace/esp32c2", "esp-hal/esp32c2", "esp-hal-embassy/esp32c2", "esp-println/esp32c2", "esp-storage?/esp32c2", "esp-wifi?/esp32c2", ]
-#esp32c3 = ["esp-backtrace/esp32c3", "esp-hal/esp32c3", "esp-hal-embassy/esp32c3", "esp-println/esp32c3", "esp-storage?/esp32c3", "esp-wifi?/esp32c3", "esp-hal-smartled/esp32c3"]
-#esp32c6 = ["esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6", "esp-println/esp32c6", "esp-storage?/esp32c6", "esp-wifi?/esp32c6", "esp-hal-smartled/esp32c6", "esp-ieee802154/esp32c6"]
-#esp32h2 = ["esp-backtrace/esp32h2", "esp-hal/esp32h2", "esp-hal-embassy/esp32h2", "esp-println/esp32h2", "esp-storage?/esp32h2", "esp-wifi?/esp32h2", "esp-hal-smartled/esp32h2", "esp-ieee802154/esp32h2"]
-##esp32s2 = ["esp-backtrace/esp32s2", "esp-hal/esp32s2",  "esp-hal-embassy/esp32s2", "esp-println/esp32s2", "esp-storage?/esp32s2", "esp-wifi?/esp32s2", "esp-hal-smartled/esp32s2"]
-##esp32s3 = ["esp-backtrace/esp32s3", "esp-hal/esp32s3",  "esp-hal-embassy/esp32s3", "esp-println/esp32s3", "esp-storage?/esp32s3", "esp-wifi?/esp32s3", "esp-hal-smartled/esp32s3"]
+# 'nightly' has some benefits over stable (as of 1-Aug-24), but we don't currently see a reason to bring in the heavier
+# toolchain.
+#nightly = ["embassy-executor/nightly", "static_cell/nightly"]      # ..if we do... ;)
+
+non_nightly = [
+    "embassy-executor/task-arena-size-8192"     # ignored for 'nightly'; see -> https://github.com/embassy-rs/embassy/blob/main/embassy-executor/README.md#task-arena-size
+]
+
+# "defmt" works (with 'probe-rs') on ESP32-C6 (native atomics), but NOT on ESP32-C3. See #1.
+defmt = [
+    "embassy-executor/defmt",
+    "esp-backtrace/defmt",
+    "esp-hal/defmt",
+    "esp-hal-embassy/defmt"
+]
+
+non_defmt = [
+    "esp-backtrace/println",
+    "esp-hal-embassy/log",
+    "esp-println/log",
+    "log"
+]
+
+default = ["non_nightly"]
 
 # Passing through the underlying ULD features, so our dependents can switch them on/off at whim.
 #D ambient_per_spad=[      "vl53l5cx_uld/ambient_per_spad" ]       # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
@@ -75,16 +112,11 @@ esp32h2 = ["esp-backtrace/esp32h2", "esp-hal/esp32h2", "esp-hal-embassy/esp32h2"
 #D     #"motion_indicator"     # <<-- why is this feature available, even without "motion" (C level) plugin? tbd.
 #D ]
 
-# So we can comment stuff out with '#cfg(...)'
-disabled = []
-
-# tbd. Is there a way to make 'cargo build' default to a certain feature/target combo? Would like just 'cargo build' to build.
-#[_]
-#features = ["esp32c3"]
-#default-target = "riscv32imc-unknown-none-elf"
-
-[profile.release]
-debug         = true  # Debug info is useful, and does not affect the size of the final binary
-codegen-units = 1     # LLVM can perform better optimizations using a single thread
-lto           = "fat" # TODO: ???
-opt-level     = "s"   # TODO: ???
+# Rust 1.80 brings more strict cfg checking. This is where we relax it.
+#
+#   tbd. learn how to steer it! :/
+#   Follow:
+#       - https://github.com/rust-lang/rust/issues/124735
+#
+#[lints.rust]  # needs 'rustc' 1.80
+#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature = "esp32h2")'] }

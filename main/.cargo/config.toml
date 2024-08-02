@@ -3,45 +3,20 @@
 #   - 'esp-hal-template'
 #     -> https://github.com/jessebraham/esp-hal-template/blob/main/embassy/.cargo/config.toml
 #
+#[env]
+#DEFMT_LOG="debug"
+#    # Note: You can give different logging levels to different Rust modules.
+#    #       See -> https://defmt.ferrous-systems.com/filtering
 
+[build]
 # RISC V
-[target.'cfg(target_arch = "riscv32")']
-runner    = "espflash flash --monitor"
 rustflags = [
+    "-C", "link-arg=-Tdefmt.x",
+    "-C", "link-arg=-Tlinkall.x",
+
     # Required to obtain backtraces, however it may negatively impact the performance of your application.
     "-C", "force-frame-pointers",
 ]
 
-[env]
-DEFMT_LOG="debug"
-#ESP_LOGLEVEL = "debug"
-
 [unstable]
 build-std = ["core"]
-#build-std = ["alloc", "core"]
-
-
-# From https://github.com/jessebraham/esp-hal-template/blob/main/embassy/.cargo/config.toml
-#
-#[env]
-#DEFMT_LOG="info"
-#
-#[build]
-#target    = "{{ rust_target }}"
-#rustflags = [
-#  "-C", "link-arg=-Tdefmt.x",
-#  "-C", "link-arg=-Tlinkall.x",
-#  {%- if arch == "xtensa" %}
-#  "-C", "link-arg=-nostartfiles",
-#  {% else %}
-#  # NOTE: This is required to obtain backtraces, however it may negatively
-#  #       impact the performance of your application.
-#  "-C", "force-frame-pointers",
-#  {% endif -%}
-#]
-#
-#[target.{{ rust_target }}]
-#runner = "probe-rs run --chip={{ mcu }}"
-#
-#[unstable]
-#build-std = ["core"]
