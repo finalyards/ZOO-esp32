@@ -1,5 +1,5 @@
 [package]
-name    = "vl53l5cx"
+name    = "fox"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
@@ -27,11 +27,11 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 
 [dependencies]
-# 'defmt' feature:
+# 'log2' feature:
 defmt            = { version = "0.3.8", optional = true }
 defmt-rtt        = { version = "0.4.1", optional = true }
 
-# 'non_defmt' feature ('esp32c' may want to use it?):
+# 'log1' feature:
 esp-println      = { version = "0.10.0", features = ["log"], optional = true }  # +{mcu}
 log              = { version = "0.4.22", optional = true }
 
@@ -58,7 +58,7 @@ esp32c3 = [
 ]
 esp32c6 = [
     "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6",
-    "esp-println?/esp32c6"  # 'esp32c6' is always expected to use 'defmt'.
+    "esp-println?/esp32c6"      # 'esp32c6' could always use 'log2'
 ]
 
 # 'nightly' has some benefits over stable (as of 1-Aug-24), but we don't currently see a reason to bring in the heavier
@@ -70,8 +70,8 @@ non_nightly = [
     # ignored for 'nightly'; see -> https://github.com/embassy-rs/embassy/blob/main/embassy-executor/README.md#task-arena-size
 ]
 
-# "defmt" works (with 'probe-rs') on ESP32-C6 (native atomics), but NOT on ESP32-C3. See #1.
-defmt = [
+# 'defmt' based (directly); with 'probe-rs run' <<-- DOES NOT work on ESP32-C3!
+log2 = [
     "dep:defmt",
     "dep:defmt-rtt",
       #
@@ -81,7 +81,8 @@ defmt = [
     "esp-hal-embassy/defmt",
 ]
 
-non_defmt = [
+# esp_println based
+log1 = [
     "dep:esp-println",
         "esp-println/log",
         "esp-println/colors",
@@ -90,7 +91,12 @@ non_defmt = [
       #
     "esp-backtrace/println",
     "esp-hal-embassy/log",
-]
+      # Since (if) we use 'esp-println/defmt-espflash'???
+    "embassy-executor/defmt",
+    #"esp-backtrace/defmt",
+    "esp-hal/defmt",
+    #"esp-hal-embassy/defmt",
+]   # Messy? No? ;)=
 
 default = ["non_nightly"]
 

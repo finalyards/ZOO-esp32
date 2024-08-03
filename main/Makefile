@@ -7,19 +7,19 @@ LOG_LEVEL:=debug
 
 ifneq (,$(findstring $(CHIP),esp32c3 ..))
   TARGET:=riscv32imc-unknown-none-elf
-  DEFMT?=
+  DEFMT_RTT?=
 else ifneq (,$(findstring $(CHIP),esp32c6 ..))
   TARGET:=riscv32imac-unknown-none-elf
-  DEFMT?=1
+  DEFMT_RTT?=1
 else
   $(error Unknown 'CHIP': "$(CHIP)")
 endif
 
-ifdef DEFMT
-  DEFMT_FEATURE:=defmt
+ifdef DEFMT_RTT
+  LOG_FEATURE:=log2
   LOG_ENV:=DEFMT_LOG=$(LOG_LEVEL)
 else
-  DEFMT_FEATURE:=non_defmt
+  LOG_FEATURE:=log1
   LOG_ENV:=ESP_LOGLEVEL=$(LOG_LEVEL)	# for 'init_logger_from_env()'
 endif
 
@@ -39,7 +39,7 @@ null  :=
 space := $(null) #
 comma := ,
 
-_FEATURES_CSL := $(subst $(space),$(comma),$(strip $(CHIP) $(DEFMT_FEATURE)))
+_FEATURES_CSL := $(subst $(space),$(comma),$(strip $(CHIP) $(LOG_FEATURE)))
 	# comma separated
 
 all:
@@ -61,7 +61,8 @@ ellie-run: $(_APP_BIN)
 ifeq ($(CHIP),esp32c3)
 	$(warn 'probe-rs run' won't work for '$(CHIP)' if there's '.await' in the code)
 endif
-	probe-rs run --chip $(CHIP) $<
+	probe-rs run --chip $(CHIP) --log-format '{L} {s}' $<
+		# for log format, see -> https://defmt.ferrous-systems.com/custom-log-output
 
 ellie-run2: $(_APP_BIN)
 	espflash flash --monitor $<
@@ -70,7 +71,7 @@ _clean:
 	-cargo clean
 
 echo:
-	@echo X $(DEFMT)
+	@echo X
 
 #---
 .PHONY: all ellie ellie-run ellie-run2 _clean echo

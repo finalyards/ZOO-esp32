@@ -5,14 +5,14 @@
 #![no_std]
 #![no_main]
 
-#[cfg(feature = "defmt")]
+#[cfg(feature = "log2")]
 #[warn(unused_imports)]
 use {
     defmt::{debug, info},
     defmt_rtt as _
 };
 
-#[cfg(feature = "non_defmt")]
+#[cfg(feature = "log1")]
 #[warn(unused_imports)]
 use {
     esp_println::logger::init_logger_from_env,
@@ -49,7 +49,7 @@ macro_rules! mk_static {
 
 #[main]
 async fn main(_spawner: Spawner) {
-    #[cfg(feature = "non_defmt")]
+    #[cfg(feature = "log1")]
     init_logger_from_env();
 
     let peripherals = Peripherals::take();
@@ -70,11 +70,14 @@ async fn main(_spawner: Spawner) {
         |ms| { d.delay_millis(ms); }
     };
 
-    loop {
+    /*loop*/ {
         info!("Bing!");
         Timer::after(Duration::from_millis(3_000)).await;   // async wait
 
         debug!("Bong!");
         delay_ms(1000);     // sync wait
     }
+
+    app::exit();
+    //panic();
 }

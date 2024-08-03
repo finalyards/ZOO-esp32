@@ -17,8 +17,8 @@ fn main() {
         "-Tlinkall.x"
     );
 
-    #[cfg(feature = "defmt")]
-    rlas.push("-Tdefmt.x");
+    //#[cfg(feature = "log2")]
+    rlas.push("-Tdefmt.x");     // now always linked; if 'log1' also uses 'defmt'
 
     /*** #[allow(unexpected_cfgs)]   // otherwise warns if 'xtensa' toolchain isn't installed
     #[cfg(target_arch = "xtensa")]
