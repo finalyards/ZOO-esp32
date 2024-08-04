@@ -1,7 +1,3 @@
-/*
-* Plain interfaces cannot be copyrighted, so placed this code verbatim.
-*/
-
 #include "platform.h"
 
 uint8_t VL53L5CX_RdByte(

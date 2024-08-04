@@ -3,48 +3,61 @@
 */
 //#![allow(non_camel_case_types)]
 
+use core::ffi::CStr;
+
 use crate::uld_raw as raw;
 
 use raw::VL53L5CX_Configuration;
-use raw::VL53L5CX_API_REVISION;
+use raw::VL53L5CX_API_REVISION;     // b"VL53L5CX_2.0.0\0";
 
+pub use {
+    raw::{
+        VL53L5CX_NB_TARGET_PER_ZONE as NB_TARGET_PER_ZONE,
+        VL53L5CX_MAX_RESULTS_SIZE as MAX_RESULTS_SIZE,
+        VL53L5CX_FW_NBTAR_RANGING as FW_NBTAR_RANGING,
+
+        RESOLUTION as Resolution,
+        TARGET_ORDER as TargetOrder,
+        RANGING_MODE as RangingMode,
+        POWER_MODE as PowerMode
+    }
+};
+
+use crate::Result::{self, Ok, Error};
 
 // Consts we decide to expose.
 //
-// Other than these don't need to be brought even to 'raw'.
+// Other than these don't need to be brought even to 'raw' (see 'wrap.h').
 
 /**
 * @brief ULD driver version, e.g. "VL53L5CX_2.0.0"
 */
-pub const API_REVISION: &String = raw::VL32L5CX_API_REVISION;
-
-
+pub const API_REVISION: &str = &CStr::from(raw::VL53L5CX_API_REVISION).to_str();
 
 
 /**
 * Document tbd.
 */
-pub fn vl53l5cx_is_alive(cfg: &VL53L5CX_Configuration) -> bool {
+pub fn vl53l5cx_is_alive(cfg: &VL53L5CX_Configuration) -> Result<bool> {
     let mut buf: u8 = 0;    // written 1 (alive) or 0
-    let st: u8 = uld_raw::vl53l5cx_is_alive(cfg, &mut buf);
-    assert_eq!(st,0, "problems, code {}", st);
-    buf != 0
+    match raw::vl53l5cx_is_alive(cfg, &mut buf) {
+        ST_OK => Ok(buf != 0),
+        st => Error(st)
+    }
 }
 
 /**
  * @brief Resets the sensor, feeds the firmware and sets it to default parameters.
  */
-pub fn vl53l5cx_init(cfg: &mut VL53L5CX_Configuration) -> Status {
+pub fn vl53l5cx_init(cfg: &mut VL53L5CX_Configuration) -> Result<()> {
 
-    // Due to how the C code is, 'st' can be pretty much anything (within 8 bits).
-    // It's not meaningful to check for its actual values, other than for 0/non-zero (and debugging
-    // purposes, as numbers).
-    //
-    let st: u8 = uld_raw::vl53l5cx_init(cfg);
-
-    Status::from(st)
+    match raw::vl53l5cx_init(cfg) {
+        ST_OK => Ok(()),
+        st => Error(st)
+    }
 }
 
+/*** Just saying NOPE.
 /**
 * @brief Change the I2C address of the receiving chip.
 *
@@ -53,18 +66,20 @@ pub fn vl53l5cx_init(cfg: &mut VL53L5CX_Configuration) -> Status {
 **/
 pub fn vl53lcx_set_i2c_address(cfg: &VL53L5CX_Configuration, addr: I2C_Address) -> Status {
 
-    let st: u8 = uld_raw::vl53l5cx_set_i2c_address(cfg, addr.0 as u16);
+    let st: u8 = raw::vl53l5cx_set_i2c_address(cfg, addr.0 as u16);
     Status::from(st)
 }
+***/
 
 /**
  * @brief Get the power mode
  **/
 pub fn vl53lcx_get_power_mode(cfg: &VL53L5CX_Configuration) -> Result<PowerMode> {
     let buf: u8 = 0;
-    let st: u8 = uld_raw::vl53l5cx_get_power_mode(cfg, &buf);
-
-    Result::from(st, || PowerMode::from(buf))
+    match raw::vl53l5cx_get_power_mode(cfg, &buf) {
+        ST_OK => Ok( PowerMode::from(buf) ),
+        st => Error(st)
+    }
 }
 
 // tbd.
@@ -97,26 +112,11 @@ pub fn vl53lcx_get_power_mode(cfg: &VL53L5CX_Configuration) -> Result<PowerMode>
 
 //---
 
-/*** REMOVE eventually
-const DEFAULT_I2C_ADDRESS: I2C_Address = I2C_Address(0x52);
-
-enum RESOLUTION {  // for 'set_resolution()'
-    _4x4 = unimplemented!(),     // 16U
-    _8x8 = unimplemented!()     // 64U
+impl PowerMode {
+    fn from(v: u8) {
+        Self(v)
+    }
 }
 
-enum TARGET_ORDER {  // for '...'
-    CLOSEST = unimplemented!(),     // 1U
-    STRONGEST = unimplemented!(),     // 2U
-}
-
-enum RANGING_MODE {  // for '...'
-    CONTINUOUS = unimplemented!(),     // 1U
-    AUTONOMOUS = unimplemented!(),     // 3U
-}
-
-enum POWER_MODE {  // for 'set_power_mode()'
-    SLEEP = unimplemented!(),     // 0U
-    WAKEUP = unimplemented!(),     // 1U (default)
-}
-***/
+//#[test]
+//...that 'API_REVISION' is without terminating '\0'.

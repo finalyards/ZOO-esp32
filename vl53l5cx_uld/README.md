@@ -1,6 +1,10 @@
-# `uld-sys`
+# `v53l5cx_uld`
 
 Turns the `VL53L5CX_ULD_API` source code into something that can be touched with Rust.
+
+>Note: Usually Rust/C bindings are done in two layers: a `-sys` library forming a 1-to-1 bridging to C code, and another library adapting the use for Rust.
+>
+>Currently, we are keeping everything together (for simplicity); depends on the amount of Rust adaptation.
 
 ## Pre-reading
 
@@ -8,9 +12,9 @@ Turns the `VL53L5CX_ULD_API` source code into something that can be touched with
 
    A bit old, but relevant (C API's don't age!).
    
-- [`bindgen` book](https://rust-lang.github.io/rust-bindgen/introduction.html)
+- [`bindgen` book](https://rust-lang.github.io/rust-bindgen/introduction.html) (optional)
 
-  >Note: Not that you really need to pre-read the above. `#joking`
+  >Note: Not that you really need to pre-read the above.
 
 ## The job
 
@@ -19,11 +23,42 @@ Turns the `VL53L5CX_ULD_API` source code into something that can be touched with
 ><font color=orange>*tbd. CHANGES TO THE IMAGE ARE LIKELY!*</font>
 
 
+## Requirements
+
+- `bindgen`:
+
+	```
+	$ apt install llvm-dev libclang-dev clang
+	```
+	
+	```
+	$ cargo install bindgen-cli
+	```
+
+- `rustfmt`
+
+   ```
+   $ rustup component add rustfmt
+   ```
+
+- Gnu `make`
+
+```
+$ clang -print-targets | grep riscv32
+    riscv32     - 32-bit RISC-V
+    riscv64     - 64-bit RISC-V
+```
+
+
 ## Compiling 
 
 ```
 $ cargo build
 ```
+
+>DEV Hint: The command uses a `Makefile` internally. You can also use it directly; have a look at its contents.
+
+<span />
 
 >Note: Somewhat unintuitively, the cradle doesn't need any Chip-select features. No `esp32c3`-like.
 >
