@@ -17,6 +17,8 @@ fn main() {
         );
     }
 
+    // tbd. If providing other than 'targets_per_zone_1', check here against overlap
+
     //---
     // Create a C config header, based on the features from 'Cargo.toml'.
     {
@@ -44,6 +46,19 @@ fn main() {
 
         #[cfg(feature = "use_raw_format")]
         defs.push("VL53L5CX_USE_RAW_FORMAT");
+
+        // In brief,
+        //  "the number of target[s] per zone sent through I2C. [...] a lower number [...] means
+        //  a lower RAM [consumption]. The value must be between 1 and 4."
+        //
+        #[cfg(feature = "targets_per_zone_1")]
+        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 1U");
+        #[cfg(feature = "targets_per_zone_2")]
+        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 2U");
+        //#[cfg(feature = "targets_per_zone_3")]
+        //defs.push("VL53L5CX_NB_TARGET_PER_ZONE 3U");
+        #[cfg(feature = "targets_per_zone_4")]
+        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 4U");
 
         // Write the file. This way the last 'cargo build' state remains available, even if
         // 'make' were run manually (compared to passing individual defines to the 'Makefile');

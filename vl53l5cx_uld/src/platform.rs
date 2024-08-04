@@ -1,24 +1,14 @@
 /*
 * The platform object, handling ULD <-> hardware interactions.
 */
+#![no_std]
 #![allow(non_snake_case)]
 
-use crate::Result;  // 'core::result::Result<_,u8>'
+//use crate::Result;  // 'core::result::Result<_,u8>'
 use core::slice;
+use crate::Platform;
 
 use crate::uld_raw::{ST_OK, ST_ERROR as ST_ERR};
-
-// The state. Provided by the application (opaque to us, and the vendor ULD).
-//
-trait Platform {
-
-    // provided by the app
-    fn delay_blocking_ms(ms: u32);
-    fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> Result<()>;
-    fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<()>;
-
-    // Note: 'reset_sensor' is omitted. The author doesn't see a point in having it below app level.
-}
 
 /*
 * Raw part of interfacing.
@@ -37,11 +27,11 @@ trait Platform {
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_RdByte(
-    pt: &mut impl Platform,
+    pt: *mut impl Platform,
     addr: u16,          // VL index
     p_value: *mut u8
 ) -> u8 {
-    match pt.rd_bytes(addr,p_value as &mut [u8;1]) {
+    match pt.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) }) {
         Ok(v) => ST_OK,
         Err(_) => ST_ERR
     }
@@ -54,11 +44,11 @@ pub extern "C" fn VL53L5CX_RdByte(
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_WrByte(
-    pt: &mut impl Platform,
+    pt: *mut impl Platform,
     addr: u16,      // VL index
     v: u8
 ) -> u8 {
-    match pt.wr_bytes(addr,v as &[u8;1]) {
+    match pt.wr_bytes(addr, &[v]) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
     }
@@ -72,7 +62,7 @@ pub extern "C" fn VL53L5CX_WrByte(
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_RdMulti(
-    pt: &mut impl Platform,
+    pt: *mut impl Platform,
     addr: u16,
     p_values: *mut u8,
     size: u32   // size_t
@@ -91,7 +81,7 @@ pub extern "C" fn VL53L5CX_RdMulti(
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_WrMulti(
-    pt: &mut impl Platform,
+    pt: *mut impl Platform,
     addr: u16,
     p_values: *mut u8,  // *u8 (const)
     size: u32   // actual values fit 16 bits; size_t
@@ -131,14 +121,12 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; n
 /// @param (uint32_t) time_ms : Time to wait in ms
 /// @return (uint8_t) status : 0 if wait is finished
 #[no_mangle]
-pub extern "C" fn VL53L5CX_WaitMs(pt: &mut impl Platform, time_ms: u32) -> u8 {
+pub extern "C" fn VL53L5CX_WaitMs(pt: *mut impl Platform, time_ms: u32) -> u8 {
 
     if time_ms > 100 {
         panic!("Unexpected long wish for wait: {}ms", time_ms);     // we know from the C code there's no >100
     }
 
-    // Application provides a normal, blocking delay.
-    //
-    pt.delay_blocking_ms(time_ms);
+    pt.delay_ms(time_ms);
     0
 }

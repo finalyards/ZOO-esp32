@@ -5,7 +5,7 @@
 #
 # Usage:
 #	<<
-#	  $ make {make-target}
+#	  $ make [tmp/vendor_uld.a] [src/uld_raw.rs]
 #	<<
 #
 # Requires:
@@ -47,20 +47,21 @@ all:
 #---
 # Build the static library
 #
-# Note: We wouldn't really need a static library: it's just a single '.o' file, but in order to follow the normal
-#		workflow, also 'ar' is used.
-#
-# Note 2: '--thin' means the archive simply points to the '.o' file, which is expected to remain available. This is
+# Note: '--thin' means the archive simply points to the '.o' file, which is expected to remain available. This is
 #		way over-optimization, but since I happened to read the whole 'man ar', why not.. :) [[it would work without '--thin']]
 #
-tmp/vendor_uld.a: tmp/vl53l5cx_api.o
+tmp/vendor_uld.a: tmp/wrap.o tmp/vl53l5cx_api.o
 	ar rcs --thin $@ $<
 
 # Note: Dependency on features is via 'Cargo.toml'. 'build.rs' rebuilds 'tmp/config.h' on each run, so it's not
 #		a good idea to use it (would cause everything to recompile, all the time). This may be overthinking, but
 #		..it works.
 #
-tmp/%.o: $(_C_SRC)/%.c $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Cargo.toml
+tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/*.h $(_OTHER_INCS) Cargo.toml
+	@echo $<
+	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
+
+tmp/wrap.o: wrap.c wrap.h $(_C_SRC)/*.h $(_OTHER_INCS) Cargo.toml
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
@@ -93,14 +94,14 @@ endif
 #---
 # Generate Rust
 #
-# Notes:
+# Notes:		TBD: IS THE COMMENT OUTDATED ---v ?
 #	- '--formatter=prettyplease' (not needing nightly?) didn't work
 #	- using 'rustfmt.toml' > normalize_doc_attributes requires nightly
 
 # 'platform.h' conversion was ever only used manually; the 'src/platform.rs' is based on it.
 #
 tmp/platform-raw.templ.rs: platform.h Makefile
-	rustup run nightly \
+	rustup run stable \
 	  bindgen $< --allowlist-function 'VL53L5CX_.+' \
 	    --opaque-type=VL53L5CX_Platform \
 	    --use-core \
@@ -122,23 +123,22 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 # Note:
 #	The author didn't get '--blocklist-file' to work. It didn't deny the functions in 'platform.h' - but that's just 8 names.
 #
-src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
+src/uld_raw.rs: wrap-wrap.h wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
 	rustup run stable \
 	  bindgen $< \
-	  	--allowlist-var 'VL53L5CX_.+' --allowlist-type 'VL53L5CX_.+' \
-		--allowlist-item 'VL53L5CX_.+' \
-		--allowlist-function 'vl53l5cx_.+' \
+		--allowlist-file $< \
 		--allowlist-file 'wrap.h' \
-		\
-		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
 	    --use-core \
 	    --default-enum-style rust \
+	    --raw-line '#![no_std]' \
 	    --raw-line '#![allow(non_camel_case_types)]' \
 	    --raw-line '#![allow(non_snake_case)]' \
 	    --must-use-type STATUS \
 	    -- -I. -I$(_C_SRC) \
 	  | sed s/VL53L5CX_Platform/Platform/ \
 	  > $@
+
+#R		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
 
 # Test for the above (for development, only)
 x: src/uld_raw.rs
@@ -157,4 +157,4 @@ echo:
 	@echo X
 
 #--
-.PHONY: all _clean echo _c_src_mkdir
+.PHONY: all _c_src_mkdir _clean echo

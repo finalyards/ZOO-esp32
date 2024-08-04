@@ -1,48 +1,63 @@
 /*
 * The actual ULD level API. Manually crafted.
 */
+#![no_std]
 //#![allow(non_camel_case_types)]
 
-use core::ffi::CStr;
+//K use core::ffi::CStr;
 
 use crate::uld_raw as raw;
 
 use raw::VL53L5CX_Configuration;
-use raw::VL53L5CX_API_REVISION;     // b"VL53L5CX_2.0.0\0";
+//K use raw::VL53L5CX_API_REVISION;     // b"VL53L5CX_2.0.0\0";
 
 pub use {
     raw::{
-        VL53L5CX_NB_TARGET_PER_ZONE as NB_TARGET_PER_ZONE,
-        VL53L5CX_MAX_RESULTS_SIZE as MAX_RESULTS_SIZE,
-        VL53L5CX_FW_NBTAR_RANGING as FW_NBTAR_RANGING,
+        //VL53L5CX_NB_TARGET_PER_ZONE as NB_TARGET_PER_ZONE,
+        //VL53L5CX_MAX_RESULTS_SIZE as MAX_RESULTS_SIZE,
+        //VL53L5CX_FW_NBTAR_RANGING as FW_NBTAR_RANGING,
+        VL53L5CX_API_REVISION as API_REVISION_RAW,  // &[u8]; zero-terminated
 
-        RESOLUTION as Resolution,
-        TARGET_ORDER as TargetOrder,
-        RANGING_MODE as RangingMode,
+        //RESOLUTION as Resolution,
+        //TARGET_ORDER as TargetOrder,
+        //RANGING_MODE as RangingMode,
         POWER_MODE as PowerMode
     }
 };
 
-use crate::Result::{self, Ok, Error};
+use crate::Result;
 
 // Consts we decide to expose.
 //
 // Other than these don't need to be brought even to 'raw' (see 'wrap.h').
 
 /**
-* @brief ULD driver version, e.g. "VL53L5CX_2.0.0"
+* @brief Read ULD driver version, etc.
+*
+* Note: These are '#define's in C, but since it's a bit difficult to turn zero-ended byte
+*       slices to a '&str' as a Rust 'const', chose to bundle them together.
 */
-pub const API_REVISION: &str = &CStr::from(raw::VL53L5CX_API_REVISION).to_str();
+//#[cfg(todo)]        // cannot be const; tbd. can we turn it to 'CStr' already in bindgen?
+//pub const API_REVISION: &str = CStr::from_bytes_with_nul(raw::VL53L5CX_API_REVISION).unwrap()
+//    .to_str().unwrap();
 
+//pub fn get_API_REVISION() -> &CStr {
+//    CStr::from_bytes_with_nul(raw::VL53L5CX_API_REVISION).unwrap()
+//}
+//pub const API_REVISION_RAW: &[u8] = raw::VL53L5CX_API_REVISION;
 
 /**
-* Document tbd.
+* Reads the device and revision id's (does not publicize them) over I2C, and if they are as expected,
+* considers the device to be "alive".
 */
+// Note: We could _easily_ recreate this in Rust, instead of resorting to FFI. And get some debugging
+//      benefit in the process?
+//
 pub fn vl53l5cx_is_alive(cfg: &VL53L5CX_Configuration) -> Result<bool> {
     let mut buf: u8 = 0;    // written 1 (alive) or 0
-    match raw::vl53l5cx_is_alive(cfg, &mut buf) {
+    match unsafe { raw::vl53l5cx_is_alive(cfg, &mut buf) } {
         ST_OK => Ok(buf != 0),
-        st => Error(st)
+        st => Err(st)
     }
 }
 
@@ -51,9 +66,9 @@ pub fn vl53l5cx_is_alive(cfg: &VL53L5CX_Configuration) -> Result<bool> {
  */
 pub fn vl53l5cx_init(cfg: &mut VL53L5CX_Configuration) -> Result<()> {
 
-    match raw::vl53l5cx_init(cfg) {
+    match unsafe { raw::vl53l5cx_init(cfg) } {
         ST_OK => Ok(()),
-        st => Error(st)
+        st => Err(st)
     }
 }
 
@@ -76,9 +91,9 @@ pub fn vl53lcx_set_i2c_address(cfg: &VL53L5CX_Configuration, addr: I2C_Address) 
  **/
 pub fn vl53lcx_get_power_mode(cfg: &VL53L5CX_Configuration) -> Result<PowerMode> {
     let buf: u8 = 0;
-    match raw::vl53l5cx_get_power_mode(cfg, &buf) {
+    match unsafe { raw::vl53l5cx_get_power_mode(cfg, &buf) } {
         ST_OK => Ok( PowerMode::from(buf) ),
-        st => Error(st)
+        st => Err(st)
     }
 }
 

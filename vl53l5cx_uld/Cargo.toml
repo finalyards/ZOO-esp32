@@ -6,6 +6,14 @@ publish = false
 [dependencies]
 # nada
 
+[dev-dependencies]
+assert_cfg = "0.1.0"    # used in samples
+esp-println      = { version = "0.10.0", default-features = false, features = ["defmt-espflash", "jtag-serial"
+    , "esp32c3"     # IF using other chip, change here (tbd. any better way to do it?  Makefile + env.vars?
+                    # Don't want to introduce mcu-specific 'feature' if the actual code doesn't use them.
+] }    # + {mcu}
+defmt = "0.3.8"
+
 [build-dependencies]
 itertools = "0.13.0"
 
@@ -33,4 +41,13 @@ motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
 # Raw (firmware) format: raw numbers, "provides better accuracy".
 use_raw_format=[]       # VL53L5CX_USE_RAW_FORMAT
 
-default = ["nb_target_detected", "target_status"]
+# tbd. document; other alternatives; see in 'build.rs' they don't overlap
+targets_per_zone_1=[]
+
+default = [
+    "nb_target_detected", "target_status",  # recommended by vendor (we could even stop exposing them as features?)
+    "targets_per_zone_1"
+]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(todo)', 'cfg(disabled)'] }

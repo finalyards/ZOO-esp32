@@ -1,9 +1,9 @@
 /*
 * Plain interfaces cannot be copyrighted, so placed this code verbatim.
 */
+#pragma once
 #ifndef _PLATFORM_H_
 #define _PLATFORM_H_
-#pragma once
 
 #include <stdint.h>
 #include <string.h>
@@ -21,14 +21,6 @@ typedef struct {
     // platform specific fields
     // Note: This is being placed as-is into 'VL53L5CX_Configuration', on the C side.
 } VL53L5CX_Platform;
-
-/*
- * @brief The macro below is used to define the number of target per zone sent
- * through I2C. This value can be changed by user, in order to tune I2C
- * transaction, and also the total memory size (a lower number of target per
- * zone means a lower RAM). The value must be between 1 and 4.
- */
-#define 	VL53L5CX_NB_TARGET_PER_ZONE		1U
 
 /**
  * @param (VL53L5CX_Platform*) p_platform : Pointer of VL53L5CX platform
