@@ -27,7 +27,7 @@ fn main() {
 
     // Following vendor example
     //
-    let pl = MyPlatform::new();
+    let pl = MyPlatform::new(0x52);     // default I2C address
 
     let dev = VL53L5CX::new(pl)
         .expect("Could not initialize the sensor");

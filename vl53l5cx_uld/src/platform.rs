@@ -1,7 +1,6 @@
 /*
 * The platform object, handling ULD <-> hardware interactions.
 */
-#![no_std]
 #![allow(non_snake_case)]
 
 //use crate::Result;  // 'core::result::Result<_,u8>'
@@ -31,8 +30,9 @@ pub extern "C" fn VL53L5CX_RdByte(
     addr: u16,          // VL index
     p_value: *mut u8
 ) -> u8 {
-    match pt.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) }) {
-        Ok(v) => ST_OK,
+    let p = unsafe{ &mut *pt };
+    match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) }) {
+        Ok(()) => ST_OK,
         Err(_) => ST_ERR
     }
 }
@@ -48,7 +48,8 @@ pub extern "C" fn VL53L5CX_WrByte(
     addr: u16,      // VL index
     v: u8
 ) -> u8 {
-    match pt.wr_bytes(addr, &[v]) {
+    let p = unsafe{ &mut *pt };
+    match p.wr_bytes(addr, &[v]) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
     }
@@ -67,7 +68,8 @@ pub extern "C" fn VL53L5CX_RdMulti(
     p_values: *mut u8,
     size: u32   // size_t
 ) -> u8 {
-    match pt.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
+    let p = unsafe{ &mut *pt };
+    match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
     }
@@ -86,7 +88,8 @@ pub extern "C" fn VL53L5CX_WrMulti(
     p_values: *mut u8,  // *u8 (const)
     size: u32   // actual values fit 16 bits; size_t
 ) -> u8 {
-    match pt.wr_bytes(addr, unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
+    let p = unsafe{ &mut *pt };
+    match p.wr_bytes(addr, unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
     }
@@ -122,11 +125,9 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; n
 /// @return (uint8_t) status : 0 if wait is finished
 #[no_mangle]
 pub extern "C" fn VL53L5CX_WaitMs(pt: *mut impl Platform, time_ms: u32) -> u8 {
+    assert!(time_ms <= 100, "Unexpected long wait: {}ms", time_ms);    // we know from the C code there's no >100
 
-    if time_ms > 100 {
-        panic!("Unexpected long wish for wait: {}ms", time_ms);     // we know from the C code there's no >100
-    }
-
-    pt.delay_ms(time_ms);
+    let p = unsafe{ &mut *pt };
+    p.delay_ms(time_ms);
     0
 }

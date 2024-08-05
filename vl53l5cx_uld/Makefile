@@ -61,10 +61,6 @@ tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/*.h $(_OTHER_INCS) Cargo.toml
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
-tmp/wrap.o: wrap.c wrap.h $(_C_SRC)/*.h $(_OTHER_INCS) Cargo.toml
-	@echo $<
-	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
-
 #---
 # Patch ST.com sources from './VL53LCX_ULD_API/**' to 'tmp/c_src/'
 #
@@ -108,7 +104,7 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 	  | sed s/TimeMs/time_ms/ \
 	  | sed s/RegisterAdress/register_address/ > $@
 
-# 'vl53l5cx_api.h' conversion is automatic (changes to 'src/uld_raw.rs' WILL BE LOST; modify this instead)
+# Generates 'src/uld_raw.rs'. MANUAL CHANGES TO IT WILL BE LOST; modify this instead.
 #
 # About 'bindgen' (v.0.69.4):
 #	- prints errors to stdout, which is .... a bit unkind.
@@ -116,35 +112,46 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 #		<<
 #			define VL53L5CX_RESOLUTION_4X4			((uint8_t) 16U)
 #		<<
-#	  If, instead, we turn those to:
-#			const uint8_t VL53L5CX_RESOLUTION_4X4 = 16;
-#	  ..there is no problem.
+#		As a countermeasure, we declare 'consts' in 'wrap.h'.
 #
-# Note:
+# WEIRD:
 #	The author didn't get '--blocklist-file' to work. It didn't deny the functions in 'platform.h' - but that's just 8 names.
+#	Work-around:
+#		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
 #
-src/uld_raw.rs: wrap-wrap.h wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
-	rustup run stable \
+#	Similarly, '--allowlist-file {file}.h' _DID NOT WORK_ when applied to a file included from 'wrap.h'.
+#	Work-around:
+#		keep all wrapping (also enums) in one file (good anyhow)
+#
+# tbd. Is there a way to steer Rust enum "width" to '#[repr(u8)]' (or omit it)?  Now '#[repr(u32)'.
+#
+src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
 	  bindgen $< \
-		--allowlist-file $< \
-		--allowlist-file 'wrap.h' \
+	    --allowlist-file wrap.h \
+	    --allowlist-type 'VL53L5CX_.+' \
+	    --allowlist-function 'vl53l5cx_.+' \
+	    --allowlist-item 'API_REVISION' \
+	    \
+	    --blocklist-function 'vl53l5cx_is_alive' \
 	    --use-core \
 	    --default-enum-style rust \
-	    --raw-line '#![no_std]' \
 	    --raw-line '#![allow(non_camel_case_types)]' \
 	    --raw-line '#![allow(non_snake_case)]' \
-	    --must-use-type STATUS \
 	    -- -I. -I$(_C_SRC) \
-	  | sed s/VL53L5CX_Platform/Platform/ \
 	  > $@
 
-#R		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
+#		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
+#		--allowlist-item 'VL53L5CX_.+' \
+#R  	--allowlist-var 'VL53L5CX_.+' \
+#R	  | sed s/VL53L5CX_Platform/Platform/ \
 
 # Test for the above (for development, only)
 x: src/uld_raw.rs
+	grep -q API_REVISION $<
 	grep -q DEFAULT_I2C_ADDRESS $<
-	grep -q 'pub enum POWER_MODE' $<
-	grep -q 'static VL53L5CX_FIRMWARE' $<
+	grep -q 'pub enum PowerMode' $<
+	grep -vq 'static VL53L5CX_FIRMWARE' $<
+	grep -vq vl53l5cx_is_alive $<
 	grep -vq VL53L5CX_RdByte $<
 	@#
 	@echo ""

@@ -3,15 +3,13 @@ extern crate vl53l5cx_uld as uld;
 
 use uld::Platform;
 
+extern "C"
 pub struct MyPlatform {
     // would have something on I2C, in a real app
 }
 
 impl MyPlatform {
-    pub fn new() -> Self {
-        // use the default 'xxx' I2C address
-        let _i2c_addr = 0x52;
-
+    pub fn new(_i2c_addr: u8) -> Self {
         Self{
             // tbd.
         }
