@@ -3,18 +3,25 @@
 This folder is for getting things started.
 
 
-## Dev - check toolchain
+## Running..
 
 ```
 $ CHIP=esp32c3 make ellie
 ```
 
 - Should compile
-- Uses Embassy
-- Does not use hardware sensors, at all
+- Uses Embassy (`.await`)
+- Does not use hardware sensors, at all.
 
 ```
 $ CHIP=esp32c3 make ellie-run
+probe-rs run --chip esp32c3 --log-format '{L} {s}' target/riscv32imc-unknown-none-elf/release/ellie
+      Erasing ✔ [00:00:02] [################################################################################################] 192.00 KiB/192.00 KiB @ 89.29 KiB/s (eta 0s )
+  Programming ✔ [00:00:10] [###################################################################################################] 27.06 KiB/27.06 KiB @ 2.47 KiB/s (eta 0s )    Finished in 10.9757595s
+INFO  Embassy initialized!
+INFO  Bing!
+DEBUG Bong!
+...
 ```
 
 
@@ -27,56 +34,24 @@ $ CHIP=esp32c3 make ellie-run
 
 ## Logging
 
-Logging is a bit more complex in ESP32 than it would need to be..
+The author struggled quite a bit, initially, with ESP32 logging.
 
-![](.images/defmt_et_al.png)
+There is no real problem. [`defmt`](https://defmt.ferrous-systems.com) is a tremendous ecosystem for embedded, and one we can use, unoptionally.
 
-<!-- original in: ../.excalidraw/ -->
-
-**log** is a Rust standard logging library. It can be used in Embassy via `esp_println/log` feature.
-
-**defmt** is a "highly efficient" logging infrastructure made for embedded use, by Ferrous Systems. It can be used either stand-alone, or via `esp_println/defmt` feature.
-
-**esp_println** is a crate provided by Espressif. It doesn't make much sense to use it as-is (its application API doesn't provide logging levels, for example), but since it ties to `log` and `defmt`, perhaps..?
-
-**defmt_rtt** is a "real time transfer" protocol, part of the `defmt` ecosystem. Exactly what benefit it provides over plain use of `defmt` is still a bit open to the author..
-
-||`esp32c3`|`esp32c6`|receiving side|
-|---|---|---|---|
-|`esp_println` + `log` (+ `defmt`)|works|...tbd...|`espflash` (and/or `probe-rs run`??)|
-|`defmt` + `defmt_rtt`|logs don't show if `.await` is used(*)|works|`probe-rs run` only (for RTT)|
-
-`(*)`: <small>*And what's the point of Embassy without `.await`.*</small>
-
-### Reading on logging
-
-- ["defmt, a highly efficient Rust logging framework for embedded devices"](https://ferrous-systems.com/blog/defmt) (blog, Aug'20; Ferrous Systems)
-
-	*deferred formatting* = it passes the task of formatting log strings from embedded to the receiving host
-
-	>`defmt`: To implement `Format` for user-defined types (structs or enums) use the `#[derive(Format)]` attribute
-
-	<span />
-
-	<!--
->there are formatting parameters for some primitives: e.g. `{:u8}`, `{:bool}`. Prefer these parameters for primitives as they compress the data better.
-	-->
-
-### Open issues!
-
-- [ ] Does `espflash monitor` receive `defmt` - or do we always need to have `probe-rs` there?
+The problem was that the `probe-rs` host-side software needed to be "fixed" (more like hacked..) for better [C2/C3 compatibility](https://github.com/probe-rs/probe-rs/pull/2748).
 
 
-### Pros / cons
+>**TL;DR**
 
-||pros|cons|
-|---|---|---|
-|`probe-rs`|Cool! Would LOVE to use it!|Doesn't work with `riscv32imc` (no `a`=atomic extension) chips :(|
-|`defmt`|parsed at the receipient; lighter on the chip||
-|`deftm-rtt`|??|??|
-|`log`|standard formatting|heavier on the chip|
+<span />
 
+>To implement `Format` for user-defined types (structs or enums) use the `#[derive(Format)]` attribute. No need for std `Display` and `Debug`.
 
-### Hints
+<span />
 
+>There are formatting parameters for some primitives: e.g. `{:u8}`, `{:bool}`. Prefer these parameters for primitives as they compress the data better.
+
+## Debugging
+
+**tbd.**
 

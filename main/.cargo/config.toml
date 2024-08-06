@@ -5,11 +5,26 @@
 #
 
 [build]
-# RISC V
 rustflags = [
     # Required to obtain backtraces, however it may negatively impact the performance of your application.
+    #
+    # Note: Interesting discussion in:
+    #   - "`force-frame-pointers` flag isn't honored always unless std is recompiled as such"
+    #       -> https://github.com/rust-lang/rust/issues/103711 (GitHub Issues; [closed])
+    #
+    # - [ ] Is there (really not) a way to provide this in 'build.rs' or 'Cargo.toml'?
+    #
     "-C", "force-frame-pointers",
 ]
 
-[unstable]
-build-std = ["core"]
+# [ ] '[unstable]' is said to be nightly only [1]. How come we should have this, when/if we work on stable only?
+#
+#   [1]: https://doc.rust-lang.org/cargo/reference/unstable.html
+#
+#       "[...] compile the standard library from source code using the same profile as the main build itself."
+#       "you need to have the source code for the standard library available, [...] 'rustup component add rust-src'"
+#       "[...] implicitly compile the stable crates 'core', 'std', 'alloc', and 'proc_macro'"
+#
+# v-- test to disable it; what happens?
+#[unstable]
+#build-std = ["core"]

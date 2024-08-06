@@ -1,22 +1,14 @@
 //! ellie.rs
 //!
-//! WIP: small moves, Ellie!!
-
+//! General testbed for targeting C3/C6.  Not specific to external hardware.
 #![no_std]
 #![no_main]
 
-#[cfg(feature = "log2")]
+#[cfg(feature = "defmt-rtt")]
 #[warn(unused_imports)]
 use {
     defmt::{debug, info},
     defmt_rtt as _
-};
-
-#[cfg(feature = "log1")]
-#[warn(unused_imports)]
-use {
-    esp_println::logger::init_logger_from_env,
-    log::{debug, info}
 };
 
 use embassy_executor::Spawner;
@@ -27,14 +19,10 @@ use esp_hal::{
     peripherals::Peripherals,
     prelude::*,
     system::SystemControl,
-    timer::{timg::TimerGroup, OneShotTimer},
+    timer::{timg::TimerGroup, OneShotTimer, ErasedTimer},
 };
 
-// 'stable' (not nightly) way of creating statics
-use {
-    static_cell::StaticCell,
-    esp_hal::timer::ErasedTimer
-};
+use static_cell::StaticCell;
 
 // 'stable' way to make this - 'static_cell::make_static' requires 'nightly'.
 // tbd. HOPEFULLY there's a stable, non-macro way, soonish (< 2030)=?
@@ -49,9 +37,6 @@ macro_rules! mk_static {
 
 #[main]
 async fn main(_spawner: Spawner) {
-    #[cfg(feature = "log1")]
-    init_logger_from_env();
-
     let peripherals = Peripherals::take();
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
@@ -70,14 +55,11 @@ async fn main(_spawner: Spawner) {
         |ms| { d.delay_millis(ms); }
     };
 
-    /*loop*/ {
+    loop {
         info!("Bing!");
         Timer::after(Duration::from_millis(3_000)).await;   // async wait
 
         debug!("Bong!");
         delay_ms(1000);     // sync wait
     }
-
-    app::exit();
-    //panic();
 }

@@ -7,7 +7,8 @@ rust-version = "1.80"
     # 1.77.0 provides `cargo::` syntax for build script output instructions
 publish = false
 
-# Profiles are *so* important for (at least the compilation speed), they deserve to be here!
+# Profiles are important for (at least the compilation speed); they deserve to be up here!
+#
 [profile.dev]
 opt-level = "z"
     # 1: "basic" optimizations
@@ -27,39 +28,23 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 
 [dependencies]
-# 'log2' feature:
 defmt            = { version = "0.3.8", optional = true }
 defmt-rtt        = { version = "0.4.1", optional = true }
-
-# 'log1' feature:
-esp-println      = { version = "0.10.0", features = ["log"], optional = true }  # +{mcu}
-log              = { version = "0.4.22", optional = true }
-
-embassy-executor = { version = "0.5.0", features = [] }      # +"task-arena-size-xxx" (for stable); +"defmt"
+embassy-executor = { version = "0.5.0" }      # +"task-arena-size-xxx" (for stable, C3); +"defmt"
 embassy-time     = { version = "0.3.1",  features = ["generic-queue-8"] }
 #esp-alloc           = { version = "0" }
-esp-backtrace    = { version = "0.13.0", features = ["exception-handler", "panic-handler"] }   # mcu as feature, +"defmt"
-esp-hal          = { version = "0.19.0", features = ["async"] }                                # mcu as feature, +"defmt"
-esp-hal-embassy  = { version = "0.2.0",  features = [] }                                       # mcu as feature, +"defmt"
+esp-backtrace    = { version = "0.13.0", features = ["exception-handler", "panic-handler"] }   # +{mcu}, +"defmt"
+esp-hal          = { version = "0.19.0", features = ["async"] }                                # +{mcu}, +"defmt"
+esp-hal-embassy  = { version = "0.2.0",  features = [] }                                       # +{mcu}, +"defmt"
 #esp-hal-smartled    = { version = "0.11.0", optional = true }
 static_cell      = { version = "2.1.0" }
-#D vl53l5cx_uld    = { path = "../uld" }
-    #
-    # tbd. we cannot name it 'uld', right - it might need to be published (and we cannot publish sub-crates along
-    #       the crate itself, can we?) #later
 
 [build-dependencies]
 esp-build = "0.1.0"     # 'build.rs' uses it
 
 [features]
-esp32c3 = [
-    "esp-backtrace/esp32c3", "esp-hal/esp32c3", "esp-hal-embassy/esp32c3",
-    "esp-println?/esp32c3"
-]
-esp32c6 = [
-    "esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6",
-    "esp-println?/esp32c6"      # 'esp32c6' could always use 'log2'
-]
+esp32c3 = ["esp-backtrace/esp32c3", "esp-hal/esp32c3", "esp-hal-embassy/esp32c3"]
+esp32c6 = ["esp-backtrace/esp32c6", "esp-hal/esp32c6", "esp-hal-embassy/esp32c6"]
 
 # 'nightly' has some benefits over stable (as of 1-Aug-24), but we don't currently see a reason to bring in the heavier
 # toolchain.
@@ -70,8 +55,8 @@ non_nightly = [
     # ignored for 'nightly'; see -> https://github.com/embassy-rs/embassy/blob/main/embassy-executor/README.md#task-arena-size
 ]
 
-# 'defmt' based (directly); with 'probe-rs run' <<-- DOES NOT work on ESP32-C3!
-log2 = [
+# 'defmt-rtt' with 'probe-rs run'
+defmt-rtt = [
     "dep:defmt",
     "dep:defmt-rtt",
       #
@@ -80,58 +65,12 @@ log2 = [
     "esp-hal/defmt",
     "esp-hal-embassy/defmt",
 ]
+#log2 = ["defmt-rtt"]   # alias
 
-# esp_println based
-log1 = [
-    "dep:esp-println",
-        "esp-println/log",
-        "esp-println/colors",
-        "esp-println/defmt-espflash",
-    "dep:log",
-      #
-    "esp-backtrace/println",
-    "esp-hal-embassy/log",
-      # Since (if) we use 'esp-println/defmt-espflash'???
-    "embassy-executor/defmt",
-    #"esp-backtrace/defmt",
-    "esp-hal/defmt",
-    #"esp-hal-embassy/defmt",
-]   # Messy? No? ;)=
+default = ["non_nightly", "defmt-rtt"]
 
-default = ["non_nightly"]
 
-# Passing through the underlying ULD features, so our dependents can switch them on/off at whim.
-#D ambient_per_spad=[      "vl53l5cx_uld/ambient_per_spad" ]       # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
-#D nb_spads_enabled=[      "vl53l5cx_uld/nb_spads_enabled"]        # VL53L5CX_DISABLE_NB_SPADS_ENABLED
-#D nb_target_detected=[    "vl53l5cx_uld/nb_target_detected"]      # VL53L5CX_DISABLE_NB_TARGET_DETECTED // recommended by vendor docs
-#D signal_per_spad=[       "vl53l5cx_uld/signal_per_spad"]         # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
-#D range_sigma_mm=[        "vl53l5cx_uld/range_sigma_mm"]          # VL53L5CX_DISABLE_RANGE_SIGMA_MM
-#D distance_mm=[           "vl53l5cx_uld/distance_mm"]             # VL53L5CX_DISABLE_DISTANCE_MM
-#D target_status=[         "vl53l5cx_uld/target_status"]           # VL53L5CX_DISABLE_TARGET_STATUS    // recommended by vendor docs
-#D reflectance_percent=[   "vl53l5cx_uld/reflectance_percent"]     # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
-#D motion_indicator=[      "vl53l5cx_uld/motion_indicator"]        # VL53L5CX_DISABLE_MOTION_INDICATOR
-
-# Raw (firmware) format: raw numbers, "provides better accuracy".
-#D use_raw_format=[        "vl53l5cx_uld/use_raw_format"]          # VL53L5CX_USE_RAW_FORMAT
-
-# We don't need to reflect the C driver defaults. These are what seems to be making sense in Rust-land.
-#D default = [
-#D     "ambient_per_spad",
-#D     "nb_spads_enabled",
-#D     "nb_target_detected",
-#D     "signal_per_spad",
-#D     "range_sigma_mm",
-#D     "distance_mm",
-#D     "target_status",
-#D     "reflectance_percent"
-#D     #"motion_indicator"     # <<-- why is this feature available, even without "motion" (C level) plugin? tbd.
-#D ]
-
-# Rust 1.80 brings more strict cfg checking. This is where we relax it.
-#
-#   tbd. learn how to steer it! :/
-#   Follow:
-#       - https://github.com/rust-lang/rust/issues/124735
+# To conditionally comment-out blocks
 #
 #[lints.rust]  # needs 'rustc' 1.80
-#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature = "esp32h2")'] }
+#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(values = "//")'] }

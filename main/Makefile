@@ -3,25 +3,17 @@
 #
 CHIP?=esp32c6
 PROFILE?=release
-LOG_LEVEL:=debug
+DEFMT_LOG:=debug
 
 ifneq (,$(findstring $(CHIP),esp32c3 ..))
   TARGET:=riscv32imc-unknown-none-elf
-  DEFMT_RTT?=
 else ifneq (,$(findstring $(CHIP),esp32c6 ..))
   TARGET:=riscv32imac-unknown-none-elf
-  DEFMT_RTT?=1
 else
   $(error Unknown 'CHIP': "$(CHIP)")
 endif
 
-ifdef DEFMT_RTT
-  LOG_FEATURE:=log2
-  LOG_ENV:=DEFMT_LOG=$(LOG_LEVEL)
-else
-  LOG_FEATURE:=log1
-  LOG_ENV:=ESP_LOGLEVEL=$(LOG_LEVEL)	# for 'init_logger_from_env()'
-endif
+LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
 _APP:=ellie
 
@@ -35,12 +27,8 @@ else
   $(error Unknown 'PROFILE': "$(PROFILE)")
 endif
 
-null  :=
-space := $(null) #
-comma := ,
-
-_FEATURES_CSL := $(subst $(space),$(comma),$(strip $(CHIP) $(LOG_FEATURE)))
-	# comma separated
+_FEATURES_CSL:=$(CHIP)
+ 	# comma separated
 
 all:
 	@false
@@ -58,14 +46,8 @@ $(_APP_BIN): src/bin/*.rs Makefile Cargo.toml .cargo/config.toml ./build.rs
 	@test -f $@
 
 ellie-run: $(_APP_BIN)
-ifeq ($(CHIP),esp32c3)
-	$(warn 'probe-rs run' won't work for '$(CHIP)' if there's '.await' in the code)
-endif
 	probe-rs run --chip $(CHIP) --log-format '{L} {s}' $<
 		# for log format, see -> https://defmt.ferrous-systems.com/custom-log-output
-
-ellie-run2: $(_APP_BIN)
-	espflash flash --monitor $<
 
 _clean:
 	-cargo clean
@@ -74,4 +56,4 @@ echo:
 	@echo X
 
 #---
-.PHONY: all ellie ellie-run ellie-run2 _clean echo
+.PHONY: all ellie ellie-run _clean echo

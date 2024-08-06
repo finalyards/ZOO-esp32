@@ -14,11 +14,9 @@ fn main() {
     // These get printed as 'cargo::rustc-link-arg=...'
     #[allow(unused_mut)]
     let mut rlas: Vec<&str> = vec!(
-        "-Tlinkall.x"
+        "-Tlinkall.x",
+        "-Tdefmt.x"     // something special required by 'defmt'
     );
-
-    //#[cfg(feature = "log2")]
-    rlas.push("-Tdefmt.x");     // now always linked; if 'log1' also uses 'defmt'
 
     /*** #[allow(unexpected_cfgs)]   // otherwise warns if 'xtensa' toolchain isn't installed
     #[cfg(target_arch = "xtensa")]
@@ -53,7 +51,6 @@ fn main() {
     rlas.push("-Trom_functions.x");
     */
 
-    // #screw it - ENABLE IF YOU HAVE ANY PUSHES ABOVE!!!
     rlas.iter().for_each(|s| {
         println!("cargo::rustc-link-arg={}", s);
     });
