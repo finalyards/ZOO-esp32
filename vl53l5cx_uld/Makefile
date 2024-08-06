@@ -125,6 +125,22 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 #
 # tbd. Is there a way to steer Rust enum "width" to '#[repr(u8)]' (or omit it)?  Now '#[repr(u32)'.
 #
+# Enums:
+#	The 'sed' changes:
+#		<<
+#			#[repr(u32)]
+#			#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#			pub enum ... {
+#		<<
+#	into:
+#		<<
+#			#[repr(u32)]
+#			#[derive(FromRepr, Debug, Copy, ...)]
+#			pub enum ... {
+#		<<
+#
+#	This allows 'strum' to be used, for 'MyEnum::from_repr(<int>)', which is handy.
+#
 src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
 	  bindgen $< \
 	    --allowlist-file wrap.h \
@@ -137,13 +153,10 @@ src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_
 	    --default-enum-style rust \
 	    --raw-line '#![allow(non_camel_case_types)]' \
 	    --raw-line '#![allow(non_snake_case)]' \
+		--raw-line 'use strum::FromRepr;' \
 	    -- -I. -I$(_C_SRC) \
+	  | sed s/#[repr(u32)]/Platform/ \
 	  > $@
-
-#		--blocklist-function 'VL53L5CX_?(RdByte|WrByte|RdMulti|WrMulti|Reset_Sensor|SwapBuffer|WaitMs)' \
-#		--allowlist-item 'VL53L5CX_.+' \
-#R  	--allowlist-var 'VL53L5CX_.+' \
-#R	  | sed s/VL53L5CX_Platform/Platform/ \
 
 # Test for the above (for development, only)
 x: src/uld_raw.rs

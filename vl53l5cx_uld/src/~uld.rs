@@ -125,13 +125,6 @@ pub fn vl53lcx_get_power_mode(cfg: &VL53L5CX_Configuration) -> Result<PowerMode>
 //vl53l5cx_dci_replace_data // no benefit over separate read + write
 
 
-//---
-
-impl PowerMode {
-    fn from(v: u8) {
-        Self(v)
-    }
-}
 
 //#[test]
 //...that 'API_REVISION' is without terminating '\0'.

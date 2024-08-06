@@ -1,6 +1,8 @@
 # TRACK
 
-## `probe-rs` support(?) for `esp32c3`
+## `probe-rs` support for `esp32c3`
+
+- [""Fix" ESP32-C2 and ESP32-C3"](https://github.com/probe-rs/probe-rs/pull/2748)
 
 - ["Flashing esp32-s3 with probe-rs causes flash algorithm verification fail"](https://github.com/probe-rs/probe-rs/issues/2338) (probe-rs GitHub)
 

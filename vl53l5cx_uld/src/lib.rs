@@ -5,18 +5,23 @@ mod platform;
 
 mod uld_raw;
 
-use core::ffi::{c_void, CStr};
+use core::ffi::{/*c_void,*/ CStr};
 use core::{mem, pin};
+use core::ptr::addr_of_mut;
 use uld_raw::{
     VL53L5CX_Configuration,
     vl53l5cx_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
+    vl53l5cx_get_power_mode,
+    vl53l5cx_set_power_mode,
+    vl53l5cx_start_ranging,
+    PowerMode,
+    VL53L5CX_Platform
 };
 
 use defmt::{debug, warn};
 use mem::MaybeUninit;
 use pin::{Pin, pin};
-use crate::uld_raw::PowerMode;
 
 pub type Result<T> = core::result::Result<T,u8>;
 
@@ -36,27 +41,55 @@ impl Default for VL53L5CX_Configuration {
     }
 }
 
-pub struct VL53L5CX<'a, P: Platform> {
-    pl: Pin<&'a mut P>,   // lifespan equals that of 'Self'
+impl VL53L5CX_Configuration {
+    fn prep<P: Platform>(p: P) -> Self {
+        let need = size_of::<P>();
+        let have_prefix = size_of::<VL53L5CX_Platform>();
+        assert!(need <= have_prefix);
 
-    // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
-    // "device"), in the form of the "configuration" struct. It's not really (only) configuration.
-    // It's a handle/bundle that also carries the 'VL53L5CX_Platform' within it, used for the ULD
-    // code to reach back to the app level, for MCU hardware access - I2C and delays). Somewhat
-    // peculiar API design. 'cfg' can be read, but we "MUST not manually change these field[s]".
+        let mut o = VL53L5CX_Configuration::default();
+
+        // *move* 'p' to the reserved space, in the beginning of the '..._Configuration' struct
+        unsafe {
+            //let rp: &mut P = &o as &mut P;    // didn't cut it
+            let rp: *mut P = addr_of_mut!(o) as _;
+            *rp = p;
+        }
+        o
+    }
+}
+
+// DO NOT move it.
+//
+//impl !Unpin for VL53L5CX_Configuration {}
     //
-    // In this API, the whole 'cfg' is kept private, to enforce the read-only nature.
+    // gives (stable, 1.80.0): error[E0658]: negative trait bounds are not yet fully implemented; use marker types for now
+
+// Note: Cannot add 'PhantomPinned' field to an existing (C) struct 'VL53L5CX_Configuration'.
+//
+//  tbd. How to ensure it doesn't get moved, despite our 'pin!()'. 🤞
+
+pub struct VL53L5CX<'a> {
+    // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
+    // "device"), in the form of the "configuration" struct. It's not really configuration;
+    // more of a driver "heap" where all the state, and also temporary memory buffers exist.
+    // The good part of this arrangement is, we have separate state for >1 drivers. :)
+    //
+    // The "state" also carries our 'Platform' struct within it, at the very head. The ULD
+    // code uses it to reach back to the app level, for MCU hardware access - I2C and delays.
+    // The "state" can be read, but we "MUST not manually change these field[s]". In this API,
+    // the whole "state" is kept private, to enforce the read-only nature.
     //
     cfg: Pin<&'a mut VL53L5CX_Configuration>,
 
     pub API_REVISION: &'a str,
 }
 
-impl<P: Platform> VL53L5CX<'_, P> {
+impl VL53L5CX<'_> {
     /** @brief Open a connection to a specific sensor; uses I2C (and delays) via the 'Platform'
     ** provided by the caller.
     **/
-    pub fn new(/*move*/ mut pl: P) -> Result<Self> {
+    pub fn new(/*move*/ mut pl: impl Platform) -> Result<Self> {
         let API_REVISION: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
             .to_str().unwrap();
 
@@ -68,23 +101,25 @@ impl<P: Platform> VL53L5CX<'_, P> {
             }
         };
 
-        let pl = pin!(pl);
-        let pl4c = unsafe { pl.get_mut() } as *mut c_void;
-
         debug!("aaa");
 
+        let tmp2 = VL53L5CX_Configuration::prep(/*move*/ pl);
+        let tmp = pin!(tmp2);
+
         let mut this = Self {
-            pl,
-            cfg: pin!(VL53L5CX_Configuration {
-                platform: pl4c,
-                ..VL53L5CX_Configuration::default()
-            }),
+            cfg: tmp,    //: pin!(VL53L5CX_Configuration::prep(/*move*/ pl)),
             API_REVISION
         };
 
+        _ = tmp2;
+
         debug!("bbb");
 
-        match unsafe { vl53l5cx_init( unsafe { this.cfg.get_mut() }) } {
+        // Need a C pointer to 'this.cfg' that can be passed (and left) to ULD C driver.
+        //
+        let p_cfg: *mut VL53L5CX_Configuration = unsafe { this.cfg.as_mut().get_unchecked_mut() };
+
+        match unsafe { vl53l5cx_init(p_cfg) } {
             0 => Ok(this),
             st => Err(st)
         }
@@ -101,10 +136,17 @@ impl<P: Platform> VL53L5CX<'_, P> {
     // Maintenance; special use
     //
     pub fn get_power_mode(&mut self) -> Result<PowerMode> {
-        unimplemented!()
+        let mut tmp: u8 = 0;
+        match unsafe { vl53l5cx_get_power_mode(self.cfg.get_unchecked_mut(), &mut tmp) } {
+            ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
+            e => Err(e)
+        }
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        unimplemented!()
+        match unsafe { vl53l5cx_set_power_mode(self.cfg.get_unchecked_mut(), v as u8) } {
+            ST_OK => Ok(()),
+            e => Err(e)
+        }
     }
 
     pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
@@ -138,3 +180,4 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> Result<(u8,u8)> {
 
     Ok( (buf[0], buf[1]) )
 }
+

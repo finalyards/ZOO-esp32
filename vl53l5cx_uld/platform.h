@@ -11,12 +11,27 @@
  *      Gets placed "as-is" (as value) into 'VL53L5CX_Configuration', in the vendor code,
  *      and a pointer to that "slot" is passed to customer-provided functions.
  *
- *      This is... a bit... weird.
+ *      What I could do:
+ *          Change the definition of 'VL53L5CX_Configuration' so that the 'platform' field
+ *          is an extension (empty array) as the *last* entry (now it's the first one).
+ *          + would allow us to define its contents within Rust
+ *          - would need patching the C sources (doable)
  *
- *      Instead of pointing a Rust struct within the C struct (could be done), we use
- *      an opaque void pointer as the binding between the two.
+ *      Or:
+ *          Define the *contents* of the 'VL.._Platform' here (in '.h'), so that both Rust
+ *          and vendor driver can read it (it's no longer opaque to the vendor driver, but
+ *          that doesn't matter).
+ *          + no patching of vendor C sources needed (for this)
+ *          - need to juggle between '.h' and Rust, if fields are changed
+ *
+ *      Or:
+ *          Skip trying to sync .h/Rust, and just consume enough *space* here, that the Rust
+ *          'Platform' contents fit in it.
+ *          + neat (though hack); is maintainable because we can automatically check ('sizeof') that the space is enough
  */
-typedef void *VL53L5CX_Platform;
+typedef struct {
+    uint8_t _reserve[10]   // space for Rust
+} VL53L5CX_Platform;
 
 /**
  * @brief Read a single byte.
