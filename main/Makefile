@@ -49,6 +49,10 @@ ellie-run: $(_APP_BIN)
 	probe-rs run --chip $(CHIP) --log-format '{L} {s}' $<
 		# for log format, see -> https://defmt.ferrous-systems.com/custom-log-output
 
+# Run without recompiling (even checking for) the binary; faster
+ellie-run!:
+	probe-rs run --chip $(CHIP) --log-format '{L} {s}' $(_APP_BIN)
+
 _clean:
 	-cargo clean
 
@@ -56,4 +60,4 @@ echo:
 	@echo X
 
 #---
-.PHONY: all ellie ellie-run _clean echo
+.PHONY: all ellie ellie-run ellie-run! _clean echo
