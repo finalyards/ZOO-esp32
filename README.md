@@ -6,6 +6,14 @@ The ST [VL53L5CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx
 
 This library aims to steer the sensor (multiple of them!) using `async` Rust via [Embassy](http://embassy.dev/).
 
+### Other projects / prior art
+
+- [`kriswiner/VL53L5CX`](https://github.com/kriswiner/VL53L5CX) (GitHub; 2021)
+- [`simondlevy/VL53L5CX`](https://github.com/simondlevy/VL53L5CX) (GitHub; 2021)
+
+	<!-- tbd.!!! Once public, mention to those two, especially Simon - he's worked on ESP32, at some point.
+-->
+
 ## Requirements (hardware)
 
 ### Parts
@@ -40,7 +48,7 @@ We airgap the electronics from the main development computer using USB/IP (anywa
 >Note: If you don't like using Multipass, you can try other approaches. Everything should work as long as you're in Linux VM (e.g. WSL2 on Windows). See the shell scripts within the `mp` repo to find out, how to install tooling. Using a VM sandboxes your development environment from your main account, which is the reason the author prefers it. If you do things differently, you are on your own. :)
 
 
-### Add `bindgen`
+### `bindgen`
 
 Install dependencies:
 
@@ -86,11 +94,17 @@ ESP32-C3-Devkit-C02 (revision 0.4)
 -->
 
 
-## Compilation (no hardware needed)
+## Compilation
 
-```
-$ cd main
-```
+*tbd.*  
+
+>You can play in the `vl53l5cx_uld` folder, for now.
+>
+>This one will add to that:
+>
+>- Embassy (`.await`)
+
+<!-- tbd. // once we have the topmost (Embassy) level in!
 
 ```
 $ cargo build --release \
@@ -115,11 +129,7 @@ Attach the hardware via USB/IP.
 >[...]
 >```
 ></details>
-
-```
-$ espflash flash --monitor target/riscv32imc-unknown-none-elf/debug/{tbd. name of binary}
-...
-```
+-->
 
 <!--
 ## Tests
@@ -141,11 +151,3 @@ etc..
 		<font size=5 color=red>⇫</font> The main API usage guide
 
 	- [Software licensing agreement](https://www.st.com/resource/en/license_agreement/dm00484327.pdf) (PDF, Feb'18; 5pp)
-
-### Other projects / prior art
-
-- [`kriswiner/VL53L5CX`](https://github.com/kriswiner/VL53L5CX) (GitHub; 2021)
-- [`simondlevy/VL53L5CX`](https://github.com/simondlevy/VL53L5CX) (GitHub; 2021)
-
-	<!-- tbd.!!! Once public, mention to those two, especially Simon - he's worked on ESP32, at some point.
--->

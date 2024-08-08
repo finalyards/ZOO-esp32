@@ -7,7 +7,7 @@ rust-version = "1.80"
     # 1.77.0 provides `cargo::` syntax for build script output instructions
 publish = false
 
-# Profiles are important for (at least the compilation speed); they deserve to be up here!
+# Profiles are important (for compilation speed); they deserve to be up here!
 #
 [profile.dev]
 opt-level = "z"
@@ -65,7 +65,6 @@ defmt-rtt = [
     "esp-hal/defmt",
     "esp-hal-embassy/defmt",
 ]
-#log2 = ["defmt-rtt"]   # alias
 
 default = ["non_nightly", "defmt-rtt"]
 

@@ -1,30 +1,53 @@
-use std::fs;
 use itertools::Itertools;
+use esp_build::assert_unique_used_features;
+#[allow(unused_imports)]
+use std::{env, fs, fmt::format};
 
 const FN: &str = "tmp/config.h";
+const MAKEFILE_INNER: &str = "Makefile.inner";
 
+/*
+* Note:
+*   There isn't (cargo 1.80.0) *any* way we can differentiate from within here, whether the cargo
+*   command was '--lib' or '--example'. The environments, for one, are IDENTICAL, except for a
+*   hash in 'OUT_DIR'.
+*
+*       - makes us need to have an 'EXAMPLES=1' env.var. from the command line, or _not_ need
+*         to differentiate between the two..
+*
+*   Could use that e.g. for enforcing 'defmt' as a default feature for all examples (but keep it
+*   optional, for the 'lib').
+*
+* References:
+*   - Environment variables set
+*       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+*/
 fn main() {
+    // Detect when IDE is running us:
+    //  - Rust Rover:
+    //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
+    //
+    #[allow(non_snake_case)]
+    let _IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
+
+    /*** disabled
+    if !_IDE_RUN {
+        // DEBUG: Show what we know about the compilation.
+        let tmp = env::vars().map(|(a, b)| format!("{a}={b}")).join("\n");
+
+        fs::write("err.log", tmp)
+            .expect("Unable to write a file");
+        panic!("!!")
+    }
+    **/
 
     //---
-    // Sanity checks - often some configs would be mutually dependent; see that they are used right
-    //          #placeholder
-    //
-    /*** disabled; always keeping them enabled
-    #[cfg(not(all(feature = "nb_target_detected", feature = "target_status")))]
-    {
-        println!("cargo::warning={}", "Vendor docs: \"To ensure data consistency, [vendor]
-                always recommends keeping the ‘number of targets detected’ and ‘target status’ enabled\".
-                Your features are missing one or both or these - is this intentional?"
-        );
-    }***/
+    // Config sanity checks
 
-    // 'targets_per_zone_{1234}' are mutually exclusive (tbd. support 2..4, some day; now only 1
-    // is needed).
-    #[cfg(not(feature = "targets_per_zone_1"))]
-    #[allow(unreachable_code)]
-    {
-        panic!("Must have one 'targets_per_zone_{{1234}}' feature enabled");
-    }
+    // Pick 1
+    assert_unique_used_features!(
+        "targets_per_zone_1",   // tbd. 2,3,4
+    );
 
     //---
     // Create a C config header, based on the features from 'Cargo.toml'.
@@ -63,16 +86,8 @@ fn main() {
         //#[cfg(feature = "targets_per_zone_4")]
         //defs.push("VL53L5CX_NB_TARGET_PER_ZONE 4U");
 
-        // NOT disabling these (unless we have a good reason). Vendor suggests to always have them enabled.
-        /*
-        [cfg(not(feature = "nb_target_detected"))]
-        defs.push("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
-        #[cfg(not(feature = "target_status"))]
-        defs.push("VL53L5CX_DISABLE_TARGET_STATUS");
-        */
-
         // Write the file. This way the last 'cargo build' state remains available, even if
-        // 'make' were run manually (compared to passing individual defines to the 'Makefile');
+        // 'make' were run manually (compared to passing individual defines to 'make');
         // also, it keeps the 'Makefile' simple.
         //
         let contents = defs.iter()
@@ -86,6 +101,7 @@ fn main() {
     // make stuff
     //
     let st = std::process::Command::new("make")
+        .arg("-f").arg(MAKEFILE_INNER)
         .arg("tmp/vendor_uld.a")    // ULD C library
         .arg("src/uld_raw.rs")      // generate the ULD Rust bindings
         .output()
@@ -94,7 +110,25 @@ fn main() {
 
     assert!(st.success(), "Running 'make' failed");    // shown if 'make' returns a non-zero
 
+    // Link arguments
+    //
+    // Note: Is it okay to do this in a lib crate?  We want it to affect at least the 'examples'.
+    {
+        #[allow(unused_mut)]
+        let mut link_args: Vec<&str> = vec!(    // 'mut' in case we wish to conditionally add stuff
+            "-Tlinkall.x",
+            "-Tdefmt.x"     // required by 'defmt'
+        );
+
+        link_args.iter().for_each(|s| {
+            println!("cargo::rustc-link-arg={}", s);
+        });
+    }
+
     // Link with 'tmp/vendor_uld.a'
     println!("cargo:rustc-link-search=tmp");
     println!("cargo:rustc-link-lib=vendor_uld");
+
+    // Allow using '#[cfg(disabled)]' for block-disabling code
+    println!("cargo::rustc-check-cfg=cfg(disabled)");
 }

@@ -30,7 +30,7 @@
  *          + neat (though hack); is maintainable because we can automatically check ('sizeof') that the space is enough
  */
 typedef struct {
-    uint8_t _reserve[10]   // space for Rust
+    uint8_t _reserve[10];   // space for Rust
 } VL53L5CX_Platform;
 
 /**

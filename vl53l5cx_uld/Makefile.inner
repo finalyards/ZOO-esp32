@@ -5,7 +5,7 @@
 #
 # Usage:
 #	<<
-#	  $ make [tmp/vendor_uld.a] [src/uld_raw.rs]
+#	  $ make -f Makefile.inner tmp/vendor_uld.a src/uld_raw.rs
 #	<<
 #
 # Requires:
@@ -40,6 +40,8 @@ _OBJ_PATH:=$(_TMP)/$(TARGET)
 _OTHER_INCS:=platform.h fake/*.h
 
 _TARGET_ARCH:=riscv32-unknown-elf
+
+_MAKEFILE_INNER:=$(MAKEFILE_LIST)	# Makefile.inner
 
 all:
 	@false
@@ -96,7 +98,7 @@ endif
 
 # 'platform.h' conversion was ever only used manually; the 'src/platform.rs' is based on it.
 #
-tmp/platform-raw.templ.rs: platform.h Makefile
+tmp/platform-raw.templ.rs: platform.h $(_MAKEFILE_INNER)
 	rustup run stable \
 	  bindgen $< --allowlist-function 'VL53L5CX_.+' \
 	    --opaque-type=VL53L5CX_Platform \
@@ -123,8 +125,6 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 #	Work-around:
 #		keep all wrapping (also enums) in one file (good anyhow)
 #
-# tbd. Is there a way to steer Rust enum "width" to '#[repr(u8)]' (or omit it)?  Now '#[repr(u32)'.
-#
 # Enums:
 #	The 'sed' changes:
 #		<<
@@ -141,7 +141,11 @@ tmp/platform-raw.templ.rs: platform.h Makefile
 #
 #	This allows 'strum' to be used, for 'MyEnum::from_repr(<int>)', which is handy.
 #
-src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Makefile Cargo.toml
+#	Note: 'sed' *can* do pattern-matching that spans multiple lines (we'd ideally take that 'pub enum' into
+#		the pattern and just change two parts), but that's complicated. In our case, dum, separate replacements
+#		do the trick.
+#
+src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) $(_MAKEFILE_INNER) Cargo.toml
 	  bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
@@ -155,7 +159,8 @@ src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_
 	    --raw-line '#![allow(non_snake_case)]' \
 		--raw-line 'use strum::FromRepr;' \
 	    -- -I. -I$(_C_SRC) \
-	  | sed s/#[repr(u32)]/Platform/ \
+	  | sed -e 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
+	  | sed -e 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Debug, Copy, Clone, Hash, PartialEq, Eq)/' \
 	  > $@
 
 # Test for the above (for development, only)
@@ -174,7 +179,7 @@ _clean:
 	cargo clean
 
 echo:
-	@echo X
+	@echo $(MAKEFILE_LIST)
 
 #--
 .PHONY: all _c_src_mkdir _clean echo

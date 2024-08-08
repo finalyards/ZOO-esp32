@@ -1,0 +1,17 @@
+[build]
+target = "riscv32imc-unknown-none-elf"      # change this by 'set-target.sh'
+
+rustflags = [
+    # Required to obtain backtraces, however it may negatively impact the performance of your application.
+    #
+    # Note: Interesting discussion in:
+    #   - "`force-frame-pointers` flag isn't honored always unless std is recompiled as such"
+    #       -> https://github.com/rust-lang/rust/issues/103711 (GitHub Issues; [closed])
+    #
+    # - [ ] Is there (really not) a way to provide this in 'build.rs' or 'Cargo.toml'?
+    #
+    "-C", "force-frame-pointers",
+]
+
+[target.riscv32imc-unknown-none-elf]
+runner = "probe-rs run --chip=esp32c3 --log-format '{L} {s}'"

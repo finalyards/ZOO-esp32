@@ -1,0 +1,69 @@
+#
+# This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
+#
+# Usage:
+#	$ CHIP={esp32c3|esp32c6} make [lib]
+#		# creates the library, for a specific target
+#
+#	$ CHIP={esp32c3|esp32c6} make {0-nada|...}
+#		# builds (and runs) a certain sample
+#
+CHIP?=	# you can write a default here
+		#CHIP?=esp32c6
+
+PROFILE?=release
+EXAMPLES_DEFMT_LOG:=debug
+
+ifneq (,$(findstring $(CHIP),esp32c3 ..))
+  TARGET:=riscv32imc-unknown-none-elf
+else ifneq (,$(findstring $(CHIP),esp32c6 ..))
+  TARGET:=riscv32imac-unknown-none-elf
+endif
+
+LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
+
+ifeq (dev,$(PROFILE))
+--PROFILE:=--profile dev
+else ifeq (release,$(PROFILE))
+--PROFILE:=--release
+else
+  $(error Unknown 'PROFILE': "$(PROFILE)")
+endif
+
+#R_FEATURES_CSL:=$(CHIP)
+# 	# comma separated
+
+# List names of 'examples/[0-9]+-*.rs'
+EXAMPLE_NAMES:=$(notdir $(basename \
+	$(wildcard examples/[0-9]*.rs) $(wildcard examples/[0-9][0-9]-*.rs) ))
+
+all: lib
+
+lib: | mustTARGET
+	cargo build $(--PROFILE) --lib --target=$(TARGET)
+
+	# We don't need to provide the logging level for 'lib', right?  Every app who'd depend on it will set their own.
+	#	tbd. is this correct?
+
+# Note: Usually, people define a 'runner' in '.cargo/config.toml', but that doesn't allow being steered by an env.var.
+#		('$CHIP'), or a feature. If it did, we could define the right runner there (it needs the '--chip' parameter).
+#		Waiting for that, here goes:
+#
+$(EXAMPLE_NAMES): | mustCHIP mustTARGET
+	$(LOG_ENV) cargo build $(--PROFILE) --example $@ --features=examples-$(CHIP),examples-default --target=$(TARGET)
+	probe-rs run --chip=$(CHIP) --log-format '{L} {s}' $@
+
+mustTARGET:
+	@[ -n '$(TARGET)' ] || ( echo >&2 "ERROR: Unknown CHIP: '$(CHIP)'"; false )
+		@# complain about 'CHIP', since it drives the 'TARGET'
+
+mustCHIP:
+	@[ -n '$(CHIP)' ] || ( echo >&2 "ERROR: Unknown CHIP: '$(CHIP)'"; false )
+
+_clean:
+	-cargo clean
+
+echo:
+	@echo $(EXAMPLE_NAMES:=:build) $(TARGET)
+
+.PHONY: all lib $(EXAMPLE_NAMES) mustCHIP mustTARGET _clean echo
