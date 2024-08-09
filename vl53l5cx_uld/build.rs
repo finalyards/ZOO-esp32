@@ -41,6 +41,19 @@ fn main() {
     }
     **/
 
+    // THIS IS NOT POSSIBLE. Here for reference - would allow us to turn "defmt" feature on, when
+    // building examples.
+    //
+    // TRACKed in:
+    //  - "Add `example`, `bin` configurations"
+    //      -> https://github.com/rust-lang/cargo/issues/14378
+    //
+    // Work-around: we now have the "defmt" dependency twice; in '[dependencies]' (optional) and
+    //      '[dev-dependencies]' (absolute). Not a big thing, but..
+    //
+    //#[cfg_attr(example, cfg(all()))]
+    // println!("cargo::rustc-cfg=feature=defmt");
+
     //---
     // Config sanity checks
 

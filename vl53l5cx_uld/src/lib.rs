@@ -1,27 +1,34 @@
 #![no_std]
 #![allow(non_snake_case)]
 
+mod ranging;
 mod platform;
-
 mod uld_raw;
 
 use core::ffi::CStr;
 use core::mem;
 use core::ptr::addr_of_mut;
+use mem::MaybeUninit;
+use ranging::{
+    //RangingConfig, Ranging,
+    //ResultsData
+};
 use uld_raw::{
     VL53L5CX_Configuration,
     vl53l5cx_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
+    //vl53l5cx_start_ranging,
     vl53l5cx_get_power_mode,
     vl53l5cx_set_power_mode,
-    //vl53l5cx_start_ranging,
+    vl53l5cx_set_i2c_address,
     PowerMode,
-    VL53L5CX_Platform
+    ST_OK, //ST_ERROR
+
+    DEFAULT_I2C_ADDRESS as _
 };
 
 #[cfg(feature="defmt")]
 use defmt::{debug, warn};
-use mem::MaybeUninit;
 
 pub type Result<T> = core::result::Result<T,u8>;
 
@@ -87,46 +94,52 @@ impl VL53L5CX_Configuration {
     */
     fn init_with<P : Platform>(/*gulp*/ p: P) -> Result<Self> {
 
-        let st: u8 = unsafe {
+        let ret: Result<VL53L5CX_Configuration> = unsafe {
             let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::uninit();
                 // note: use '::zeroed()' in place of '::uninit()' to get more predictability
 
-            // Move 'p' to 'uninit.platfor' (the beginning of the structure); ULD C 'vl.._init()' will need it.
-            //
             let up = uninit.as_mut_ptr();
 
-            let reserved = field_size!(VL53L5CX_Configuration::platform);
-            assert!(size_of::<P>() <= reserved, "Reserved size in ULD C side is not enough");   // edit 'platform.h' if need more
+            // Move 'p' to 'uninit.platform' (the beginning of the structure); ULD C 'vl.._init()' will need it.
+            {
+                #[allow(unused_unsafe)]
+                let reserved = field_size!(VL53L5CX_Configuration::platform);
+                assert!(size_of::<P>() <= reserved, "Reserved size in ULD C side is not enough");   // edit 'platform.h' if need more
 
-            addr_of_mut!((*up).platform as *mut P).write(p);
+                let pp = addr_of_mut!((*up).platform);
+                assert!( (pp as usize)%4 == 0, "bad alignment on C side" );
+
+                *(pp as *mut P) = p;
+            }
 
             // Initialize those fields we know C API won't touch (just in case)
             addr_of_mut!((*up).streamcount).write(u8::MAX);
             addr_of_mut!((*up).data_read_size).write(u32::MAX);
 
             // Call ULD C API to arrange the rest
-            vl53l5cx_init(up)
+            match vl53l5cx_init(up) {
+                0 => Ok(uninit.assume_init()),  // we guarantee it's now initialized (=safe)
+                e => Err(e)
+            }
         };
-
-        match st {
-            0 => Ok(Self),
-            st => Err(st)
-        }
+        ret
     }
 }
 
  pub struct VL53L5CX<'a> {
     // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
     // "device"), in the form of the "configuration" struct. It's not really configuration;
-    // more of a driver "heap" where all the state, and also temporary memory buffers exist.
-    // The good part of this arrangement is, we have separate state for >1 drivers. :)
+    // more of a driver working memory area where all the state and buffers exist.
     //
-    // The "state" also carries our 'Platform' struct within it, at the very head. The ULD
-    // code uses it to reach back to the app level, for MCU hardware access - I2C and delays.
-    // The "state" can be read, but we "MUST not manually change these field[s]". In this API,
-    // the whole "state" is kept private, to enforce the read-only nature.
+    // The good part of this arrangement is, we have separate state when handling multiple sensors. :)
     //
-    cfg: Pin<&'a mut VL53L5CX_Configuration>,
+    // The "state" also carries our 'Platform' struct within it (at the very head). The ULD
+    // code uses it to reach back to the app level, for MCU hardware access: I2C and delays.
+    //
+    // The "state" can be read, but we "MUST not manually change these field[s]". In this Rust API,
+    // the whole "state" is kept private, to enforce such read-only nature.
+    //
+    cfg: VL53L5CX_Configuration,
 
     pub API_REVISION: &'a str,
 }
@@ -135,78 +148,71 @@ impl VL53L5CX<'_> {
     /** @brief Open a connection to a specific sensor; uses I2C (and delays) via the 'Platform'
     ** provided by the caller.
     **/
-    pub fn new(/*move*/ mut pl: impl Platform) -> Result<Self> {
+    pub fn new<P: Platform>(/*move*/ mut p: P) -> Result<Self> {
         let API_REVISION: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
             .to_str().unwrap();
 
         // Check if there is a sensor out there.
-        match vl53l5cx_ping(&mut pl)? {
-            (0xf0, 0x02) => {},     // approved! (vendor driver only proceeds with this)
+        // The ULD C API does this using 'is_alive()' (which we don't expose).
+        //
+        let _t= match vl53l5cx_ping(&mut p)? {
+            (0xf0, 0x02) => (0xf0, 0x02),       // approved! (vendor driver only proceeds with this)
             t => {
                 #[cfg(feature="defmt")]
-                warn!("Unexpected device id, rev id: {}", t);
+                warn!("Unexpected (device id, rev id); not (0xf0,0x02): {}", t);
+                t
             }
         };
-
         #[cfg(feature="defmt")]
-        debug!("aaa");
+        debug!("Reached comms with the sensor: {}", _t);
 
-        let tmp2 = VL53L5CX_Configuration::prep(/*move*/ pl);
-        let tmp = pin!(tmp2);
+        let cfg = VL53L5CX_Configuration::init_with(/*move*/ p)?;
 
-        let mut this = Self {
-            cfg: tmp,    //: pin!(VL53L5CX_Configuration::prep(/*move*/ pl)),
+        let o = Self {
+            cfg,
             API_REVISION
         };
-
-        _ = tmp2;
-
-        #[cfg(feature="defmt")]
-        debug!("bbb");
-
-        // Need a C pointer to 'this.cfg' that can be passed (and left) to ULD C driver.
-        //
-        let p_cfg: *mut VL53L5CX_Configuration = unsafe { this.cfg.as_mut().get_unchecked_mut() };
-
-        match unsafe { vl53l5cx_init(p_cfg) } {
-            0 => Ok(this),
-            st => Err(st)
-        }
+        Ok(o)
     }
 
     //---
     // Ranging (getting values)
     //
-    pub fn start_ranging(&mut self) -> Result<() /*tbd. RangingHandle*/> {
-        unimplemented!()
-    }
+    /* tbd.
+    pub fn start_ranging(&mut self, &cfg: &RangingConfig) -> Result<Ranging> {
+        let r: Ranging = Ranging::new(cfg)?;
+        Ok(r)
+    }*/
 
     //---
     // Maintenance; special use
     //
     pub fn get_power_mode(&mut self) -> Result<PowerMode> {
         let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_get_power_mode(self.cfg.get_unchecked_mut(), &mut tmp) } {
+        match unsafe { vl53l5cx_get_power_mode(&mut self.cfg, &mut tmp) } {
             ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
             e => Err(e)
         }
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        match unsafe { vl53l5cx_set_power_mode(self.cfg.get_unchecked_mut(), v as u8) } {
+        match unsafe { vl53l5cx_set_power_mode(&mut self.cfg, v as u8) } {
             ST_OK => Ok(()),
             e => Err(e)
         }
     }
 
     pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
-        unimplemented!()
+        match unsafe { vl53l5cx_set_i2c_address(&mut self.cfg, addr as u16) } {
+            ST_OK => Ok(()),
+            e => Err(e)
+        }
     }
 
-    pub fn dci_read_data(index: u16, buf: &mut [u8]) { unimplemented!() }
-    pub fn dci_write_data(index: u16, buf: &[u8]) { unimplemented!() }
+    // tbd. if exposing these, make them into a "dci" feature
+    //pub fn dci_read_data(index: u16, buf: &mut [u8]) { unimplemented!() }
+    //pub fn dci_write_data(index: u16, buf: &[u8]) { unimplemented!() }
 
-    // 'dci_replace_data' doesn't seem useful for applications, and can be easily
-    // reproduced using the 'read' and 'write'. Not exposing it.
+    // 'dci_replace_data' doesn't seem useful; easily reproduced using the 'read' and 'write'. Skip.
 
     // Remaining to be implemented:
     //  vl53l5cx_enable_internal_cp()

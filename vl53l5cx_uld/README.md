@@ -61,11 +61,11 @@ The command uses `Makefile.inner` internally. You can also use it directly; have
 ## Running samples
 
 ```
-$ cargo run --release --example 0-nada
+$ cargo run --release --example _0-nada
 ```
 
 ```
-$ cargo run --release --example 1-ranging_basic
+$ cargo run --release --example _1-ranging_basic
 ```
 
 |||

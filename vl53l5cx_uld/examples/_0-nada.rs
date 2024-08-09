@@ -4,8 +4,8 @@
 #![no_std]
 #![no_main]
 
-#[warn(unused_imports)]
-use defmt::{debug, info};
+#[allow(unused_imports)]
+use defmt::{debug, info, error};
 use defmt_rtt as _;
 
 use esp_backtrace as _;
@@ -28,6 +28,8 @@ macro_rules! mk_static {
         x
     }};
 }
+
+struct
 
 fn main() {
     let peripherals = Peripherals::take();
