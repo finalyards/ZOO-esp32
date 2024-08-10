@@ -24,9 +24,11 @@ typedef __SIZE_TYPE__ size_t;
 
 const char* API_REVISION = VL53L5CX_API_REVISION;     // "VL53L5CX_2.0.0"
 
+/* disabled
 const uint16_t DEFAULT_I2C_ADDRESS = VL53L5CX_DEFAULT_I2C_ADDRESS;   // 0x52 (u16)
     // Note: Even when some C types don't make sense (like here - this could be an 'uint8_t' - the author has restrained
     //      from changing them. Small moves, Ellie!
+*/
 
 enum Resolution {
     _4X4 = VL53L5CX_RESOLUTION_4X4,     // 16 (u8)
@@ -71,4 +73,6 @@ const uint8_t ST_ERROR = VL53L5CX_STATUS_ERROR;	                // |255
     //const uint8_t MCU_ERROR = VL53L5CX_MCU_ERROR;                       // |66 (0x42)
     //const uint8_t INVALID_PARAM = VL53L5CX_STATUS_INVALID_PARAM;    // |127 (0x7f)
 
+/* tbd. do we need this?
 const size_t MAX_RESULTS_SIZE = VL53L5CX_MAX_RESULTS_SIZE;
+*/

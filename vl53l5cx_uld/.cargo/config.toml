@@ -14,4 +14,13 @@ rustflags = [
 ]
 
 [target.riscv32imc-unknown-none-elf]
-runner = "probe-rs run --chip=esp32c3 --log-format '{L} {s}'"
+runner = "probe-rs run --chip=esp32c3"
+#runner = "probe-rs run --chip=esp32c3 --log-format '{L} {s}'"
+    #
+    # ^-- Doing running this way seems to cause problems down the line.
+    #     <<
+    #           $ DEFMT_LOG=debug cargo run --release --features=defmt --example nada
+    #               [...]
+    #            Running `probe-rs run --chip=esp32c3 --log-format ''\''{L}' '{s}'\''' target/riscv32imc-unknown-none-elf/release/examples/nada`
+    #               #Error: An IO error has occurred while reading the firmware file.
+    #     <<

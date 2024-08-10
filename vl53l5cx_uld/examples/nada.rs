@@ -11,35 +11,21 @@ use defmt_rtt as _;
 use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
+    delay::Delay,
     peripherals::Peripherals,
     prelude::*,
     system::SystemControl,
 };
 
-use static_cell::StaticCell;
-
-// 'stable' way to make this - 'static_cell::make_static' requires 'nightly'.
-// tbd. HOPEFULLY there's a stable, non-macro way, soonish (< 2030)=?
-macro_rules! mk_static {
-    ($t:ty,$val:expr) => {{
-        static S: StaticCell<$t> = StaticCell::new();
-        #[deny(unused_attributes)]
-        let x = S.init(($val));
-        x
-    }};
-}
-
-struct
-
-fn main() {
+#[entry]
+fn main() -> ! {
     let peripherals = Peripherals::take();
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
-    // synchronous (busy wait) delays
-    let delay_ms: _ = {
-        let d = mk_static!(esp_hal::delay::Delay, esp_hal::delay::Delay::new(&clocks));
-        |ms| { d.delay_millis(ms); }
+    let d_provider = Delay::new(&clocks);
+    let delay_ms: _ = {     // synchronous (busy wait) delays
+        |ms| { d_provider.delay_millis(ms); }
     };
 
     debug!("Nada");

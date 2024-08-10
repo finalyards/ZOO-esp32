@@ -23,8 +23,6 @@ use uld_raw::{
     vl53l5cx_set_i2c_address,
     PowerMode,
     ST_OK, //ST_ERROR
-
-    DEFAULT_I2C_ADDRESS as _
 };
 
 #[cfg(feature="defmt")]

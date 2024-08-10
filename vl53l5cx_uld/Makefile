@@ -25,7 +25,14 @@ EXAMPLE_NAMES:=$(notdir $(basename $(wildcard examples/_[0-9]*.rs) $(wildcard ex
 all:
 	@false
 
-0-nada: _0-nada
+#TEMP
+nada:
+	$(LOG_ENV) cargo run $(--PROFILE) --features=defmt --example $@
+
+	#$(LOG_ENV) cargo build $(--PROFILE) --example $@
+	#probe-rs run --chip=esp32c3 --log-format '{L} {s}' target/riscv32imc-unknown-none-elf/release/examples/$@
+
+
 
 $(EXAMPLE_NAMES):
 	$(LOG_ENV) cargo run $(--PROFILE) --example $@
