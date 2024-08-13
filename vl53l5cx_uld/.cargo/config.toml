@@ -1,5 +1,10 @@
+#
+# References:
+#   - Cargo Book > Configuration
+#       -> https://doc.rust-lang.org/cargo/reference/config.html
+#
 [build]
-target = "riscv32imc-unknown-none-elf"      # change this by 'set-target.sh'
+target = "riscv32imac-unknown-none-elf"      # change this by 'set-target.sh'
 
 rustflags = [
     # Required to obtain backtraces, however it may negatively impact the performance of your application.
@@ -13,14 +18,18 @@ rustflags = [
     "-C", "force-frame-pointers",
 ]
 
-[target.riscv32imc-unknown-none-elf]
-runner = "probe-rs run --chip=esp32c3"
-#runner = "probe-rs run --chip=esp32c3 --log-format '{L} {s}'"
-    #
-    # ^-- Doing running this way seems to cause problems down the line.
-    #     <<
-    #           $ DEFMT_LOG=debug cargo run --release --features=defmt --example nada
-    #               [...]
-    #            Running `probe-rs run --chip=esp32c3 --log-format ''\''{L}' '{s}'\''' target/riscv32imc-unknown-none-elf/release/examples/nada`
-    #               #Error: An IO error has occurred while reading the firmware file.
-    #     <<
+# Note: Cannot define a plane '[target]' - but we can bypass that by...
+#
+[target.'cfg(all())']   # this works; gives unconditional '[target]'
+#runner = "probe-rs run --chip=esp32c6"
+runner = "probe-rs run --chip=esp32c6 --log-format {L}_{s}"     # works (no space)
+#runner = 'probe-rs run --chip=esp32c6 --log-format "{L} {s}"'
+#        Running `probe-rs run --chip=esp32c6 --log-format '"{L}' '{s}"' target/riscv32imac-unknown-none-elf/release/examples/nada`
+#           -> fails
+
+    # Note: The author wasn't able to place a space in the '--log-format'. Tried:
+    #       "[...] --log-format '{L} {s}'"
+    #       "[...] --log-format \"{L} {s}\""
+    #       '[...] --log-format "{L} {s}"'
+    #       "[...] --log-format {L}\ {s}"
+    #       '[...] --log-format {L}\ {s}'

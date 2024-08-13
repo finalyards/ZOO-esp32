@@ -78,21 +78,55 @@ The command uses `Makefile.inner` internally. You can also use it directly; have
 
 ## Running samples
 
+>For C3 boards, before running:
+>- reset the board
+>- re-attach it on USB/IP
+>
+>This needs to be done anew *before each run*. ESP32-C6 boards don't need such resets.
+
 ```
-$ cargo run --release --example _0-nada
+$ cargo run --release --features=defmt --example nada
+[...]
+      Erasing ✔ [00:00:03] [#############] 192.00 KiB/192.00 KiB @ 53.17 KiB/s (eta 0s )
+  Programming ✔ [00:00:18] [#############] 22.54 KiB/22.54 KiB @ 1.23 KiB/s (eta 0s )    Finished in 18.28534s
+INFO  Nada
+DEBUG Ding!
+DEBUG Dong!
+...
 ```
 
 ```
-$ cargo run --release --example _1-ranging_basic
+$ cargo run --release --features=defmt --example _1-ranging_basic
 ```
 
 |||
 |---|---|
-|`0-nada`|Just check the workflow; no sensor activity|
-|`1-ranging_basic`|...|
+|`nada`|Checks the build setup and `defmt` logging; no sensor activity|
+|`_1-ranging_basic`|...|
 
 
 *tbd. Hardware setup for those.*
+
+<!-- (already said)
+## Troubleshooting
+
+### No log output on ESP32-C3
+
+```
+$ probe-rs run --chip=esp32c3 --log-format '{L}_{s}' target/riscv32imc-unknown-none-elf/release/examples/nada
+      Erasing ✔ [00:00:03] [###########################################################] 192.00 KiB/192.00 KiB @ 57.05 KiB/s (eta 0s )
+  Programming ✔ [00:00:18] [##############################################################] 22.54 KiB/22.54 KiB @ 1.25 KiB/s (eta 0s )    Finished in 18.072815s
+
+
+
+```
+
+The C3 board needs a physical reset (and reattaching) prior to each run.
+
+- push the `RESET` button
+- re-attach on USB/IP: e.g. `sudo attach -r 192.168.1.29 -b 3-1`
+- try again
+-->
 
 ## References
 

@@ -43,4 +43,10 @@ Initially, also wanted to use env. strings within values, but there may be other
 	
 	- Prefixing `**/examples/[0-9]*.rs` with `_`
 	
-	
+
+## Being able to say `{L} {s}` in `.cargo/config.toml`
+
+- ["Unable to feed a space to `probe-rs --log-format`, via `.cargo/config.toml`"](https://github.com/rust-lang/cargo/issues/14393)
+
+	Just too surprising!  Fix once/if we can use a single string.
+

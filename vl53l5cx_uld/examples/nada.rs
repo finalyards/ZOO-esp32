@@ -28,7 +28,7 @@ fn main() -> ! {
         |ms| { d_provider.delay_millis(ms); }
     };
 
-    debug!("Nada");
+    info!("Nada");
 
     let mut ding: bool = true;
     loop {
