@@ -50,7 +50,7 @@ If you are using ESP32-C3, the repo is ready for use.
 To use ESP32-C6, run this once:
 
 ```
-$ ./set_target.sh
+$ ./set-target.sh
 ```
 
 <!--

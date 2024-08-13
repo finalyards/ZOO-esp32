@@ -4,7 +4,7 @@
 #       -> https://doc.rust-lang.org/cargo/reference/config.html
 #
 [build]
-target = "riscv32imac-unknown-none-elf"      # change this by 'set-target.sh'
+target = "riscv32imc-unknown-none-elf"      # change this by 'set-target.sh'
 
 rustflags = [
     # Required to obtain backtraces, however it may negatively impact the performance of your application.
@@ -18,14 +18,14 @@ rustflags = [
     "-C", "force-frame-pointers",
 ]
 
-# Note: Cannot define a plane '[target]' - but we can bypass that by...
-#
 [target.'cfg(all())']   # this works; gives unconditional '[target]'
-#runner = "probe-rs run --chip=esp32c6"
-runner = "probe-rs run --chip=esp32c6 --log-format {L}_{s}"     # works (no space)
-#runner = 'probe-rs run --chip=esp32c6 --log-format "{L} {s}"'
-#        Running `probe-rs run --chip=esp32c6 --log-format '"{L}' '{s}"' target/riscv32imac-unknown-none-elf/release/examples/nada`
+#runner = "probe-rs run --chip=esp32c3"
+runner = "probe-rs run --chip=esp32c3 --log-format {L}_{s}"     # works, but isn't space
+
+#runner = 'probe-rs run --chip=esp32c3 --log-format "{L}_{s}"'
+#        Running `probe-rs run --chip=esp32c3 --log-format '"{L}' '{s}"' target/riscv32imac-unknown-none-elf/release/examples/nada`
 #           -> fails
+#runner = ["probe-rs", "run", "--chip=esp32c3", "--log-format={L} {s}"]    # can work, but isn't it tedious!
 
     # Note: The author wasn't able to place a space in the '--log-format'. Tried:
     #       "[...] --log-format '{L} {s}'"
@@ -33,3 +33,4 @@ runner = "probe-rs run --chip=esp32c6 --log-format {L}_{s}"     # works (no spac
     #       '[...] --log-format "{L} {s}"'
     #       "[...] --log-format {L}\ {s}"
     #       '[...] --log-format {L}\ {s}'
+    #       '[...] --log-format {L} {s}'    # NBSP
