@@ -36,10 +36,28 @@ $ clang -print-targets | grep riscv32
 
 ## Preparation
 
+The workflow has been tested on these MCUs:
+
+|||
+|---|---|
+|`esp32c3` (default)|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) dev kit, with JTAG/USB wiring added|
+|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
+
+If you are using ESP32-C3, the repo is ready for use.
+
+### Setting the target
+
+To use ESP32-C6, run this once:
+
+```
+$ ./set_target.sh
+```
+
+<!--
 Check `.cargo/config.toml` and `Cargo.toml` that any references to `target` or `chip` are correct.
 
 >tbd. There's planned to be a `./set-target.sh` script that asks the chip type and verifies/changes these files, for you.
-
+-->
 
 ## Compiling 
 

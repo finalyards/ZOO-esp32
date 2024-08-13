@@ -25,22 +25,23 @@ EXAMPLE_NAMES:=$(notdir $(basename $(wildcard examples/_[0-9]*.rs) $(wildcard ex
 all:
 	@false
 
+# Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
+#		feature.
+
 #TEMP
 nada:
 	$(LOG_ENV) cargo run $(--PROFILE) --features=defmt --example $@
 
-	#$(LOG_ENV) cargo build $(--PROFILE) --example $@
-	#probe-rs run --chip=esp32c3 --log-format '{L} {s}' target/riscv32imc-unknown-none-elf/release/examples/$@
-
-
+#TEMP
+ranging-basic: _1-ranging_basic
 
 $(EXAMPLE_NAMES):
-	$(LOG_ENV) cargo run $(--PROFILE) --example $@
+	$(LOG_ENV) cargo run $(--PROFILE) --features=defmt --example $@
 
 _clean:
 	-cargo clean
 
 echo:
-	@echo $(EXAMPLE_NAMES:=:build)
+	@echo $(EXAMPLE_NAMES)
 
 .PHONY: all lib $(EXAMPLE_NAMES) _clean echo

@@ -3,8 +3,6 @@
 */
 #![allow(non_snake_case)]
 
-use core::ffi::c_void;
-use core::mem::{uninitialized, MaybeUninit};
 use core::slice;
 use crate::Platform;
 use crate::uld_raw::{
@@ -144,7 +142,7 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
 /*
 * Convert the pointer from ULD C API to Rust
 */
-fn conv(pt: *mut VL53L5CX_Platform) -> &'static mut dyn Platform {
+fn conv(_pt: *mut VL53L5CX_Platform) -> &'static mut dyn Platform {
 
     unimplemented!()    // HAVE FUN!!!
 

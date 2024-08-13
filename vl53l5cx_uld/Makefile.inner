@@ -145,14 +145,20 @@ tmp/platform-raw.templ.rs: platform.h $(_MAKEFILE_INNER)
 #		the pattern and just change two parts), but that's complicated. In our case, dum, separate replacements
 #		do the trick.
 #
+#	NOTE: Pretty vital to raise logging level (for non-internals) to 'WARN'. Can be done!!
+#
 src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) $(_MAKEFILE_INNER) Cargo.toml
-	  bindgen $< \
+	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
-	    --allowlist-function 'vl53l5cx_.+' \
+	    --allowlist-function 'vl53l5cx_check_data_ready' \
+	    --allowlist-function 'vl53l5cx_get_(?:(power_mode)|(ranging_data))' \
+	    --allowlist-function 'vl53l5cx_init' \
+	    --allowlist-function 'vl53l5cx_set_(?:(i2c_address)|(power_mode))' \
+	    --allowlist-function 'vl53l5cx_set_(?:(resolution)|(ranging_frequency_hz)|(integration_time_ms)|(sharpener_percent)|(target_order)|(ranging_mode))' \
+	    --allowlist-function 'vl53l5cx_st(?:(art)|(op))_ranging' \
 	    --allowlist-item 'API_REVISION' \
 	    \
-	    --blocklist-function 'vl53l5cx_is_alive' \
 	    --use-core \
 	    --default-enum-style rust \
 	    --raw-line '#![allow(non_camel_case_types)]' \
@@ -160,17 +166,23 @@ src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_
 		--raw-line 'use strum::FromRepr;' \
 	    -- -I. -I$(_C_SRC) \
 	  | sed -e 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
-	  | sed -e 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Debug, Copy, Clone, Hash, PartialEq, Eq)/' \
+	  | sed -e 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \
 	  > $@
+
+	# Note: 'sed' removes 'Debug' from the derived behaviours. This is intentional; 'defmt' uses 'Format'
+	#		so if we derive something, should be it.
 
 # Test for the above (for development, only)
 x: src/uld_raw.rs
 	grep -q API_REVISION $<
-	grep -q DEFAULT_I2C_ADDRESS $<
+	@#grep -q DEFAULT_I2C_ADDRESS $<
 	grep -q 'pub enum PowerMode' $<
-	grep -vq 'static VL53L5CX_FIRMWARE' $<
-	grep -vq vl53l5cx_is_alive $<
-	grep -vq VL53L5CX_RdByte $<
+	grep -q vl53l5cx_init $<
+	grep -q vl53l5cx_get_ranging_data $<
+	! grep -q 'static VL53L5CX_FIRMWARE' $<
+	! grep -q vl53l5cx_is_alive $<
+	! grep -q vl53l5cx_get_resolution $<
+	! grep -q VL53L5CX_RdByte $<
 	@#
 	@echo ""
 	@echo "Yay!"

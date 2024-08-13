@@ -1,53 +1,51 @@
 #![no_std]
 #![allow(non_snake_case)]
 
+mod macros;
 mod ranging;
 mod platform;
 mod uld_raw;
 
-use core::ffi::CStr;
-use core::mem;
-use core::ptr::addr_of_mut;
-use mem::MaybeUninit;
-use ranging::{
-    //RangingConfig, Ranging,
-    //ResultsData
+use core::{
+    ffi::CStr,
+    mem,
+    ptr::addr_of_mut
 };
+use mem::MaybeUninit;
+
+use macros::field_size;
+use ranging::{
+    RangingConfig,
+    Ranging
+};
+
+#[allow(unused_imports)]    // remove warnings on 'as _'
 use uld_raw::{
     VL53L5CX_Configuration,
     vl53l5cx_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
-    //vl53l5cx_start_ranging,
     vl53l5cx_get_power_mode,
     vl53l5cx_set_power_mode,
     vl53l5cx_set_i2c_address,
     PowerMode,
-    ST_OK, //ST_ERROR
+    ST_OK,
+
+    /*** tbd. if needed, bring under features
+    *vl53l5cx_disable_internal_cp,
+    *vl53l5cx_enable_internal_cp,
+    *    //
+    *vl53l5cx_dci_read_data,
+    *vl53l5cx_dci_write_data,
+    *    //
+    *vl53l5cx_get_VHV_repeat_count,
+    *vl53l5cx_set_VHV_repeat_count,
+    */
 };
 
 #[cfg(feature="defmt")]
 use defmt::{debug, warn};
 
 pub type Result<T> = core::result::Result<T,u8>;
-
-// from -> https://stackoverflow.com/a/70222282/14455
-macro_rules! field_size {
-    ($t:ident :: $field:ident) => {{
-        let m = core::mem::MaybeUninit::<$t>::uninit();
-        // According to https://doc.rust-lang.org/stable/std/ptr/macro.addr_of_mut.html#examples,
-        // you can dereference an uninitialized MaybeUninit pointer in addr_of!
-        // Raw pointer deref in const contexts is stabilized in 1.58:
-        // https://github.com/rust-lang/rust/pull/89551
-        let p = unsafe {
-            core::ptr::addr_of!((*(&m as *const _ as *const $t)).$field)
-        };
-
-        const fn size_of_raw<T>(_: *const T) -> usize {
-            core::mem::size_of::<T>()
-        }
-        size_of_raw(p)
-    }};
-}
 
 /**
 * @brief App provides, to talk to the I2C and do blocking delays.
@@ -137,7 +135,7 @@ impl VL53L5CX_Configuration {
     // The "state" can be read, but we "MUST not manually change these field[s]". In this Rust API,
     // the whole "state" is kept private, to enforce such read-only nature.
     //
-    cfg: VL53L5CX_Configuration,
+    vl: VL53L5CX_Configuration,
 
     pub API_REVISION: &'a str,
 }
@@ -146,7 +144,7 @@ impl VL53L5CX<'_> {
     /** @brief Open a connection to a specific sensor; uses I2C (and delays) via the 'Platform'
     ** provided by the caller.
     **/
-    pub fn new<P: Platform>(/*move*/ mut p: P) -> Result<Self> {
+    pub fn new_maybe<P: Platform>(/*move*/ mut p: P) -> Result<Self> {
         let API_REVISION: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
             .to_str().unwrap();
 
@@ -164,43 +162,42 @@ impl VL53L5CX<'_> {
         #[cfg(feature="defmt")]
         debug!("Reached comms with the sensor: {}", _t);
 
-        let cfg = VL53L5CX_Configuration::init_with(/*move*/ p)?;
+        let vl = VL53L5CX_Configuration::init_with(/*move*/ p)?;
 
-        let o = Self {
-            cfg,
+        let me = Self {
+            vl,
             API_REVISION
         };
-        Ok(o)
+        Ok(me)
     }
 
     //---
     // Ranging (getting values)
     //
-    /* tbd.
-    pub fn start_ranging(&mut self, &cfg: &RangingConfig) -> Result<Ranging> {
-        let r: Ranging = Ranging::new(cfg)?;
+    pub fn start_ranging(&mut self, cfg: &RangingConfig) -> Result<Ranging> {
+        let r: Ranging = Ranging::new_maybe(&mut self.vl, cfg)?;
         Ok(r)
-    }*/
+    }
 
     //---
     // Maintenance; special use
     //
     pub fn get_power_mode(&mut self) -> Result<PowerMode> {
         let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_get_power_mode(&mut self.cfg, &mut tmp) } {
+        match unsafe { vl53l5cx_get_power_mode(&mut self.vl, &mut tmp) } {
             ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
             e => Err(e)
         }
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        match unsafe { vl53l5cx_set_power_mode(&mut self.cfg, v as u8) } {
+        match unsafe { vl53l5cx_set_power_mode(&mut self.vl, v as u8) } {
             ST_OK => Ok(()),
             e => Err(e)
         }
     }
 
     pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
-        match unsafe { vl53l5cx_set_i2c_address(&mut self.cfg, addr as u16) } {
+        match unsafe { vl53l5cx_set_i2c_address(&mut self.vl, addr as u16) } {
             ST_OK => Ok(()),
             e => Err(e)
         }
