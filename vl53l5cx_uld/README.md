@@ -96,7 +96,7 @@ DEBUG Dong!
 ```
 
 ```
-$ cargo run --release --features=defmt --example _1-ranging_basic
+$ cargo run --release --features=defmt,distance_mm --example _1-ranging_basic
 ```
 
 |||

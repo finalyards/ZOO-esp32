@@ -19,13 +19,16 @@ rustflags = [
 ]
 
 [target.'cfg(all())']   # this works; gives unconditional '[target]'
+
 #runner = "probe-rs run --chip=esp32c3"
 runner = "probe-rs run --chip=esp32c3 --log-format {L}_{s}"     # works, but isn't space
+#runner = "probe-rs run --chip=esp32c3 --log-format {L} {s}"    # nope!
+    # ^-- even that gives: "Error: An IO error has occurred while reading the firmware file."
 
 #runner = 'probe-rs run --chip=esp32c3 --log-format "{L}_{s}"'
 #        Running `probe-rs run --chip=esp32c3 --log-format '"{L}' '{s}"' target/riscv32imac-unknown-none-elf/release/examples/nada`
 #           -> fails
-#runner = ["probe-rs", "run", "--chip=esp32c3", "--log-format={L} {s}"]    # can work, but isn't it tedious!
+#runner = ["probe-rs", "run", "--chip=esp32c3", "--log-format", "{L} {s}"]    # can work, but isn't it tedious!  (also would like to have '--log-format' and the value in the same entity)
 
     # Note: The author wasn't able to place a space in the '--log-format'. Tried:
     #       "[...] --log-format '{L} {s}'"
@@ -34,3 +37,5 @@ runner = "probe-rs run --chip=esp32c3 --log-format {L}_{s}"     # works, but isn
     #       "[...] --log-format {L}\ {s}"
     #       '[...] --log-format {L}\ {s}'
     #       '[...] --log-format {L} {s}'    # NBSP
+
+# For syntax, see -> https://defmt.ferrous-systems.com/custom-log-output#metadata-specifiers

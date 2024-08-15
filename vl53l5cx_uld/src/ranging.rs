@@ -28,6 +28,20 @@ pub use crate::uld_raw::{   // pass-throughs
 };
 use crate::Result;
 
+/* Documentation on 'ResultsData' (aka 'VL53L5CX_ResultsData'):
+*
+pub struct VL53L5CX_ResultsData {
+    pub silicon_temp_degc: i8,                  // temperature within the sensor [°C]
+    pub nb_target_detected: [u8; 64usize],      // values in range [1..'targets_per_zone_{1..4}'] (inclusive); max steered by feature
+    pub distance_mm: [i16; 64usize],            // on 'feature='distance_mm'; tbd. (sample?)
+    pub target_status: [u8; 64usize],           // tbd. ???
+}
+    The buffers are to be read as:
+    - 4x4 reso: tbd.
+    - 8x8 reso: tbd.
+*/
+// tbd. We likely end up copying values, so that the Rust side can get 'ResultsData_4x4' or 'ResultsData_8x8' classes.
+
 #[derive(Clone)]
 pub struct FrequencyHz(u8);
 
@@ -186,7 +200,7 @@ impl<'b: 'c,'c> Ranging<'c> {
         }
     }
 
-    pub fn poll_ready(&mut self) -> Result<bool> {
+    pub fn is_ready(&mut self) -> Result<bool> {
         let mut tmp: u8 = 0;
         match unsafe { vl53l5cx_check_data_ready(self.vl, &mut tmp) } {
             ST_OK => Ok(tmp != 0),

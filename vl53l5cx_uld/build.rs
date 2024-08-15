@@ -18,6 +18,9 @@ const MAKEFILE_INNER: &str = "Makefile.inner";
 *   Could use that e.g. for enforcing 'defmt' as a default feature for all examples (but keep it
 *   optional, for the 'lib').
 *
+*   EDIT: The above might be missing the point. 'build.rs' might not even *get run* separately
+*       for an '--example' build, only for the library.
+*
 * References:
 *   - Environment variables set
 *       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
@@ -48,8 +51,7 @@ fn main() {
     //  - "Add `example`, `bin` configurations"
     //      -> https://github.com/rust-lang/cargo/issues/14378
     //
-    // Work-around: we now have the "defmt" dependency twice; in '[dependencies]' (optional) and
-    //      '[dev-dependencies]' (absolute). Not a big thing, but..
+    // Work-around: we now ask the user to manually insert '--features=defmt' when running examples.
     //
     //#[cfg_attr(example, cfg(all()))]
     // println!("cargo::rustc-cfg=feature=defmt");
@@ -139,8 +141,9 @@ fn main() {
     }
 
     // Link with 'tmp/vendor_uld.a'
-    println!("cargo:rustc-link-search=tmp");
-    println!("cargo:rustc-link-lib=vendor_uld");
+    println!("cargo:rustc-link-search=./tmp");        // does not work; not either with full path (cargo 1.80.1)
+    //nope!: println!("cargo:rustc-link-search=/home/ubuntu/VL53L5CX_rs/vl53l5cx_uld/tmp");
+    println!("cargo:rustc-link-lib=static:+whole-archive=vendor_uld");
 
     // Allow using '#[cfg(disabled)]' for block-disabling code
     println!("cargo::rustc-check-cfg=cfg(disabled)");

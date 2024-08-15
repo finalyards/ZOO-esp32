@@ -3,19 +3,15 @@
 use defmt::{info, debug};
 
 use esp_hal::{
-    clock::ClockControl,
+    clock::Clocks,
     delay::Delay,
-    peripherals::Peripherals,
-    prelude::*,
-    system::SystemControl,
 };
 
 extern crate vl53l5cx_uld as uld;
 use uld::Platform;
 
-extern "C"
 pub struct MyPlatform {
-    // would have something on I2C, in a real app
+    // tbd. I2C access state/handle (so we can have multiple)
 
     d_provider: Delay,      // kept alive until the end of 'self' lifespan
 }

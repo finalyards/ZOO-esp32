@@ -76,3 +76,8 @@ defmt = [
 ]
 
 default = ["targets_per_zone_1"]
+
+# tbd. Does the restriction to 'targets_per_zone_1' matter?
+[[example]]
+name = "_1-ranging_basic"
+required-features = ["defmt", "targets_per_zone_1", "distance_mm"]

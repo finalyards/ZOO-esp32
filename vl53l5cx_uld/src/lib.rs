@@ -14,7 +14,7 @@ use core::{
 use mem::MaybeUninit;
 
 use macros::field_size;
-use ranging::{
+pub use ranging::{
     RangingConfig,
     Ranging
 };
