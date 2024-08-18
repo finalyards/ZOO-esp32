@@ -55,10 +55,7 @@ ranging-basic:
 
 $(EXAMPLE_NAMES):
 	$(LOG_ENV) cargo build $(--PROFILE) --features=$(DEFMT_FEATURES) --example $@
-	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
-
-_clean:
-	-cargo clean
+	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/$@
 
 echo:
 	@echo $(EXAMPLE_NAMES)

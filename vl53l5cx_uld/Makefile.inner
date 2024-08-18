@@ -5,7 +5,7 @@
 #
 # Usage:
 #	<<
-#	  $ make -f Makefile.inner tmp/vendor_uld.a src/uld_raw.rs
+#	  $ make -f Makefile.inner tmp/libvendor_uld.a src/uld_raw.rs
 #	<<
 #
 # Requires:
@@ -52,8 +52,8 @@ all:
 # Note: '--thin' means the archive simply points to the '.o' file, which is expected to remain available. This is
 #		way over-optimization, but since I happened to read the whole 'man ar', why not.. :) [[it would work without '--thin']]
 #
-tmp/vendor_uld.a: tmp/wrap.o tmp/vl53l5cx_api.o
-	ar rcs --thin $@ $<
+tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
+	ar rcs $@ $<
 
 # Note: Dependency on features is via 'Cargo.toml'. 'build.rs' rebuilds 'tmp/config.h' on each run, so it's not
 #		a good idea to use it (would cause everything to recompile, all the time). This may be overthinking, but
@@ -189,6 +189,7 @@ x: src/uld_raw.rs
 
 _clean:
 	cargo clean
+	-rm src/uld_raw.rs tmp/libvendor_uld.a tmp/vl53l5cx_api.o
 
 echo:
 	@echo $(MAKEFILE_LIST)

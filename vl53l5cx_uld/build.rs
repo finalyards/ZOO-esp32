@@ -117,13 +117,13 @@ fn main() {
     //
     let st = std::process::Command::new("make")
         .arg("-f").arg(MAKEFILE_INNER)
-        .arg("tmp/vendor_uld.a")    // ULD C library
+        .arg("tmp/libvendor_uld.a")    // ULD C library
         .arg("src/uld_raw.rs")      // generate the ULD Rust bindings
         .output()
         .expect("could not spawn `make`")   // shown if 'make' not found on PATH
         .status;
 
-    assert!(st.success(), "Running 'make' failed");    // shown if 'make' returns a non-zero
+    assert!(st.success(), "[ERROR]: Running 'make' failed");    // shown if 'make' returns a non-zero
 
     // Link arguments
     //
@@ -140,10 +140,8 @@ fn main() {
         });
     }
 
-    // Link with 'tmp/vendor_uld.a'
-    println!("cargo:rustc-link-search=./tmp");        // does not work; not either with full path (cargo 1.80.1)
-    //nope!: println!("cargo:rustc-link-search=/home/ubuntu/VL53L5CX_rs/vl53l5cx_uld/tmp");
-    println!("cargo:rustc-link-lib=static:+whole-archive=vendor_uld");
+    println!("cargo:rustc-link-search=tmp");
+    println!("cargo:rustc-link-lib=static=vendor_uld");
 
     // Allow using '#[cfg(disabled)]' for block-disabling code
     println!("cargo::rustc-check-cfg=cfg(disabled)");
