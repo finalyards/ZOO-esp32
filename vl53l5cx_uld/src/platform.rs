@@ -4,6 +4,8 @@
 #![allow(non_snake_case)]
 
 use core::slice;
+use defmt::trace;
+
 use crate::Platform;
 use crate::uld_raw::{
     ST_OK,
@@ -37,11 +39,11 @@ pub extern "C" fn VL53L5CX_RdByte(
     addr: u16,          // VL index
     p_value: *mut u8
 ) -> u8 {
-    let p: &mut dyn Platform = conv(pt);
-    match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) }) {
-        Ok(()) => ST_OK,
-        Err(_) => ST_ERR
-    }
+    with(pt, |p|
+        match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) }) {
+            Ok(()) => ST_OK,
+            Err(_) => ST_ERR
+    })
 }
 
 /// @brief write one single byte
@@ -55,11 +57,10 @@ pub extern "C" fn VL53L5CX_WrByte(
     addr: u16,      // VL index
     v: u8
 ) -> u8 {
-    let p: &mut dyn Platform = conv(pt);
-    match p.wr_bytes(addr, &[v]) {
+    with(pt, |p| match p.wr_bytes(addr, &[v]) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
-    }
+    })
 }
 
 /// @brief read multiples bytes
@@ -75,11 +76,10 @@ pub extern "C" fn VL53L5CX_RdMulti(
     p_values: *mut u8,
     size: u32   // size_t
 ) -> u8 {
-    let p: &mut dyn Platform = conv(pt);
-    match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
+    with(pt, |p| match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
-    }
+    })
 }
 
 /// @brief write multiples bytes
@@ -95,11 +95,10 @@ pub extern "C" fn VL53L5CX_WrMulti(
     p_values: *mut u8,  // *u8 (const)
     size: u32   // actual values fit 16 bits; size_t
 ) -> u8 {
-    let p: &mut dyn Platform = conv(pt);
-    match p.wr_bytes(addr, unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
+    with(pt, |p| match p.wr_bytes(addr, unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
         Ok(()) => ST_OK,
         Err(_) => ST_ERR
-    }
+    })
 }
 
 // NOTE: Vendor docs don't really describe what the "4-byte grouping" means, but their 'protocol.c'
@@ -134,29 +133,33 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; n
 pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u8 {
     assert!(time_ms <= 100, "Unexpected long wait: {}ms", time_ms);    // we know from the C code there's no >100
 
-    let p: &mut dyn Platform = conv(pt);
-    p.delay_ms(time_ms);
-    0
+    with(pt, |p| {
+        p.delay_ms(time_ms);
+        0
+    })
 }
 
+/*** #Ancient remains
 /*
 * Convert the pointer from ULD C API to Rust
 */
-fn conv(_pt: *mut VL53L5CX_Platform) -> &'static mut dyn Platform {
+fn conv<'a>(pt: *mut VL53L5CX_Platform) -> &'a mut dyn Platform {
+    trace!("Platform at: {:x}", pt);    // let's see if it moves
 
-    unimplemented!()    // HAVE FUN!!!
+    unsafe {        // thanks, ChatGPT!!!
+        &mut *(pt as *mut dyn Platform)
+    }
+}***/
 
-    // The memory doesn't move. Just have 'mut *pt' treated as '&mut dyn Platform'.
-    // In effect, we wish to bring a 'dyn Platform' "out of nothing", and for this the
-    // 'MaybeUninitialized' may be the best method?
-    //
-    //let uninit = unsafe { *pt as MaybeUninit<dyn Platform> };
+/*
+* NOTE! *FINALLY* thinking like Rust!! Using 'with' and a closure, we don't need to worry about
+*   lifespans of the converted pointer!
+*/
+fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
+    trace!("Platform at: {:x}", pt);    // let's see if it moves
 
-    //
-    // "Both types must have the same size. Compilation will fail if this is not guaranteed."
-    //
-
-    //unsafe { &mut *(pt as *mut c_void as *mut dyn Platform) }
-
-    //Runsafe { *pt as _ }
+    let p = unsafe {        // thanks, ChatGPT!!!
+        &mut *(pt as usize as *mut dyn Platform)
+    };
+    f(p)
 }

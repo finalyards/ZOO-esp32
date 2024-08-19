@@ -1,9 +1,7 @@
 /*
 * Based on vendor 'Example_1_ranging_basic.c'
 *
-* Initializes the ULD and starts a ranging to capture 10 frames, with:
-*   - Resolution 4x4
-*   - Ranging period 1Hz
+* Initializes the ULD and starts a ranging to capture 10 frames, with 4x4 resolution.
 */
 #![no_std]
 #![no_main]
@@ -38,8 +36,6 @@ use uld::{VL53L5CX, Ranging, RangingConfig};
 #[cfg(not(feature = "targets_per_zone_1"))]
 panic!("Cancel the build!");    // won't compile
 
-const TARGETS_PER_ZONE: u8 = 1;
-
 #[entry]
 fn main() -> ! {
     let peripherals = Peripherals::take();
@@ -51,7 +47,7 @@ fn main() -> ! {
         |ms| { d_provider.delay_millis(ms); }
     };
 
-    let pl = MyPlatform::new(&clocks, 0x52);     // default I2C address
+    let pl = MyPlatform::new(peripherals, &clocks);
 
     let mut dev = VL53L5CX::new_maybe(pl)
         .expect("Could not initialize the sensor");
@@ -74,25 +70,16 @@ fn main() -> ! {
             .expect("Failed to get data");
 
         // 4x4 (default) = 16 zones
-        // "Only the data of the first zone are printed" (what does that mean? From [vendor] example's comment... :/
-
         info!("Data #{}", round);
 
+        #[cfg(feature = "target_status")]
         info!(".target_status: {=[u8]}", res.target_status);
-        info!(".distance_mm:   {}", res.distance_mm);   // "{=[i16}" not recognized as a display hint #defmt
 
-        /***
-        for i in 0..16_usize {
-            info!("Zone: {}, Status: {=&[u8]}, Distance: {=&[u8]}mm",
-                i,
-                res.target_status,  //R [/_*TARGETS_PER_ZONE**_/ i as usize],
-                res.distance_mm     //R [/_*TARGETS_PER_ZONE**_/ i as usize]
-            );
-        }***/
+        info!(".distance_mm:   {}", res.distance_mm);   // "{=[i16]}" cannot be used as a display hint #defmt
     }
 
-    // Not really needed; Rust will '.drop()' it
-    //dev.stop_ranging()?;
+    // Not really needed; Rust would stop it automatically
+    //ring.drop();
 
     // tbd. In Rust (and 'probe-rs'), can we end a main?
     info!("End of ULD demo");

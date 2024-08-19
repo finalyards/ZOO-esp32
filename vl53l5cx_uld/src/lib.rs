@@ -88,7 +88,7 @@ impl VL53L5CX_Configuration {
     *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
     *       {0x01, 0x01}
     */
-    fn init_with<P : Platform>(/*gulp*/ p: P) -> Result<Self> {
+    fn init_with<P : Platform>(/*move*/ p: P) -> Result<Self> {
 
         let ret: Result<VL53L5CX_Configuration> = unsafe {
             let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::uninit();

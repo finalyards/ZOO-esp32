@@ -35,9 +35,10 @@ strum           = { version = "0.26.3", default-features = false, features = ["d
 [dev-dependencies]
 assert_cfg      = "0.1.0"
 defmt-rtt       = { version = "0.4.1" }
+embedded-hal    = "1.0.0"
 esp-backtrace   = { version = "0.13.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
 esp-hal         = { version = "0.19.0", features = ["async", "defmt", "esp32c3"] }
-#esp-hal-smartled    = { version = "0.11.0", features = ["esp32c3"] }
+#esp-hal-smartled    = { version = "0.12.0", features = ["esp32c3"] }
 static_cell     = { version = "2.1.0" }
 
 [build-dependencies]
@@ -65,6 +66,9 @@ motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
 
 # Raw (firmware) format: raw numbers, "provides better accuracy".
 use_raw_format=[]       # VL53L5CX_USE_RAW_FORMAT
+
+# These are suggested to be always enabled, by the vendor
+target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS; "Status indicating the measurement validity (5 & 9 means ranging OK)"
 
 targets_per_zone_1=[]
 #targets_per_zone_2=[]

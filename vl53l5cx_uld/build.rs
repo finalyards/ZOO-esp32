@@ -80,6 +80,8 @@ fn main() {
         defs.push("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
         #[cfg(not(feature = "distance_mm"))]
         defs.push("VL53L5CX_DISABLE_DISTANCE_MM");
+        #[cfg(not(feature = "target_status"))]
+        defs.push("VL53L5CX_DISABLE_TARGET_STATUS");
         #[cfg(not(feature = "reflectance_percent"))]
         defs.push("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
         #[cfg(not(feature = "motion_indicator"))]
