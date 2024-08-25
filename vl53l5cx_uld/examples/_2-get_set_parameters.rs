@@ -1,7 +1,12 @@
 /*
-* Based on vendor 'Example_1_ranging_basic.c'
+* Based on vendor 'Example_2_get_set_parameters.c'
 *
-* Initializes the ULD and starts a ranging to capture 10 frames, with 4x4 resolution.
+* Initializes the ULD, sets some parameters and starts a ranging to capture 10 frames, with custom:
+*   - resolution
+*   - frequency
+*   - target order
+*
+* Otherwise, the same as example 1 (ranging basic).
 */
 #![no_std]
 #![no_main]
@@ -25,7 +30,17 @@ extern crate vl53l5cx_uld as uld;
 mod common;
 
 use common::MyPlatform;
-use uld::{VL53L5CX, Ranging, RangingConfig, Platform};
+use uld::{
+    VL53L5CX,
+    Ranging,
+    ranging::{
+        RangingConfig,
+        Resolution::_8X8,
+        TargetOrder::CLOSEST,
+        Mode::AUTONOMOUS,
+    },
+    units::*
+};
 
 // Vendor ULD C example:
 // "we also suppose that the number of target per zone is set to 1, and all output are enabled."
@@ -63,7 +78,12 @@ fn main() -> ! {
 
     //--- ranging loop
     //
-    let mut ring: Ranging = vl.start_ranging( &RangingConfig::default() )
+    let c = RangingConfig::default()
+        .with_resolution(_8X8)
+        .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
+        .with_target_order(CLOSEST);
+
+    let mut ring: Ranging = vl.start_ranging(&c)
         .expect("Failed to start ranging");
 
     for round in 0..10 {

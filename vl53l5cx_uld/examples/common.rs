@@ -1,22 +1,22 @@
 
 #[allow(unused_imports)]
-use defmt::{info, debug};
+use defmt::{info, debug, error, warn};
 
-use core::result::Result as CoreResult;
-
+#[allow(unused_imports)]
+use core::{
+    cell::RefCell,
+    ffi::c_void,
+    ptr::NonNull
+};
+use defmt::Format;
 use embedded_hal::i2c::{
-    I2c,
-    Error as I2cError,
     Operation as I2cOperation
 };
-
+use embedded_hal::i2c::SevenBitAddress;
 use esp_hal::{
     clock::Clocks,
     delay::Delay,
-    gpio::Io,
-    i2c::I2C,
-    peripherals::Peripherals,
-    prelude::*
+    //prelude::*
 };
 
 extern crate vl53l5cx_uld as uld;
@@ -27,60 +27,73 @@ use uld::Platform;
 const I2C_ADDR: u8 = 0x52 >> 1;    // vendor default
 
 /*
-* Pin routing expected (VL53L5CX-SATEL -> ESP32-C{3_}):
+* Wiring (VL53L5CX-SATEL -> ESP32-C[36]):
 *   - SDA => GPIO4      // same as in 'esp-hal' I2C example
 *   - SCL => GPIO5      //  -''-
-*   - ...
+*   - LPn => 47k => GND
 */
-pub struct MyPlatform<'a> {
-    i2c: I2C<'a>,
-    d_provider: Delay,      // kept alive until the end of 'self' lifespan
+pub struct MyPlatform<T>
+    where T: embedded_hal::i2c::I2c<SevenBitAddress>
+{
+    i2c: RefCell<T>,
+    d_provider: Delay,
 }
 
-
-impl MyPlatform {
-    /*
-    * Note: The 'i2c_addr' is take as 7-bit - as 'esp-hal' handles them.
-     */
-    pub fn new(peripherals: Peripherals, clocks: &Clocks, i2c_addr: u8) -> Self {
-        let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
-
-        let mut i2c = I2C::new(
-            peripherals.I2C0,
-            io.pins.gpio4,  // SDA
-            io.pins.gpio5,  // SCL
-            100.kHz(),
-            clocks,
-            None        // option: interrupt handler
-        );
+impl<T> MyPlatform<T>
+    where T: embedded_hal::i2c::I2c<SevenBitAddress>
+{
+    pub fn new(clocks: &Clocks, i2c: T) -> Self {
+        let i2c = RefCell::new(i2c);
 
         Self{
             i2c,
-            d_provider: Delay::new(&clocks),
+            d_provider: Delay::new(&clocks)
         }
     }
 }
 
-impl Platform for MyPlatform {
-    fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> CoreResult<(),I2cError> {
+impl<T> Platform for MyPlatform<T>
+    where T: embedded_hal::i2c::I2c<SevenBitAddress>,
+    T::Error: Format    // defmt output can be made
+{
+    fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> Result<(),()> {
         let addr = addr.to_be_bytes();
+        let mut i2c = self.i2c.borrow_mut();
 
-        self.i2c.write_read(I2C_ADDR, &addr, buf)
+        match i2c.write_read(I2C_ADDR, &addr, buf) {
+            Err(e) => { error!("I2C read failed: {}", e); Err(()) },
+            Ok(()) => Ok(())
+        }
     }
-    fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> CoreResult<(),I2cError> {
+    fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<(),()> {
         let addr = addr.to_be_bytes();
+        let mut i2c = self.i2c.borrow_mut();
 
         // Note: There didn't seem to be (Rust stable 1.80) a way to concat two slices together,
         //      in 'no-alloc'. However, the I2C library *might* support the below (adapted from
         //      the way '.write_read()' is implemented).
         // tbd. tell whether this works.
 
-        self.i2c.transaction(I2C_ADDR,
-         &mut [I2cOperation::Write(&addr), I2cOperation::Write(vs)]
-        )
+        match i2c.transaction(I2C_ADDR, &mut [I2cOperation::Write(&addr), I2cOperation::Write(vs)]) {
+            Err(e) => { error!("I2C write failed: {}", e); Err(()) },
+            Ok(()) => Ok(())
+        }
     }
 
     fn delay_ms(&mut self, ms: u32) {
         self.d_provider.delay_millis(ms);
     }
 }
+
+/*** WIP
+// Need *SOME* way to turn the platform pointer from vendor ULD C API, into the Rust platform.
+//
+pub fn surface<P: Platform>(vp: *mut c_void) -> &'static mut P {
+
+    let p: &mut RustPlatform = unsafe {
+        NonNull::new_unchecked(vp).cast::<RustPlatform>().as_mut()
+    };
+
+    p.print();
+}
+***/

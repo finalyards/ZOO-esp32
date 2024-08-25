@@ -26,7 +26,10 @@ pub use crate::uld_raw::{   // pass-throughs
     TargetOrder,
     VL53L5CX_ResultsData as ResultsData
 };
-use crate::Result;
+use crate::{
+    Result,
+    units::{Ms, Hz}
+};
 
 /* Documentation on 'ResultsData' (aka 'VL53L5CX_ResultsData'):
 *
@@ -42,20 +45,17 @@ pub struct VL53L5CX_ResultsData {
 */
 // tbd. We likely end up copying values, so that the Rust side can get 'ResultsData_4x4' or 'ResultsData_8x8' classes.
 
-#[derive(Clone)]
-pub struct FrequencyHz(u8);
-
 // Adding to the C API by joining integration time with the ranging mode - since integration time
 // only applies to one of the modes.
 //
 #[derive(Clone)]
-pub enum RangingMode {
+pub enum Mode {
     CONTINUOUS,
-    AUTONOMOUS(u32, FrequencyHz)     // (integration time in ms, ranging frequency)
+    AUTONOMOUS(Ms,Hz)    // (integration time, ranging frequency)
 }
-use RangingMode::{CONTINUOUS, AUTONOMOUS};
+use Mode::{CONTINUOUS, AUTONOMOUS};
 
-impl RangingMode {
+impl Mode {
     fn as_raw(&self) -> RangingMode_R {
         match self {
             CONTINUOUS => RangingMode_R::CONTINUOUS,
@@ -78,7 +78,7 @@ impl RangingMode {
 */
 pub struct RangingConfig {
     resolution: Resolution,
-    mode: RangingMode,      // also carries ranging frequency and integration time for 'AUTONOMOUS'
+    mode: Mode,      // also carries ranging frequency and integration time for 'AUTONOMOUS'
     sharpener_prc: Option<u8>,      // 'None' | 'Some(1..=99)'
     target_order: TargetOrder,
 }
@@ -103,14 +103,17 @@ impl RangingConfig {
         Self { target_order: order, ..self }
     }
 
-    pub fn with_mode(/*move*/ self, mode: RangingMode) -> Self {
+    pub fn with_mode(/*move*/ self, mode: Mode) -> Self {
         Self { mode, ..self }
     }
 
     fn validate(&self) {
         match self.mode {
-            AUTONOMOUS(integration_time_ms, FrequencyHz(freq)) => {
+            AUTONOMOUS(Ms(integration_time_ms), Hz(freq)) => {
                 assert!((2..=1000).contains(&integration_time_ms), "Integration time out of range");
+
+                // tbd. assert that the integration can happen within one sampling window
+                //      - are there margins for that?
 
                 let freq_range = 1.. match self.resolution { Resolution::_4X4 => 15, Resolution::_8X8 => 60 };
                 assert!(freq_range.contains(&freq), "Frequency out of range");
@@ -135,12 +138,12 @@ impl RangingConfig {
             e => Err(e)
         }?;
 
-        if let AUTONOMOUS(ms, FrequencyHz(freq)) = self.mode {
-            match unsafe { vl53l5cx_set_ranging_frequency_hz(vl, freq) } {
+        if let AUTONOMOUS(Ms(ms), Hz(freq)) = self.mode {
+            match unsafe { vl53l5cx_set_integration_time_ms(vl, ms as u32) } {
                 ST_OK => Ok(()),
                 e => Err(e)
             }?;
-            match unsafe { vl53l5cx_set_integration_time_ms(vl, ms) } {
+            match unsafe { vl53l5cx_set_ranging_frequency_hz(vl, freq) } {
                 ST_OK => Ok(()),
                 e => Err(e)
             }?;
@@ -172,7 +175,7 @@ impl Default for RangingConfig {
             resolution: Resolution::_4X4,
             sharpener_prc: None,
             target_order: TargetOrder::STRONGEST,
-            mode: AUTONOMOUS(5,FrequencyHz(1))
+            mode: AUTONOMOUS(Ms(5),Hz(1))
         }
     }
 }

@@ -91,6 +91,7 @@ macOS 14.6
 Multipass 1.14.0-rc1
 ESP32-C3-Devkit-C02 (revision 0.4)
 //coming VL53L5CX-SATEL (x2)
+bindgen 0.70.0
 -->
 
 

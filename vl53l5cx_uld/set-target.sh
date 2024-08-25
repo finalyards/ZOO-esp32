@@ -66,8 +66,12 @@ esac
 # Dev note:
 #   'sed' _does_ have '-i' ("in place editing"), but we can do without. It's a bit hairy; piping just feels nicer!!!
 #
+# macOS note:
+#   '\s' did not work; '[[:space:]]' does
+#     -> https://superuser.com/questions/112834/how-to-match-whitespace-in-sed
+#
 cp .cargo/config.toml tmp-1
-cat tmp-1 | sed -E "s/^(target\s*=\s*\")riscv32im[a]?c\-unknown\-none\-elf(\".+)$/\1${TARGET}\2/g" \
+cat tmp-1 | sed -E "s/^(target[[:space:]]*=[[:space:]]*\")riscv32im[a]?c\-unknown\-none\-elf(\".+)$/\1${TARGET}\2/g" \
   | sed -E "s/(\-\-chip=)esp32c[36]/\1${MCU}/g" \
   > .cargo/config.toml
 

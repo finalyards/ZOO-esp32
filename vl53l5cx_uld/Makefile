@@ -8,7 +8,7 @@
 CHIP:=esp32c3
 
 PROFILE?=release
-DEFMT_LOG:=debug
+DEFMT_LOG?=debug
 FEATURES?=
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
@@ -50,11 +50,14 @@ nada:
 nada!:
 	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
 
-ranging-basic:
+1 ranging-basic:
 	FEATURES=distance_mm $(MAKE) _1-ranging_basic
 
+2 get-set-parameters:
+	FEATURES=distance_mm $(MAKE) _2-get_set_parameters
+
 $(EXAMPLE_NAMES):
-	$(LOG_ENV) cargo build $(--PROFILE) --features=$(DEFMT_FEATURES) --example $@
+	$(LOG_ENV) cargo build --timings $(--PROFILE) --features=$(DEFMT_FEATURES) --example $@
 	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/$@
 
 echo:

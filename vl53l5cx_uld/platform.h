@@ -1,5 +1,14 @@
 /*
 * Plain interfaces cannot be copyrighted, so placed this code verbatim.
+*
+* To create a Rust version of this, 'bindgen' was run manually (once), then the output edited:
+*   <<
+*   	$ bindgen platform.h --allowlist-function 'VL53L5CX_.+' \
+*   	    --opaque-type=VL53L5CX_Platform \
+*   	    --use-core \
+*   	  | sed s/TimeMs/time_ms/ \
+*   	  | sed s/RegisterAdress/register_address/ > src/platform.rs
+*   <<
 */
 #pragma once
 #include <stdint.h>
@@ -30,7 +39,7 @@
  *          + neat (though hack); is maintainable because we can automatically check ('sizeof') that the space is enough
  */
 typedef struct {
-    uint8_t _reserve[10];   // space for Rust
+    _Alignas(8) uint32_t _[4];      // 16 bytes; 8 aligned
 } VL53L5CX_Platform;
 
 /**

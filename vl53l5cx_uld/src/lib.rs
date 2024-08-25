@@ -2,22 +2,29 @@
 #![allow(non_snake_case)]
 
 mod macros;
-mod ranging;
+pub mod ranging;    // TEMP: for now, exposing also as 'ranging::{Resolution, ...}'; let's see
 mod platform;
 mod uld_raw;
+pub mod units;
+
+#[allow(unused_imports)]
+#[cfg(feature = "defmt")]
+use defmt::{debug, warn, trace, error};
 
 use core::{
-    ffi::CStr,
-    mem,
-    ptr::addr_of_mut
+    ffi::{CStr, c_void},
+    mem::MaybeUninit,
+    ptr::addr_of_mut,
+    result::Result as CoreResult,
 };
-use mem::MaybeUninit;
 
 use macros::field_size;
 pub use ranging::{
     RangingConfig,
-    Ranging
+    Ranging,
+    *   // Resolution, TargetOrder, ...
 };
+pub use units::*;   // Hz, Ms
 
 #[allow(unused_imports)]    // remove warnings on 'as _'
 use uld_raw::{
@@ -42,8 +49,7 @@ use uld_raw::{
     */
 };
 
-#[cfg(feature="defmt")]
-use defmt::{debug, warn};
+use crate::uld_raw::ST_ERROR;
 
 pub type Result<T> = core::result::Result<T,u8>;
 
@@ -52,8 +58,22 @@ pub type Result<T> = core::result::Result<T,u8>;
 */
 pub trait Platform {
     // provided by the app
-    fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> Result<()>;
-    fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<()>;
+    //
+    // Note: We're using a slightly unconventional 'Result<(),()>' (no type for the errors).
+    //      This is because of adaptation difficulties between the application-level I2C stack
+    //      error values and the vendor ULD C API (that deals with 'u8's, but basically is a
+    //      binary between ST_OK/ST_ERR). We didn't want to expose the library to I2C, nor the
+    //      application to the ST_OK/ST_ERR.
+    //
+    //      This essentially eradicates the error type. We could (and tried):
+    //          - using 'impl Any'  | not supported under 'stable'
+    //          - using 'E: Error'  | works, but makes prototypes look complex (not good for training..)
+    //          - bool              | just feels... wrong in Rust
+    //
+    //      A boolean would do, but using 'Result' is kinda customary.
+    //
+    fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> CoreResult<(),()>;
+    fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> CoreResult<(),()>;
     fn delay_ms(&mut self, ms: u32);
 }
 
@@ -88,24 +108,46 @@ impl VL53L5CX_Configuration {
     *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
     *       {0x01, 0x01}
     */
-    fn init_with<P : Platform>(/*move*/ p: P) -> Result<Self> {
+    fn init_with<P : Platform + 'static>(/*move*/ mut p: P) -> Result<Self> {
 
+        #[allow(unused_unsafe)]
         let ret: Result<VL53L5CX_Configuration> = unsafe {
             let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::uninit();
                 // note: use '::zeroed()' in place of '::uninit()' to get more predictability
 
             let up = uninit.as_mut_ptr();
 
-            // Move 'p' to 'uninit.platform' (the beginning of the structure); ULD C 'vl.._init()' will need it.
+            // Get a '&mut dyn Platform' reference to 'p'. Converting '*c_void' to a templated 'P'
+            // type is beyond the author's imagination (perhaps impossible?) whereas '&mut dyn Platform'
+            // *may be* just within doable!
+            //
+            // Nice part of using '&mut dyn Platform' is also that the size and alignment requirements
+            // (16 and 8 bytes), remain constant for the C side.
+            //
+            let dd: &mut dyn Platform = &mut p;
+
+            // Make a bitwise copy of 'dd' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
+            // and pass back to us (Rust) once platform calls (I2C/delays) are needed.
             {
-                #[allow(unused_unsafe)]
-                let reserved = field_size!(VL53L5CX_Configuration::platform);
-                assert!(size_of::<P>() <= reserved, "Reserved size in ULD C side is not enough");   // edit 'platform.h' if need more
+                // First, let's check size and alignment
+                let (sz1,al1, sz2,al2) = (
+                    field_size!(VL53L5CX_Configuration::platform),
+                    align_of::<VL53L5CX_Configuration>(),     // it's the first field; thus same (C) alignment
+                    size_of_val(dd), align_of_val(dd)   // 16,8
+                );
+
+                assert_eq!(sz1,sz2, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
+                assert_eq!(al1,al2, "Tunnel alignments don't match");
 
                 let pp = addr_of_mut!((*up).platform);
-                assert!( (pp as usize)%4 == 0, "bad alignment on C side" );
+                assert!( (pp as usize)%al2 == 0, "bad alignment on C side" );   // 2nd check (TEMP?)
 
-                *(pp as *mut P) = p;
+                debug!("DD before: {:#x}", mem_slice(dd as *const dyn Platform as *const c_void, al1) );     // TEMP
+                    // [16000000, 0]
+
+                *(pp as *mut &mut dyn Platform) = dd;
+                debug!("DD for tunnel: {:#x}", mem_slice(pp as *const c_void, al1) );   // TEMP
+                    // [1070385000, 1006699576]
             }
 
             // Initialize those fields we know C API won't touch (just in case)
@@ -113,8 +155,11 @@ impl VL53L5CX_Configuration {
             addr_of_mut!((*up).data_read_size).write(u32::MAX);
 
             // Call ULD C API to arrange the rest
+            //
+            // Note: Already this will call the platform methods (via the tunnel).
+            //
             match vl53l5cx_init(up) {
-                0 => Ok(uninit.assume_init()),  // we guarantee it's now initialized (=safe)
+                0 => Ok(uninit.assume_init()),  // we guarantee it's now initialized
                 e => Err(e)
             }
         };
@@ -122,7 +167,7 @@ impl VL53L5CX_Configuration {
     }
 }
 
- pub struct VL53L5CX<'a> {
+pub struct VL53L5CX<'a> {
     // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
     // "device"), in the form of the "configuration" struct. It's not really configuration;
     // more of a driver working memory area where all the state and buffers exist.
@@ -141,40 +186,42 @@ impl VL53L5CX_Configuration {
 }
 
 impl VL53L5CX<'_> {
-    /** @brief Open a connection to a specific sensor; uses I2C (and delays) via the 'Platform'
+    /** @brief Open a connection to a specific sensor; uses I2C and delays via the 'Platform'
     ** provided by the caller.
     **/
-    pub fn new_maybe<P: Platform>(/*move*/ mut p: P) -> Result<Self> {
+    // Note: Didn't want to call this 'new()' since it does initialization, and returns 'Result'.
+    //      Making it in two phases ('::new().init()') with the intermediate struct not being
+    //      'VL53L5CX' also feels wrong. What would be the idiomatic way , in Rust? #advice
+    //
+    pub fn new_and_init<P : Platform + 'static>(/*move*/ mut p: P) -> Result<Self> {
         let API_REVISION: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
             .to_str().unwrap();
 
-        // Check if there is a sensor out there.
-        // The ULD C API does this using 'is_alive()' (which we don't expose).
-        //
-        let _t= match vl53l5cx_ping(&mut p)? {
-            (0xf0, 0x02) => (0xf0, 0x02),       // approved! (vendor driver only proceeds with this)
-            t => {
-                #[cfg(feature="defmt")]
-                warn!("Unexpected (device id, rev id); not (0xf0,0x02): {}", t);
-                t
-            }
-        };
-        #[cfg(feature="defmt")]
-        debug!("Reached comms with the sensor: {}", _t);
-
+        Self::ping(&mut p).map_err(|_| ST_ERROR)?;
         let vl = VL53L5CX_Configuration::init_with(/*move*/ p)?;
 
-        let me = Self {
+        Ok(Self {
             vl,
             API_REVISION
-        };
-        Ok(me)
+        })
+    }
+
+    fn ping<P : Platform>(p: &mut P) -> CoreResult<(),()> {
+        match vl53l5cx_ping(p)? {
+            (a@ 0xf0, b@ 0x02) =>
+                debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b),   // vendor driver ONLY proceeds with this
+            t => {
+                #[cfg(feature="defmt")]
+                warn!("Unexpected '(device id, rev id)'; not '(0xf0,0x02)': {}", t);
+            }
+        }
+        Ok(())
     }
 
     //---
     // Ranging (getting values)
     //
-    pub fn start_ranging(&mut self, cfg: &RangingConfig) -> Result<Ranging> {
+    pub fn start_ranging(&mut self, cfg: &RangingConfig) -> Result<Ranging> {    // Rust note: 'impl Into<...>' would allow either '&T' or 'T' by the caller.
         let r: Ranging = Ranging::new_maybe(&mut self.vl, cfg)?;
         Ok(r)
     }
@@ -220,9 +267,15 @@ impl VL53L5CX<'_> {
 * Function, modeled akin to the vendor ULD 'vl53l5cx_is_alive()', but:
 *   - made in Rust
 *   - returns the device and revision id's
+*
+* This is the only code that the ULD C driver calls on the device, prior to '.init()', i.e. it
+* is supposed to be functioning also before the firmware and parameters initialization.
+*
+* Vendor note:
+*   - ULD C driver code expects '(0xf0, 0x02)'. The author has only seen '(0x03, 0x00)'.
 */
-fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> Result<(u8,u8)> {
-    let mut buf: [u8;2] = [0,0];        // tbd. any more elegant way? #help
+fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
+    let mut buf: [u8;2] = [u8::MAX;2];
 
     pl.wr_bytes(0x7fff, &[0x00])?;
     pl.rd_bytes(0, &mut buf)?;   // [dev_id, rev_id]
@@ -231,3 +284,10 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> Result<(u8,u8)> {
     Ok( (buf[0], buf[1]) )
 }
 
+// DEBUGging
+fn mem_slice(p: *const c_void, _n: usize) -> [u32;2] {
+    let pp: *const u32 = p as _;
+    unsafe {
+        [*pp, *pp.wrapping_add(1)]
+    }
+}

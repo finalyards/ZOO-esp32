@@ -3,8 +3,13 @@
 */
 #![allow(non_snake_case)]
 
-use core::slice;
+#[cfg(feature = "defmt")]
 use defmt::trace;
+
+use core::{
+    ffi::c_void,
+    slice
+};
 
 use crate::Platform;
 use crate::uld_raw::{
@@ -19,7 +24,7 @@ use crate::uld_raw::{
 * These functions are called by the ULD (C) code, passing control back to Rust.
 *
 * Obviously: DO NOT CHANGE THE PROTOTYPES. They must match with what's in the 'platform.h' of ULD
-*           (the prorotypes were originally created using 'bindgen' manually, but remaining in sync
+*           (the prototypes were originally created using 'bindgen' manually, but remaining in sync
 *           is not enforced; should be fine..).
 *
 * Note: '#[no_mangle]' (which we need) and using generics ('P : Platform') are *incompatible*
@@ -113,9 +118,7 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; n
     // Note: Since we don't actually _know_, whether 'buffer' is 4-byte aligned (to be used as '*mut u32'),
     // The original doc mentions a blurry "generally uint32_t" (not very helpful).
     //
-    if (buf as usize %4) != 0 {
-        panic!("Buffer to swap byte order not 'u32' aligned");
-    }
+    assert!(buf as usize %4 <= 0, "Buffer to swap byte order not 'u32' aligned");   // '<= 0' to avoid an IDE warning
 
     let words: usize = (size as usize)/4;
     let s: &mut[u32] = unsafe { slice::from_raw_parts_mut(buf as *mut u32, words) };
@@ -135,31 +138,37 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
 
     with(pt, |p| {
         p.delay_ms(time_ms);
-        0
+        ST_OK
     })
 }
-
-/*** #Ancient remains
-/*
-* Convert the pointer from ULD C API to Rust
-*/
-fn conv<'a>(pt: *mut VL53L5CX_Platform) -> &'a mut dyn Platform {
-    trace!("Platform at: {:x}", pt);    // let's see if it moves
-
-    unsafe {        // thanks, ChatGPT!!!
-        &mut *(pt as *mut dyn Platform)
-    }
-}***/
 
 /*
 * NOTE! *FINALLY* thinking like Rust!! Using 'with' and a closure, we don't need to worry about
 *   lifespans of the converted pointer!
 */
 fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
+    #[cfg(feature="defmt")]
     trace!("Platform at: {:x}", pt);    // let's see if it moves
 
-    let p = unsafe {        // thanks, ChatGPT!!!
-        &mut *(pt as usize as *mut dyn Platform)
+    //unimplemented!();       // it's STILL HARD!!!
+
+    let x: &mut dyn Platform = if false {
+        let pt = unsafe {
+            core::ptr::NonNull::new_unchecked(pt).cast::<&mut dyn Platform>()
+                .as_ptr()
+        };
+        unsafe { *pt }
+    } else {
+        // Re-interpret what's in '*pt' as '&mut dyn Platform'
+        //
+        let pt: *mut &mut dyn Platform = pt as *mut c_void as _;
+
+        trace!("Pointer: {}", pt);
+
+        unsafe{ *pt }
     };
-    f(p)
+
+    //R trace!("dyn Platform: {}", x);    // cannot really say anything about it
+
+    f(x)
 }

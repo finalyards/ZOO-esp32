@@ -50,3 +50,19 @@ Initially, also wanted to use env. strings within values, but there may be other
 
 	Just too surprising!  Fix once/if we can use a single string.
 
+
+## Cargo: larger use of SQLite
+
+- ["Cargo cache cleaning" > "Plan for the future"](https://blog.rust-lang.org/2023/12/11/cargo-cache-cleaning.html#plan-for-the-future) (blog, Dec'23)
+
+	>*"[...] When cargo downloads registry index data, it stores it in a custom-designed binary file format to improve lookup performance. However, this index cache uses many small files, which may not perform well on some filesystems."*
+
+Running `cargo build` currently (Aug'24) takes some 30+ seconds up-front, where the CPU load of `cargo` is only around 10%. This is weird. (Would it be, say, 100%, it should only take 3s). 
+	
+If this is due to Multipass mounts, a move to SQLite *may* have dramatic effects!
+	
+- [ ] Find (?) a tracking issue for this? (did not...)
+- [ ] When / how to try this on `nightly`?
+- [ ] ... `stable`?
+
+	

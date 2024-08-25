@@ -7,35 +7,35 @@
 target = "riscv32imc-unknown-none-elf"      # change this by 'set-target.sh'
 
 rustflags = [
-    # Required to obtain backtraces, however it may negatively impact the performance of your application.
+    # "Required to obtain backtraces, however it may negatively impact the performance of your application."
     #
     # Note: Interesting discussion in:
     #   - "`force-frame-pointers` flag isn't honored always unless std is recompiled as such"
     #       -> https://github.com/rust-lang/rust/issues/103711 (GitHub Issues; [closed])
     #
-    # - [ ] Is there (really not) a way to provide this in 'build.rs' or 'Cargo.toml'?
-    #
+    # tbd. find out if there's (really no?) way to declare this in 'build.rs'.
     "-C", "force-frame-pointers",
+
+    # This works on nightly, but didn't tremendeously speed up the builds.
+    #"-Zlinker-features=-lld"
 ]
 
-[target.'cfg(all())']   # this works; gives unconditional '[target]'
-
-#runner = "probe-rs run --chip=esp32c3"
-runner = "probe-rs run --chip=esp32c3 --log-format {L}_{s}"     # works, but isn't space
-#runner = "probe-rs run --chip=esp32c3 --log-format {L} {s}"    # nope!
-    # ^-- even that gives: "Error: An IO error has occurred while reading the firmware file."
-
-#runner = 'probe-rs run --chip=esp32c3 --log-format "{L}_{s}"'
-#        Running `probe-rs run --chip=esp32c3 --log-format '"{L}' '{s}"' target/riscv32imac-unknown-none-elf/release/examples/nada`
-#           -> fails
-#runner = ["probe-rs", "run", "--chip=esp32c3", "--log-format", "{L} {s}"]    # can work, but isn't it tedious!  (also would like to have '--log-format' and the value in the same entity)
-
-    # Note: The author wasn't able to place a space in the '--log-format'. Tried:
-    #       "[...] --log-format '{L} {s}'"
-    #       "[...] --log-format \"{L} {s}\""
-    #       '[...] --log-format "{L} {s}"'
-    #       "[...] --log-format {L}\ {s}"
-    #       '[...] --log-format {L}\ {s}'
-    #       '[...] --log-format {L} {s}'    # NBSP
-
+[target.'cfg(all())']   # unconditional '[target]' #hack
+#runner = ["probe-rs", "run", "--log-format={L} {s}"]
+runner = ["probe-rs", "run", "--log-format={[{L}]%bold} {s}  {{c} {ff}:{l:1}%dimmed}"]
+#
+# Note: Using the '[...]' format is the ONLY WAY that a space can be expressed in the '--log-format' syntax!
+#
+# Note: The author wasn't able to place a space in the '--log-format'. Tried:
+#       "[...] --log-format '{L} {s}'"
+#       "[...] --log-format \"{L} {s}\""
+#       '[...] --log-format "{L} {s}"'
+#       "[...] --log-format {L}\ {s}"
+#       '[...] --log-format {L}\ {s}'
+#       '[...] --log-format {L} {s}'    # NBSP
+#
 # For syntax, see -> https://defmt.ferrous-systems.com/custom-log-output#metadata-specifiers
+
+# These require 'rustup run nightly [...]'
+[unstable]
+gc = true

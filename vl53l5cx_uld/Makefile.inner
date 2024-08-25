@@ -92,19 +92,9 @@ endif
 #---
 # Generate Rust
 #
-# Notes:		TBD: IS THE COMMENT OUTDATED ---v ?
-#	- '--formatter=prettyplease' (not needing nightly?) didn't work
+# Notes:
+#	- '--formatter=prettyplease' (not needing nightly?) didn't work		// claimed to be fixed in bindgen 0.70.0
 #	- using 'rustfmt.toml' > normalize_doc_attributes requires nightly
-
-# 'platform.h' conversion was ever only used manually; the 'src/platform.rs' is based on it.
-#
-tmp/platform-raw.templ.rs: platform.h $(_MAKEFILE_INNER)
-	rustup run stable \
-	  bindgen $< --allowlist-function 'VL53L5CX_.+' \
-	    --opaque-type=VL53L5CX_Platform \
-	    --use-core \
-	  | sed s/TimeMs/time_ms/ \
-	  | sed s/RegisterAdress/register_address/ > $@
 
 # Generates 'src/uld_raw.rs'. MANUAL CHANGES TO IT WILL BE LOST; modify this instead.
 #
@@ -188,11 +178,13 @@ x: src/uld_raw.rs
 	@echo "Yay!"
 
 _clean:
-	cargo clean
 	-rm src/uld_raw.rs tmp/libvendor_uld.a tmp/vl53l5cx_api.o
+
+_klean: _clean
+	cargo clean
 
 echo:
 	@echo $(MAKEFILE_LIST)
 
 #--
-.PHONY: all _c_src_mkdir _clean echo
+.PHONY: all _c_src_mkdir _clean _klean echo
