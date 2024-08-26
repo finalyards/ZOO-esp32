@@ -1,6 +1,6 @@
 
 #[allow(unused_imports)]
-use defmt::{info, debug, error, warn};
+use defmt::{info, debug, error, warn, trace};
 
 #[allow(unused_imports)]
 use core::{
@@ -57,15 +57,23 @@ impl<T> Platform for MyPlatform<T>
     T::Error: Format    // defmt output can be made
 {
     fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> Result<(),()> {
+        //Rtrace!("I2C read: {:#06x}", addr);
+        let addr_orig = addr;
+
         let addr = addr.to_be_bytes();
         let mut i2c = self.i2c.borrow_mut();
 
         match i2c.write_read(I2C_ADDR, &addr, buf) {
             Err(e) => { error!("I2C read failed: {}", e); Err(()) },
-            Ok(()) => Ok(())
+            Ok(()) => {
+                trace!("I2C read: {:#06x} -> {:#04x}", addr_orig, buf);
+                Ok(())
+            }
         }
     }
     fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<(),()> {
+        trace!("I2C write: {:#06x} <- {:#04x}", addr, vs);
+
         let addr = addr.to_be_bytes();
         let mut i2c = self.i2c.borrow_mut();
 
@@ -81,6 +89,8 @@ impl<T> Platform for MyPlatform<T>
     }
 
     fn delay_ms(&mut self, ms: u32) {
+        trace!("🔸 {}ms", ms);
+
         self.d_provider.delay_millis(ms);
     }
 }

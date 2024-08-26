@@ -4,6 +4,7 @@
 #![allow(non_snake_case)]
 
 #[cfg(feature = "defmt")]
+#[allow(unused_imports)]
 use defmt::trace;
 
 use core::{
@@ -148,27 +149,25 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
 */
 fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
     #[cfg(feature="defmt")]
-    trace!("Platform at: {:x}", pt);    // let's see if it moves
+    //R trace!("Platform at: {:x}", pt);    // let's see if it moves
+        // 0x3fccd0a8
 
-    //unimplemented!();       // it's STILL HARD!!!
-
-    let x: &mut dyn Platform = if false {
+    let x: &mut dyn Platform = /*** (not tried) ***/ if false { // R (but try first) tbd.
         let pt = unsafe {
             core::ptr::NonNull::new_unchecked(pt).cast::<&mut dyn Platform>()
                 .as_ptr()
         };
+
         unsafe { *pt }
     } else {
         // Re-interpret what's in '*pt' as '&mut dyn Platform'
         //
         let pt: *mut &mut dyn Platform = pt as *mut c_void as _;
 
-        trace!("Pointer: {}", pt);
-
+        //R trace!("Pointer: {}", pt);
+            // 0x3fccd0a8
         unsafe{ *pt }
     };
-
-    //R trace!("dyn Platform: {}", x);    // cannot really say anything about it
 
     f(x)
 }

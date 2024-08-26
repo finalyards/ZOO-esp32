@@ -142,12 +142,7 @@ impl VL53L5CX_Configuration {
                 let pp = addr_of_mut!((*up).platform);
                 assert!( (pp as usize)%al2 == 0, "bad alignment on C side" );   // 2nd check (TEMP?)
 
-                debug!("DD before: {:#x}", mem_slice(dd as *const dyn Platform as *const c_void, al1) );     // TEMP
-                    // [16000000, 0]
-
                 *(pp as *mut &mut dyn Platform) = dd;
-                debug!("DD for tunnel: {:#x}", mem_slice(pp as *const c_void, al1) );   // TEMP
-                    // [1070385000, 1006699576]
             }
 
             // Initialize those fields we know C API won't touch (just in case)
@@ -285,6 +280,7 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
 }
 
 // DEBUGging
+#[cfg(feature = "disabled")]
 fn mem_slice(p: *const c_void, _n: usize) -> [u32;2] {
     let pp: *const u32 = p as _;
     unsafe {

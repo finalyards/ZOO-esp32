@@ -36,6 +36,6 @@ runner = ["probe-rs", "run", "--log-format={[{L}]%bold} {s}  {{c} {ff}:{l:1}%dim
 #
 # For syntax, see -> https://defmt.ferrous-systems.com/custom-log-output#metadata-specifiers
 
-# These require 'rustup run nightly [...]'
+# These only affect 'nightly'
 [unstable]
 gc = true
