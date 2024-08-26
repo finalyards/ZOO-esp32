@@ -45,10 +45,10 @@ all:
 #TEMP
 nada:
 	$(LOG_ENV) cargo build $(--PROFILE) --features=defmt --example $@
-	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
+	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
 
 nada!:
-	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
+	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
 
 1 ranging-basic:
 	FEATURES=distance_mm $(MAKE) _1-ranging_basic
@@ -58,7 +58,7 @@ nada!:
 
 $(EXAMPLE_NAMES):
 	$(LOG_ENV) cargo build --timings $(--PROFILE) --features=$(DEFMT_FEATURES) --example $@
-	probe-rs run --chip=$(CHIP) --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/$@
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/$@
 
 echo:
 	@echo $(EXAMPLE_NAMES)

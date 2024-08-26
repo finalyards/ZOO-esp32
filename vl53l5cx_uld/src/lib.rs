@@ -279,8 +279,8 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     Ok( (buf[0], buf[1]) )
 }
 
-// DEBUGging
-#[cfg(feature = "disabled")]
+// keep for possible use
+#[cfg(disabled)]
 fn mem_slice(p: *const c_void, _n: usize) -> [u32;2] {
     let pp: *const u32 = p as _;
     unsafe {

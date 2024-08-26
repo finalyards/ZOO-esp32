@@ -2,6 +2,8 @@
 
 ## Ability to automatically set features only for `--example` builds
 
+>[UPDATE] This *would* be nice, but the whole system seems to work differently.
+
 Surprised this isn't a feature. <sub>*pun semi-intended*</sub>
 
 - ["There is currently no way to specify features automatically when using `cargo doc`"](https://github.com/rust-lang/cargo/issues/8905) (cargo GitHub Issue, opened 2020)
@@ -17,12 +19,13 @@ All of those are essentially asking for the same thing, but from different angle
 >- not changing `--no-defaults` (??) functionality; it would only apply to core `defaults`
 >- `example-defaults` (etc.) would be used *instead of* `defaults`, with the default (`example-defaults = ["default"]`)
 
-
+<!-- not gonna happen; 'build.rs' doesn't get run like that
 ## A way to detect `example`, `bin` or `lib` builds, in `build.rs`
 
 - ["Environment variable to detect target build type"](https://github.com/rust-lang/cargo/issues/11714) (opened Feb'23)
 
 If this was possible, we could set `example`-specific features within `build.rs`.
+-->
 
 ## config.toml support [env] with [env.<cfg>]
 
@@ -43,13 +46,6 @@ Initially, also wanted to use env. strings within values, but there may be other
 	
 	- Prefixing `**/examples/[0-9]*.rs` with `_`
 	
-
-## Being able to say `{L} {s}` in `.cargo/config.toml`
-
-- ["Unable to feed a space to `probe-rs --log-format`, via `.cargo/config.toml`"](https://github.com/rust-lang/cargo/issues/14393)
-
-	Just too surprising!  Fix once/if we can use a single string.
-
 
 ## Cargo: larger use of SQLite
 
