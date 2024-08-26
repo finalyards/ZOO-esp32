@@ -81,6 +81,18 @@ cat tmp-2 | sed -E "s/(\")esp32c[36](\")/\1${MCU}\2/g" \
 
 rm tmp-[12]
 
+# Finally, remove the 'src/uld_raw.rs' to force it to be recreated. Without this, one got these:
+#   <<
+#     error[E0080]: evaluation of constant value failed
+#       --> src/uld_raw.rs:36:10
+#     36 |         [::core::mem::size_of::<VL53L5CX_Configuration>() - 2336usize];
+#        |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ attempt to compute `2328_usize - 2336_usize`, which would overflow
+#   <<
+#
+# IDEALLY, our changing the 'Cargo.toml' should have caused a recreate. Don't know why it didn't.
+#
+rm src/uld_raw.rs
+
 echo "Files '.cargo/config.toml' and 'Cargo.toml' now using:"
 echo ""
 echo "   MCU:    ${MCU}"

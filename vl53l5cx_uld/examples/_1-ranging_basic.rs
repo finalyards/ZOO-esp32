@@ -25,7 +25,7 @@ extern crate vl53l5cx_uld as uld;
 mod common;
 
 use common::MyPlatform;
-use uld::{VL53L5CX, Ranging, RangingConfig, Platform};
+use uld::{VL53L5CX, Ranging, RangingConfig};
 
 // Vendor ULD C example:
 // "we also suppose that the number of target per zone is set to 1, and all output are enabled."

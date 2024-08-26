@@ -15,8 +15,6 @@
 # Note: 'bindgen' docs show how that tool can also build the static library as part of the 'cargo build' command run.
 #		We kind of follow that approach, but wrap all the C side actions still under a 'Makefile'.
 #
-
-#---
 # NOTE: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the more fine grained ones.
 #	<<
 #	  $ clang -print-targets | grep risc
@@ -24,13 +22,7 @@
 #	  riscv64     - 64-bit RISC-V
 #	<<
 #
-#	Related:
-#		- "RISC-V has different triples for clang and rustc" (2021; closed)
-#			-> https://github.com/rust-lang/rust-bindgen/issues/2136
-#		- "RISC-V target not passed on correctly to clang" (2019; open)
-#			-> https://github.com/rust-lang/rust-bindgen/issues/1555
-#
-_VL53L5CX_ULD_API=VL53L5CX_ULD_API
+_VL53L5CX_ULD_API:=VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API
 
 _TMP:=./tmp/
 _C_SRC:=tmp/c_src
@@ -39,6 +31,7 @@ _OBJ_PATH:=$(_TMP)/$(TARGET)
 
 _OTHER_INCS:=platform.h fake/*.h
 
+# Note: Unlike Rust, clang uses the same target arch for both ESP32-C3 and ESP32-C6.
 _TARGET_ARCH:=riscv32-unknown-elf
 
 _MAKEFILE_INNER:=$(MAKEFILE_LIST)	# Makefile.inner
@@ -59,7 +52,7 @@ tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
 #		a good idea to use it (would cause everything to recompile, all the time). This may be overthinking, but
 #		..it works.
 #
-tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/*.h $(_OTHER_INCS) Cargo.toml
+tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Cargo.toml
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
@@ -69,19 +62,16 @@ tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/*.h $(_OTHER_INCS) Cargo.toml
 # 	- places e.g. headers and C files in the same folder, for convenience
 #	- removes a nasty! reference to a field in a structure that's supposed to be customer-made and opaque
 #
-$(_C_SRC)/%.h: $(_VL53L5CX_ULD_API)/inc/%.h |_c_src_mkdir
+$(_C_SRC)/%.h: $(_VL53L5CX_ULD_API)/inc/%.h
 	@cp $< $@
 
-$(_C_SRC)/vl53l5cx_api.c: $(_VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch |_c_src_mkdir
+$(_C_SRC)/vl53l5cx_api.c: $(_VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch
 	patch $< ./patch -o $@
 
 # Error at Make root level, if vendor sources aren't there
 ifeq ("$(wildcard $(_VL53L5CX_ULD_API)/src/*)", "")
 $(error ST.com ULD driver not found; please download and place in the folder $(_VL53L5CX_ULD_API))
 endif
-
-_c_src_mkdir:
-	@install -d $(_C_SRC)
 
 # Make sure features have been processed.
 # We don't use regular 'tmp/config.h:' target, because it would not work with 'make -B' (force rebuilds).
@@ -178,7 +168,7 @@ x: src/uld_raw.rs
 	@echo "Yay!"
 
 _clean:
-	-rm src/uld_raw.rs tmp/libvendor_uld.a tmp/vl53l5cx_api.o
+	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a
 
 _klean: _clean
 	cargo clean
@@ -187,4 +177,4 @@ echo:
 	@echo $(MAKEFILE_LIST)
 
 #--
-.PHONY: all _c_src_mkdir _clean _klean echo
+.PHONY: all _clean _klean echo

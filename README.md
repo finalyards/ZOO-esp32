@@ -12,7 +12,7 @@ This library aims to steer the sensor (multiple of them!) using `async` Rust via
 - [`simondlevy/VL53L5CX`](https://github.com/simondlevy/VL53L5CX) (GitHub; 2021)
 
 	<!-- tbd.!!! Once public, mention to those two, especially Simon - he's worked on ESP32, at some point.
--->
+	-->
 
 ## Requirements (hardware)
 
@@ -78,19 +78,17 @@ You want a ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/27
 The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.html) is a separate download.
 
 1. Fetch it from ST (link above)
-2. Place the contents of `VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API` to `uld-sys/VL53L5CX_ULD_API/`
+2. Place the `VL53L5CX_ULD_driver_2.0.0` folder to `vl53l5cx_uld/`
 
 	Note that while you need to `Agree` to the larger ST.com license, it has the clause: 
 	
 	>Open Source Software [...] is not subject to the terms of this PLLA to the extent [...]
 
-
-
 <!-- Developed on
 macOS 14.6
 Multipass 1.14.0-rc1
 ESP32-C3-Devkit-C02 (revision 0.4)
-//coming VL53L5CX-SATEL (x2)
+VL53L5CX-SATEL (marking "(4)322", "PCB4109A")
 bindgen 0.70.0
 -->
 

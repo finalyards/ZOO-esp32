@@ -12,7 +12,7 @@ pub mod units;
 use defmt::{debug, warn, trace, error};
 
 use core::{
-    ffi::{CStr, c_void},
+    ffi::CStr,
     mem::MaybeUninit,
     ptr::addr_of_mut,
     result::Result as CoreResult,

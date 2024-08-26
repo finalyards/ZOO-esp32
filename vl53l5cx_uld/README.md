@@ -26,14 +26,6 @@ Turns the `VL53L5CX_ULD_API` source code into something that can be touched with
 
 See hardware and software requirements -> [`../README`](../README.md).
 
-<!--
-```
-$ clang -print-targets | grep riscv32
-    riscv32     - 32-bit RISC-V
-    riscv64     - 64-bit RISC-V
-```
--->
-
 ## Preparation
 
 The workflow has been tested on these MCUs:
@@ -43,46 +35,25 @@ The workflow has been tested on these MCUs:
 |`esp32c3` (default)|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) dev kit, with JTAG/USB wiring added|
 |`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
 
-If you are using ESP32-C3, the repo is ready for use.
+If you are using ESP32-C3, the repo is ready for use. To use ESP32-C6, run this once: `./set-target.sh` .
 
-### Setting the target
+### Wiring
 
-To use ESP32-C6, run this once:
-
-```
-$ ./set-target.sh
-```
-
-<!--
-Check `.cargo/config.toml` and `Cargo.toml` that any references to `target` or `chip` are correct.
-
->tbd. There's planned to be a `./set-target.sh` script that asks the chip type and verifies/changes these files, for you.
--->
+See [WIRING](./WIRING.md).
 
 ## Compiling 
 
 ```
-$ cargo build --release --lib
+$ cargo build --release
 ```
 
-The command uses `Makefile.inner` internally. You can also use it directly; have a look at its contents.
-
-<!--remove
-<span />
-
->Note: Somewhat unintuitively, the build doesn't have any Chip-specific features. No `esp32c3`-like. This is *either* because
+>The command uses `Makefile.inner` internally. If there are problems with the build, you may want to run the Makefile separately (see below). Also, have a look at its contents.
 >
->- a) the compilation (`clang`) is done using a single target that covers all ESP32 (RISC-V) chips: `riscv32`
->- b) the author hasn't really cracked it; such features *will* be needed!!
--->
+>```
+>$ make -f Makefile.inner src/uld_raw.rs tmp/libvendor_uld.a
+>```
 
 ## Running samples
-
->For C3 boards, before running:
->- reset the board
->- re-attach it on USB/IP
->
->This needs to be done anew *before each run*. ESP32-C6 boards don't need such resets.
 
 ```
 $ cargo run --release --features=defmt --example nada
@@ -107,26 +78,33 @@ $ cargo run --release --features=defmt,distance_mm --example _1-ranging_basic
 
 *tbd. Hardware setup for those.*
 
-<!-- (already said)
 ## Troubleshooting
 
-### No log output on ESP32-C3
+### General
+
+Make sure you've installed `probe-rs` from GitHub. Stock version 0.24.0 is NOT FRESH ENOUGH!
+
+### No log output (ESP32-C3 only)
 
 ```
-$ probe-rs run --chip=esp32c3 --log-format '{L}_{s}' target/riscv32imc-unknown-none-elf/release/examples/nada
-      Erasing ✔ [00:00:03] [###########################################################] 192.00 KiB/192.00 KiB @ 57.05 KiB/s (eta 0s )
-  Programming ✔ [00:00:18] [##############################################################] 22.54 KiB/22.54 KiB @ 1.25 KiB/s (eta 0s )    Finished in 18.072815s
+$ probe-rs run --log-format '{L}_{s}' target/riscv32imc-unknown-none-elf/release/examples/nada
+      Erasing ✔ [00:00:03] [################] 192.00 KiB/192.00 KiB @ 57.05 KiB/s (eta 0s )
+  Programming ✔ [00:00:18] [################] 22.54 KiB/22.54 KiB @ 1.25 KiB/s (eta 0s )    Finished in 18.072815s
 
 
 
 ```
 
-The C3 board needs a physical reset (and reattaching) prior to each run.
+The C3 board may needs a physical reset (and reattaching) prior to each run.
+
+- keep both `RESET` and `BOOT` buttons pressed; release `RESET`
+- release `BOOT`
+
+This sets the device in "download mode".
 
 - push the `RESET` button
 - re-attach on USB/IP: e.g. `sudo attach -r 192.168.1.29 -b 3-1`
 - try again
--->
 
 ## References
 
