@@ -193,6 +193,7 @@ impl VL53L5CX<'_> {
             .to_str().unwrap();
 
         Self::ping(&mut p).map_err(|_| ST_ERROR)?;
+
         let vl = VL53L5CX_Configuration::init_with(/*move*/ p)?;
 
         Ok(Self {
@@ -207,7 +208,8 @@ impl VL53L5CX<'_> {
                 debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b),   // vendor driver ONLY proceeds with this
             t => {
                 #[cfg(feature="defmt")]
-                warn!("Unexpected '(device id, rev id)'; not '(0xf0,0x02)': {}", t);
+                error!("Unexpected '(device id, rev id)': {:#04x}", t);
+                Err(())?
             }
         }
         Ok(())
@@ -277,6 +279,37 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     pl.wr_bytes(0x7fff, &[0x02])?;
 
     Ok( (buf[0], buf[1]) )
+}
+
+/**
+* Based on forum comment [1] (Feb'24), checking that the byte wrapping is as VL53L5CX would like it.
+*
+*   [1]: https://community.st.com/t5/imaging-sensors/struggling-to-successfully-operate-the-satel-vl53l8a-with-the/m-p/640828/highlight/true#M3625
+*/
+#[cfg(disabled)]
+fn vl53l5cx_check_polarity<P : Platform>(pl: &mut P) -> CoreResult<(),()> {
+    let abcd: &[u8;4] = &[0xaa, 0x55, 0x2a, 0xcb]; //[1,2,3,4];
+    let mut buf1: [u8;4] = [0;4];
+    let mut buf2: [u8;4] = [0;4];
+
+    // Write bytes to 0x100, read back both as individual bytes, and as a block of 4.
+    //
+    pl.wr_bytes(0x100, abcd)?;
+
+    for i in 0_usize..4 {
+        pl.rd_bytes(0x100+i as u16, &mut buf1[i..=i])?;
+    }
+    pl.rd_bytes(0x100, &mut buf2)?;
+
+    debug!("Swap expected: {:#04x}, got {:#04x}, {:#04x}", abcd, &buf1, &buf2);
+        // <<
+        //  [0x01, 0x02, 0x03, 0x04], got [0x52, 0x01, 0x02, 0x03], [0x52, 0x01, 0x02, 0x03]
+        // <<
+
+    assert_eq!(abcd, &buf1);
+    assert_eq!(abcd, &buf2);
+
+    Ok(())
 }
 
 // keep for possible use

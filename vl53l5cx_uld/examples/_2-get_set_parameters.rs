@@ -69,10 +69,9 @@ fn main() -> ! {
 
     let pl = MyPlatform::new(&clocks, i2c_bus);
 
-    let vl = VL53L5CX::new_and_init(pl).unwrap();
+    let mut vl = VL53L5CX::new_and_init(pl).unwrap();
 
     info!("Init succeeded, driver version {}", vl.API_REVISION);
-    unimplemented!();   // STOP
 
     let d_provider = Delay::new(&clocks);
     let delay_ms = |ms| d_provider.delay_millis(ms);
