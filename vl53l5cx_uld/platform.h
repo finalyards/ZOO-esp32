@@ -39,7 +39,7 @@
  *          + neat (though hack); is maintainable because we can automatically check ('sizeof') that the space is enough
  */
 typedef struct {
-    _Alignas(8) uint32_t _[4];      // 16 bytes; 8 aligned
+    _Alignas(8) uint32_t _[2];      // 8 bytes; 8 aligned
 } VL53L5CX_Platform;
 
 /**

@@ -133,9 +133,8 @@ impl VL53L5CX_Configuration {
                 let (sz1,al1, sz2,al2) = (
                     field_size!(VL53L5CX_Configuration::platform),
                     align_of::<VL53L5CX_Configuration>(),     // it's the first field; thus same (C) alignment
-                    size_of_val(dd), align_of_val(dd)   // 16,8
+                    size_of_val(dd), align_of_val(dd)   // 8,8
                 );
-
                 assert_eq!(sz1,sz2, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
                 assert_eq!(al1,al2, "Tunnel alignments don't match");
 

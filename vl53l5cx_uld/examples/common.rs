@@ -8,13 +8,8 @@ use core::{
     mem::MaybeUninit,
     ptr::NonNull
 };
-use defmt::Format;
-use embedded_hal::i2c::SevenBitAddress;
-use esp_hal::{
-    clock::Clocks,
-    delay::Delay,
-    //prelude::*
-};
+use esp_hal::{clock::Clocks, delay::Delay, i2c, Blocking};
+use esp_hal::i2c::I2C;
 
 extern crate vl53l5cx_uld as uld;
 use uld::Platform;
@@ -35,21 +30,17 @@ const MAX_WR_BLOCK: usize = 254;
 *   - SCL => GPIO5      //  -''-
 *   - LPn => 47k => GND
 */
-pub struct MyPlatform<T>
-    where T: embedded_hal::i2c::I2c<SevenBitAddress>
-{
-    // tbd. No need for 'embedded_hal'.
-    // tbd. Get rid of the 'RefCell'; embedded-hal/I2c docs tell to use just 'I2C' #study
-    i2c: RefCell<T>,
+pub struct MyPlatform<'a, T: i2c::Instance> {
+    i2c: I2C<'a, T, Blocking>,
     d_provider: Delay,
 }
 
-impl<T> MyPlatform<T>
-    where T: embedded_hal::i2c::I2c<SevenBitAddress>
-{
-    pub fn new(clocks: &Clocks, i2c: T) -> Self {
-        let i2c = RefCell::new(i2c);
-
+// Rust note: for the lifetime explanation, see:
+//  - "Lost in lifetimes" (answer)
+//      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
+//
+impl<'a,T> MyPlatform<'a,T> where T: i2c::Instance {
+    pub fn new(clocks: &Clocks, i2c: I2C<'a,T,Blocking>) -> Self {
         Self{
             i2c,
             d_provider: Delay::new(&clocks),
@@ -57,17 +48,13 @@ impl<T> MyPlatform<T>
     }
 }
 
-impl<T> Platform for MyPlatform<T>
-    where T: embedded_hal::i2c::I2c<SevenBitAddress>,
-    T::Error: Format    // defmt output can be made
+impl<T> Platform for MyPlatform<'_,T> where T: i2c::Instance
 {
     fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> Result<(),()> {
         let addr_orig = addr;
-
         let addr = &addr.to_be_bytes();
-        let mut i2c = self.i2c.borrow_mut();
 
-        match i2c.write_read(I2C_ADDR, addr, buf) {
+        match self.i2c.write_read(I2C_ADDR, addr, buf) {
             Err(e) => { error!("I2C read failed: {}", e); Err(()) },
             Ok(()) => {
                 trace!("I2C read: {:#06x} -> {:#04x}", addr_orig, buf);
@@ -88,7 +75,6 @@ impl<T> Platform for MyPlatform<T>
     *       automatically.
     */
     fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<(),()> {
-        let mut i2c = self.i2c.borrow_mut();
         let addr_orig = addr;
         let mut addr = addr;    // rolled further with the chunks
 
@@ -118,7 +104,7 @@ impl<T> Platform for MyPlatform<T>
                 &buf[..2+n]
             };
 
-            i2c.write(I2C_ADDR, &out).map_err(|e|
+            self.i2c.write(I2C_ADDR, &out).map_err(|e|
                 { error!("I2C write failed: {}", e); () }
             )?;
             addr = addr + n as u16;
