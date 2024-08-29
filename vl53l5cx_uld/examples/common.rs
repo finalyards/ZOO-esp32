@@ -6,10 +6,15 @@ use core::{
     cell::RefCell,
     ffi::c_void,
     mem::MaybeUninit,
-    ptr::NonNull
+    ptr::NonNull,
+    iter::zip
 };
-use esp_hal::{clock::Clocks, delay::Delay, i2c, Blocking};
-use esp_hal::i2c::I2C;
+use esp_hal::{
+    clock::Clocks,
+    delay::Delay,
+    i2c::{self, I2C},
+    Blocking
+};
 
 extern crate vl53l5cx_uld as uld;
 use uld::Platform;
@@ -22,7 +27,6 @@ const I2C_ADDR: u8 = 0x52 >> 1;    // vendor default
 // Unfortunately, the 'esp-hal' module does not expose this, as a constant.
 //
 const MAX_WR_BLOCK: usize = 254;
-    // Note: The number doesn't contribute to getting 'TimeOut'.
 
 /*
 * Wiring (VL53L5CX-SATEL -> ESP32-C[36]):
@@ -75,15 +79,28 @@ impl<T> Platform for MyPlatform<'_,T> where T: i2c::Instance
     *       automatically.
     */
     fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<(),()> {
-        let addr_orig = addr;
         let mut addr = addr;    // rolled further with the chunks
+
+        const MAX_CHUNK_LEN: usize = MAX_WR_BLOCK-2;
+        let chunks = vs.chunks(MAX_CHUNK_LEN);
+        let chunks_n = (&chunks).len();   // needs taking before we move 'chunks' as an iterator
 
         // Note: We can just chunk everything (if + recursion being the alternative).
         //
-        for chunk in vs.chunks(MAX_WR_BLOCK-2) {
+        for (round,chunk) in zip(1.., chunks) {
             let n: usize = chunk.len();
 
-            trace!("Writing: {:#06x} <- {=usize} bytes", addr, n);
+            if chunks_n == 1 {
+                trace!("Writing: {:#06x} <- {=usize} bytes", addr, n);
+            } else {
+                trace!("Writing (round {}/{}): {:#06x} <- {=usize} bytes", round, chunks_n, addr, n);
+            }
+
+            // Does NOT make a difference
+            /***R #[cfg(feature = "exp_mitigate_timeouts")]
+            if n >= 100 {     // delay before large chunks; EXP
+                self.delay_ms(50);
+            }***/
 
             // Writing needs to be done in one block, where the first two bytes are the address.
             //
@@ -107,10 +124,22 @@ impl<T> Platform for MyPlatform<'_,T> where T: i2c::Instance
             self.i2c.write(I2C_ADDR, &out).map_err(|e|
                 { error!("I2C write failed: {}", e); () }
             )?;
-            addr = addr + n as u16;
-        }
 
-        trace!("I2C written: {:#06x} <- {:#04x}", addr_orig, slice_head(vs,20));
+            // Give the "written" log here, separately for each chunk (clearer to follow log).
+            if n <= 20 {
+                trace!("I2C written: {:#06x} <- {:#04x}", addr, chunk);
+            } else {
+                trace!("I2C written: {:#06x} <- {:#04x}... ({} bytes)", addr, slice_head(chunk,20), n);
+            }
+
+            addr = addr + n as u16;
+
+            // There should be 1.2ms between transactions. Until the 'TimeOut' issue is resolved,
+            // let's keep a delay here.
+            //
+            // #later: Check from the signal that/whether we are within spec (and remove delay).
+            self.delay_ms(2);
+        }
         Ok(())
     }
 

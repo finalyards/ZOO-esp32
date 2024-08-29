@@ -7,6 +7,10 @@
 *   - target order
 *
 * Otherwise, the same as example 1 (ranging basic).
+*
+* References:
+*   - embedded_hal::i2c documentation
+*       -> https://docs.rs/embedded-hal/latest/embedded_hal/i2c/index.html
 */
 #![no_std]
 #![no_main]
@@ -19,12 +23,13 @@ use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
-    gpio::Io,
+    gpio::{Io, AnyOutput, Level},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
     system::SystemControl,
 };
+use esp_hal::gpio::{AnyOutputOpenDrain, Pull};
 
 extern crate vl53l5cx_uld as uld;
 mod common;
@@ -58,23 +63,47 @@ fn main() -> ! {
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
-    let i2c_bus = I2C::new(
+    let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,
         io.pins.gpio4,  // SDA
         io.pins.gpio5,  // SCL
-        400.kHz(),
+        100.kHz(),
         &clocks,
-        None        // option: interrupt handler
+        None,   //Some(100),     // tbd. -> https://github.com/esp-rs/esp-hal/issues/2026
+        //None        // option: interrupt handler
+            // > esp-hal 0.19.0 doesn't have this
     );
 
-    let pl = MyPlatform::new(&clocks, i2c_bus);
-
-    let mut vl = VL53L5CX::new_and_init(pl).unwrap();
-
-    info!("Init succeeded, driver version {}", vl.API_REVISION);
+    let mut pwr_en = Some(AnyOutput::new(io.pins.gpio0, Level::Low));       // None if you pull it up to IOVDD via a resistor (47K)
+    let mut i2c_rst = None;     // Some(AnyOutputOpenDrain::new(io.pins.gpio1, Level::Low, Pull::Up));     // SATEL: via 47k to GND (= we pull it up, for reseting)
 
     let d_provider = Delay::new(&clocks);
     let delay_ms = |ms| d_provider.delay_millis(ms);
+
+    let pl = MyPlatform::new(&clocks, i2c_bus);
+
+    // Reset VL53L5CX by pulling down its power for a moment
+    pwr_en.iter_mut().for_each(|pin| {
+        pin.set_low();
+        delay_ms(50);
+        pin.set_high();
+        delay_ms(1);
+
+        info!("Target powered off and on again.");
+    });
+
+    // Reset the I2C circuitry
+    i2c_rst.iter_mut().for_each(|pin| {
+        pin.set_high();
+        delay_ms(10);  // tbd. see specs, what is a suitable time
+        pin.set_low();
+        // leave it there
+    });
+
+    let mut vl = VL53L5CX::new_and_init(pl)
+        .expect("Init unsuccessful");
+
+    info!("Init succeeded, driver version {}", vl.API_REVISION);
 
     //--- ranging loop
     //

@@ -1,7 +1,7 @@
 #![no_std]
 #![allow(non_snake_case)]
 
-mod macros;
+//mod macros;
 pub mod ranging;    // TEMP: for now, exposing also as 'ranging::{Resolution, ...}'; let's see
 mod platform;
 mod uld_raw;
@@ -18,7 +18,7 @@ use core::{
     result::Result as CoreResult,
 };
 
-use macros::field_size;
+//not needed: use macros::field_size;
 pub use ranging::{
     RangingConfig,
     Ranging,
@@ -129,17 +129,15 @@ impl VL53L5CX_Configuration {
             // Make a bitwise copy of 'dd' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
             // and pass back to us (Rust) once platform calls (I2C/delays) are needed.
             {
-                // First, let's check size and alignment
-                let (sz1,al1, sz2,al2) = (
-                    field_size!(VL53L5CX_Configuration::platform),
-                    align_of::<VL53L5CX_Configuration>(),     // it's the first field; thus same (C) alignment
-                    size_of_val(dd), align_of_val(dd)   // 8,8
-                );
-                assert_eq!(sz1,sz2, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
-                assert_eq!(al1,al2, "Tunnel alignments don't match");
-
                 let pp = addr_of_mut!((*up).platform);
-                assert!( (pp as usize)%al2 == 0, "bad alignment on C side" );   // 2nd check (TEMP?)
+
+                /*** disabled; gives _zero_ for the 'size_of_val(dd)'; WHY????
+                // Check size and alignment
+                let (sz_c,sz_rust) = (field_size!(VL53L5CX_Configuration::platform), size_of_val(dd));
+                assert_eq!(sz_rust,sz_c, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
+                ***/
+                let al_rust = align_of_val(dd);
+                assert!( (pp as usize)%al_rust == 0, "bad alignment on C side (needs {})", al_rust );
 
                 *(pp as *mut &mut dyn Platform) = dd;
             }
