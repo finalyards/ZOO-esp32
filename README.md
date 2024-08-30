@@ -64,7 +64,9 @@ $ cargo install bindgen-cli
 
 ### Check `probe-rs` version
 
-You want a ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748), so either:
+>Note: The `rust-emb` VM contains a suitable `probe-rs`. If you're using it, you can skip to the next section.
+
+You want an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748), so either:
 
 - check that your version is > 0.24.0
 - ..or install from sources:
@@ -86,49 +88,21 @@ The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.h
 
 <!-- Developed on
 macOS 14.6
-Multipass 1.14.0-rc1
+Multipass 1.14.0
 ESP32-C3-Devkit-C02 (revision 0.4)
-VL53L5CX-SATEL (marking "(4)322", "PCB4109A")
-bindgen 0.70.0
+VL53L5CX-SATEL (marking "PCB4109A")
+bindgen 0.70.1
 -->
 
 
-## Compilation
-
-*tbd.*  
-
->You can play in the `vl53l5cx_uld` folder, for now.
->
->This one will add to that:
->
->- Embassy (`.await`)
-
-<!-- tbd. // once we have the topmost (Embassy) level in!
+## Subprojects
 
 ```
-$ cargo build --release \
-	--features esp32c3 \
-	--target riscv32imc-unknown-none-elf
+$ cd vl53l5cx_uld
 ```
 
->For other ESP32 chips, vary the `target` [accordingly](https://docs.esp-rs.org/book/installation/riscv.html).
+Follow instructions in its [`vl53l5cx_uld/README`](vl53l5cx_uld/README.md).
 
-
-## Running
-
-Attach the hardware via USB/IP.
-
->TL;DR: `sudo usbip attach -r {IP} -b {bus-id}` so that it shows up at `lsusb`.
-><details><summary>Like this</summary>
->
->```
->$ lsusb
->[...]
->Bus 001 Device 004: ID 303a:1001 Espressif USB JTAG/serial debug unit
->[...]
->```
-></details>
--->
 
 <!--
 ## Tests

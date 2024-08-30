@@ -2,19 +2,28 @@
 
 This document applies to a version of the [VL53L5CX-SATEL](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html#documentation) development boards marked with "PCB4109A" on the bottom side.
 
-<!-- tbd. image here -->
+![](.images/VL53L5CX%20bottom.png)
+
+![](.images/Wiring-ESP32-C3-DevKit-C02.png)
+
+*Figure 1. Wiring the SATEL board with ESP32-C3-DevKit-C02*
+
+Below, we go through the SATEL pins from left to right.
 
 |SATEL pin|ESP32 pin|comments|SATEL|What can I do with it?|
 |---|---|---|---|---|
-|INT|---|Active low (open drain)<strike>; 47 kΩ pullup resistor to IOVDD needed.</strike>|Pulled via 47k to IOVDD. Enough to listen to the low pulse. <font color=orange>*(tbd. confirm by testing)*</font>|Make the waiting for a new frame `async` (non-polling).|
-|I2C_RST|---|Active high. Toggle `0->1->0` to reset the I2C target. <strike>"Connect to GND via 47 kΩ resistor."</strike>|**Pulled via 47k to IOVDD.** This means the MCU should steer it as an open drain output (pull down).|Reset the I2C side by pulling the pin down (doesn't seem to be needed).|
-|SDA|GPIO4|same pin as in a `esp-hal` I2C example; <strike>"2.2 kΩ pullup resistor to IOVDD required"</strike>|Has 2.2K built-in pull-ups for this. If you chain multiple boards, remove extra pull-ups by soldering open `SB5`, `SB7` on the underside of boards 2..n.|Talk with the device.|
+|INT|---|Active low (open drain)|Pulled via 47k to IOVDD.|Make the waiting for a new frame non-polling. <font color=orange>*(tbd. confirm by testing)*</font>|
+|I2C_RST|---|Active high. Toggle `0->1->0` to reset the I2C target.|Pulled via 47k to GND.|Reset the I2C side by pulling the pin momentarily up while `PWR_EN` remains up. Not needed in practice.|
+|SDA|GPIO4|same pin as in a `esp-hal` I2C example|Pulled via 2.2k to IOVDD.<br />If you chain multiple boards, remove extra pull-ups by soldering open `SB5`, `SB7` on the underside of boards.|Talk with the device.|
 |SCL|GPIO5|-''-|-''-|-''-|
-|LPn|---|Chip enable, active high. <strike>"47 kΩ pullup resistor to IOVDD is required"</strike>|provides 47K pull-up to IOVDD <sup>[`[3]`]()</sup>|Connect to GND to momentarily disable that chip. Can be used for programming non-default I2C addresses to a certain chip (if you cannot detach them from the bus).|
-|PWR_EN|(GPIO0)|47K to IOVDD or drive directly high with a GPIO pin|drives the `CE` (chip enable) of the larger board's regulator <sup>[`[3]`]()</sup>|Control the power cycle of the VC53L5CX chip. Up = powered; Low = off.|
+|LPn|---|Chip enable, active high.|Pulled via 47k to IOVDD.|Disable the chip momentarily, by connecting to GND. Suggested to be used for programming non-default I2C addresses, but this can be reached also by simply plugging such chips in, on their own.<sup>(1)</sup>|
+|PWR_EN|(GPIO0)|Drive directly with a GPIO pin, or pull up with e.g. 47k to IOVDD.|Drives the `CE` (chip enable) of the larger board's regulator. The whole VL53L5CX chip is powered off, unless this signal is high.|Control the power cycle of the VC53L5CX chip.|
 |AVDD|5v|
-|IOVDD|3v3|Supply for digital core and I/O||
+|IOVDD|3v3|The voltage to the actual chip is provided via the regulator. Not sure what this 3v3 {COMPLETE tbd.}||
 |GND|Gnd|
+
+`(1)`: Haven't tried. If the VL device doesn't have persistent memory of its I2C address, one needs to initialize them via this feature (disable all but one; program the I2C address).
+
 
 >For detailed description of the pins, see [`[1]`](https://www.st.com/resource/en/datasheet/vl53l5cx.pdf) table 3 ("VL53L5CX pin description").
 >
