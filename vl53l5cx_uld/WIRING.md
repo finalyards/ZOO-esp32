@@ -18,8 +18,8 @@ Below, we go through the SATEL pins from left to right.
 |SCL|GPIO5|-''-|-''-|-''-|
 |LPn|---|Chip enable, active high.|Pulled via 47k to IOVDD.|Disable the chip momentarily, by connecting to GND. Suggested to be used for programming non-default I2C addresses, but this can be reached also by simply plugging such chips in, on their own.<sup>(1)</sup>|
 |PWR_EN|(GPIO0)|Drive directly with a GPIO pin, or pull up with e.g. 47k to IOVDD.|Drives the `CE` (chip enable) of the larger board's regulator. The whole VL53L5CX chip is powered off, unless this signal is high.|Control the power cycle of the VC53L5CX chip.|
-|AVDD|5v|
-|IOVDD|3v3|The voltage to the actual chip is provided via the regulator. Not sure what this 3v3 {COMPLETE tbd.}||
+|AVDD|5v / 3v3|Both AVDD and IOVDD must be provided, for the SATEL board to function. *(don't exactly understand, why, based on the schematics)*|
+|IOVDD|3v3|-''-|
 |GND|Gnd|
 
 `(1)`: Haven't tried. If the VL device doesn't have persistent memory of its I2C address, one needs to initialize them via this feature (disable all but one; program the I2C address).

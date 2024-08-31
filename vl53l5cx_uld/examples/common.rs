@@ -12,7 +12,7 @@ use core::{
 use esp_hal::{
     clock::Clocks,
     delay::Delay,
-    i2c::{I2C, Instance, Error::ExceedingFifo},
+    i2c::{I2C, Instance},
     Blocking
 };
 
@@ -23,10 +23,11 @@ use uld::Platform;
 //
 const I2C_ADDR: u8 = 0x52 >> 1;    // vendor default
 
-// Maximum size of a block that can be written to I2C, via 'esp-hal', at once.
-// Unfortunately, the 'esp-hal' module does not expose this, as a constant.
+// Maximum sizes for I2C writes and reads, via 'esp-hal'. Unfortunately, it does not expose these
+// as values we could read (the values are burnt-in).
 //
-const MAX_WR_BLOCK: usize = 254;
+const MAX_WR_LEN: usize = 254;
+const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err with 'ExceedingFifo'
 
 /*
 * Wiring (VL53L5CX-SATEL -> ESP32-C[36]):
@@ -55,56 +56,48 @@ impl<'a,T> MyPlatform<'a,T> where T: Instance {
 impl<T> Platform for MyPlatform<'_,T> where T: Instance
 {
     /*
-    * Rd bytes.
-    *
-    * Note: in practise, we never return with an error value.
-    *
-    * On certain error conditions (FIFO exceeded), there's a single retry, after which the code
-    * panics.
+    * Reads can be in sizes of 492 bytes (or more). The 'esp-hal' requires these to be handled
+    * in multiple parts.
     */
     fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let addr_orig = addr;
-        let n = buf.len();
+        let mut addr = addr;    // rolled further with the chunks
 
-        // Received 'ExceedingFifo' error (reading just four bytes, #365 in the ULD C sources).
-        // Let's try if waiting a moment and retrying would help.
-        //
-        // Q: Why does the FIFO exceed with a payload of just 4 bytes?  #study
-        //
-        // Before that, 40 bytes had been written (if it's the address writing part). That's still
-        // only 42 bytes... #PONDERING
-        //
-        const WAIT_MS: u32 = 10;
+        let chunks = buf.chunks_mut(MAX_RD_LEN);
+        let rounds = (&chunks).len();
 
-        for round in 0..2 {
-            match self.i2c.write_read(I2C_ADDR, &addr.to_be_bytes(), buf) {
-                Err(ExceedingFifo) if round==0 => {     // give a warning; try again
-                    warn!("'ExceedingFifo', reading {} bytes from {}. Will retry after {}ms", n, addr_orig, WAIT_MS);
-                    self.d_provider.delay_millis(10);
-                },
+        // Chunks we get are *views* to the 'buf' backing them. Thus, reading to the chunk automatically
+        // fills it.
+        //
+        for (round,chunk) in zip(1.., chunks) {
+
+            match self.i2c.write_read(I2C_ADDR, &addr.to_be_bytes(), chunk) {
                 Err(e) => {
-                    // If we get an error, let's stop right away. The ULD C API would throw in more
-                    // transactions (which are likely to fail); it would only eventually yield.
-                    // We don't need to give it errors. Ever.
-                    //
-                    panic!("I2C read at {:#06x} ({} bytes) failed: {}", addr_orig, buf.len(), e);
-                    //was: error!("I2C read failed: {}", e); e
+                    // If we get an error, let's stop right away.
+                    panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", addr_orig, buf.len(), round, rounds, e);
                 },
                 Ok(()) => {
-                    // tbd. can make a wrapper on the 'buf' that implements '::Format' so that we get
-                    //      nice ', ...]' -ending output. 🌞
+                    addr = addr + chunk.len() as u16;
+
+                    // There should be 1.2ms between transactions, by the VL spec.
                     //
-                    if n <= 20 {
-                        trace!("I2C read: {:#06x} -> {:#04x}", addr, buf);
-                    } else {
-                        trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", addr, slice_head(buf,20), n);
-                    }
-                    trace!("I2C read: {:#06x} -> {:#04x}", addr_orig, buf);
-                    return Ok(())
+                    // #later: Check from the signal that/whether we are within spec (and remove delay).
+                    //      - separately for both C3, C6!!!
+                    //
+                    self.d_provider.delay_millis(1);
                 }
             };
         }
-        unreachable!()
+
+        // Whole 'buf' should now have been read in.
+        //
+        if buf.len() <= 20 {
+            trace!("I2C read: {:#06x} -> {:#04x}", addr_orig, buf);
+        } else {
+            trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", addr_orig, slice_head(buf,20), buf.len());
+        }
+
+        Ok(())
     }
 
     /***
@@ -127,23 +120,23 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
         let mut addr = addr;    // rolled further with the chunks
 
-        const MAX_CHUNK_LEN: usize = MAX_WR_BLOCK-2;
+        const MAX_CHUNK_LEN: usize = MAX_WR_LEN-2;
         let chunks = vs.chunks(MAX_CHUNK_LEN);
-        let chunks_n = (&chunks).len();   // needs taking before we move 'chunks' as an iterator
+        let _rounds = (&chunks).len();   // needs taking before we move 'chunks' as an iterator
 
-        let mut buf: [u8;MAX_WR_BLOCK] = { let un = MaybeUninit::zeroed(); unsafe { un.assume_init() }};
+        let mut buf: [u8;MAX_WR_LEN] = { let un = MaybeUninit::zeroed(); unsafe { un.assume_init() }};
 
         // Note: We can just chunk everything (if + recursion being the alternative).
         //
         for (_round,chunk) in zip(1.., chunks) {
             let n: usize = chunk.len();
 
-            /*** disabled /less trace ***/
+            /*** disabled /less trace
             if chunks_n == 1 {
                 trace!("Writing: {:#06x} <- {=usize} bytes", addr, n);
             } else {
-                trace!("Writing (round {}/{}): {:#06x} <- {=usize} bytes", _round, chunks_n, addr, n);
-            } /***/
+                trace!("Writing (round {}/{}): {:#06x} <- {=usize} bytes", round, rounds, addr, n);
+            } ***/
 
             // Writing needs to be done in one block, where the first two bytes are the address.
             //
@@ -167,9 +160,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                 { error!("I2C write to {:#06x} ({=usize} bytes) failed: {}", addr, n, e); () }
             )?;
 
-            // tbd. go here...
-            //write_with_retry(&mut self.i2c, &out);
-
             // Give the "written" log here, separately for each chunk (clearer to follow log).
             if n <= 20 {
                 trace!("I2C written: {:#06x} <- {:#04x}", addr, chunk);
@@ -179,29 +169,12 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
 
             addr = addr + n as u16;
 
-            // There should be 1.2ms between transactions, by the VL spec.
-            //
-            // - ESP32-C6 needs at least some (tried with 1ms) delay. Otherwise, we get instant 'TimeOut' from I2C.
+            // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
             //
             // #later: Check from the signal that/whether we are within spec (and remove delay).
             //      - separately for both C3, C6!!!
             //
             self.d_provider.delay_millis(1);
-        }
-
-        fn write_with_retry<T: Instance>(i2c: &mut I2C<'_, T, Blocking>, bytes: &[u8]) {
-
-            // TEMP: start with just one write.
-
-            match i2c.write(I2C_ADDR, bytes) {
-                Err(e) => {
-                    let tmp: [u8;2] = bytes[0..2].try_into().unwrap();
-                    let addr: u16 = u16::from_be_bytes(tmp);
-                    let n = bytes.len() - 2;
-                    panic!("I2C write to {:#06x} ({} bytes) failed: {}", addr, n, e);
-                },
-                Ok(()) => {}
-            }
         }
 
         Ok(())

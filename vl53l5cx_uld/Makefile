@@ -49,7 +49,7 @@ nada!:
 	FEATURES=distance_mm $(MAKE) _1-ranging_basic
 
 2 get-set-parameters:
-	FEATURES=distance_mm $(MAKE) _2-get_set_parameters
+	FEATURES=target_status,distance_mm $(MAKE) _2-get_set_parameters
 
 $(EXAMPLE_NAMES):
 	$(LOG_ENV) cargo build --timings $(--PROFILE) --features=$(DEFMT_FEATURES) --example $@
