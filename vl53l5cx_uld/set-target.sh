@@ -1,19 +1,10 @@
 #!/bin/bash
-
 set -e
-
-if [[ $OSTYPE == 'darwin'* ]]; then
-  echo -e >&2 "SORRY! The use of 'sed' in this script did not work on macOS. Please run on Linux.\n"
-  false
-fi
 
 #
 # .cargo/config.toml:
 #     ^target = "riscv32imc-unknown-none-elf"    | ESP32-C3
 #     ^target = "riscv32imac-unknown-none-elf"   | ESP32-C6
-#
-#     --chip=esp32c3
-#     --chip=esp32c6
 #
 # Cargo.toml:
 #     "esp32c6"
@@ -64,6 +55,22 @@ case "$MCU" in
   *) (echo >&2 "Unexpected MCU=${MCU}"; exit 50) ;;
 esac
 
+# Check here (before we make any changes) that there is a pin line in the examples, for this MCU.
+#
+#   Original attempt:
+#     $ grep -Eq "^\s+(?://)?\(io\.pins\..+\)\s*//\s*${MCU}\s*$"
+#       macOS: 👍
+#       Linux: grep: warning: ? at start of expression
+#
+#   Solution:
+#     - do NOT use non-capturing group '(?:...)', but only capturing ones '(...)'; works on both OSes.
+#
+(cat examples/_2-get_set_parameters.rs | \
+  grep -Eq "^\s+(//)?\(io\.pins\..+\)\s*//\s*${MCU}\s*$" \
+  ) || (
+  echo >&2 "ERROR: Did NOT find a line for the pins, for ${MCU}."; false
+)
+
 # Modify the files, to anchor the selection
 #
 # Note: we don't need backups since the files are (presumably) version controlled, anyhow.
@@ -84,31 +91,22 @@ cp Cargo.toml tmp-2
 cat tmp-2 | sed -E "s/(\")esp32c[36](\")/\1${MCU}\2/g" \
   > Cargo.toml
 
-# #Later: This is where the 'sed' parameter just didn't cut in in macOS. 😢
-#
 # Take such lines, and enable the one with the '// {MCU}' in the trailing comment
 #   <<
 #         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
 #         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
 #   <<
 #
-# Note: Why do we do it like this?   Sure, features would be easier (would work, but we don't really change the target
-#     that often...) Doing if/else in the source file _does not work_, without unifying the types of the pins (author
-#     did not get it right). This is a brute force approach, and plain STUPID for multiple files, but... "good enough,
-#     for now!".
-
-# First, check such line exists, for '$MCU':
-(cat examples/_2-get_set_parameters.rs \
-  | grep -oPq "^\s+(?://)?\(io\.pins\..+\)\s*//\s*${MCU}\s*$" \
-  ) || (
-  echo >&2 "ERROR: Did NOT find a line for the pins, for ${MCU}."; false
-)
-
+# Note: Why do we do it like this? Features are the normal way to go, but the author wanted to ... not use them ...
+#     mainly since they are only needed for our *examples* but defining them would (does it, with "resolver" 2) infect
+#     the library as well. The library is *agnostic* of architectures. IF you suggest something else, consider that
+#     first.    tbd. consider moving to 'DEVS/No\ to\ features.md'
+#
 cp examples/_2-get_set_parameters.rs tmp-3
 cat tmp-3 \
-  | sed -E 's_^(\s+)(//)?(\(io\.pins\..+\)\s*//\s*esp32.+$)_\1//\3_g' \
-  | sed -E "s_^(\s+)//(\(io\.pins\..+\)\s*//\s*${MCU})\s*\$_\1\2_g" \
-  > examples/_2-get_set_parameters.rs tmp-3
+  | sed -E 's_^([[:space:]]+)(//)?(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*esp32.+$)_\1//\3_g' \
+  | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
+  > examples/_2-get_set_parameters.rs
 
 rm tmp-[123]
 
