@@ -1,25 +1,26 @@
+/*
+* build.rs
+*
+* Gets run by:
+*   - IDE on host; WRONG FEATURES!!
+*   - 'cargo build' (CLI); correct features
+*/
+
 use itertools::Itertools;
 use esp_build::assert_unique_used_features;
 #[allow(unused_imports)]
-use std::{env, fs, fmt::format};
+use std::{
+    env,
+    fs::{self, OpenOptions, File},
+    fmt::format,
+    process::exit as _exit
+};
 
 const FN: &str = "tmp/config.h";
 const MAKEFILE_INNER: &str = "Makefile.inner";
 
 /*
-* Note:
-*   There isn't (cargo 1.80.0) *any* way we can differentiate from within here, whether the cargo
-*   command was '--lib' or '--example'. The environments, for one, are IDENTICAL, except for a
-*   hash in 'OUT_DIR'.
-*
-*       - makes us need to have an 'EXAMPLES=1' env.var. from the command line, or _not_ need
-*         to differentiate between the two..
-*
-*   Could use that e.g. for enforcing 'defmt' as a default feature for all examples (but keep it
-*   optional, for the 'lib').
-*
-*   EDIT: The above might be missing the point. 'build.rs' might not even *get run* separately
-*       for an '--example' build, only for the library.
+* Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
 *
 * References:
 *   - Environment variables set
@@ -31,42 +32,44 @@ fn main() {
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
     //
     #[allow(non_snake_case)]
-    let _IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
+    let IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
 
-    /*** disabled
-    if !_IDE_RUN {
-        // DEBUG: Show what we know about the compilation.
-        let tmp = env::vars().map(|(a, b)| format!("{a}={b}")).join("\n");
-
-        fs::write("err.log", tmp)
-            .expect("Unable to write a file");
-        panic!("!!")
+    /***
+    // DEBUG: Show what we know about the compilation.
+    //
+    // Potentially useful env.vars.
+    //   CARGO_CFG_TARGET_FEATURE=c,m
+    //   CARGO_FEATURE_{..feature..}=1
+    //   LD_LIBRARY_PATH=/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release/deps:/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib
+    //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
+    //   TARGET=riscv32imc-unknown-none-elf
+    //
+    if !IDE_RUN {
+        env::vars().for_each(|(a, b)| {
+            eprintln!("{a}={b}");
+        });
+        _exit(1);
     }
-    **/
-
-    // THIS IS NOT POSSIBLE. Here for reference - would allow us to turn "defmt" feature on, when
-    // building examples.
-    //
-    // TRACKed in:
-    //  - "Add `example`, `bin` configurations"
-    //      -> https://github.com/rust-lang/cargo/issues/14378
-    //
-    // Work-around: we now ask the user to manually insert '--features=defmt' when running examples.
-    //
-    //#[cfg_attr(example, cfg(all()))]
-    // println!("cargo::rustc-cfg=feature=defmt");
+    ***/
 
     //---
     // Config sanity checks
 
     // Pick 1
     assert_unique_used_features!(
-        "targets_per_zone_1",   // tbd. 2,3,4
+        "targets_per_zone_1",
+        "targets_per_zone_2",
+        "targets_per_zone_3",
+        "targets_per_zone_4",
     );
 
     //---
     // Create a C config header, based on the features from 'Cargo.toml'.
-    {
+    //
+    // Note: Since the IDE runs don't really (in Sep'24, Rust Rover, yet?) have a clue on the right
+    //      set of features, update the 'config.h' *only* on actual builds.
+    //
+    if !IDE_RUN {
         let mut defs: Vec<&str> = vec!();
 
         // Output-enabling features (in Rust, we have them enabling; in C they are disable flags). Same thing.
@@ -96,12 +99,12 @@ fn main() {
         //
         #[cfg(feature = "targets_per_zone_1")]
         defs.push("VL53L5CX_NB_TARGET_PER_ZONE 1U");
-        //#[cfg(feature = "targets_per_zone_2")]
-        //defs.push("VL53L5CX_NB_TARGET_PER_ZONE 2U");
-        //#[cfg(feature = "targets_per_zone_3")]
-        //defs.push("VL53L5CX_NB_TARGET_PER_ZONE 3U");
-        //#[cfg(feature = "targets_per_zone_4")]
-        //defs.push("VL53L5CX_NB_TARGET_PER_ZONE 4U");
+        #[cfg(feature = "targets_per_zone_2")]
+        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 2U");
+        #[cfg(feature = "targets_per_zone_3")]
+        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 3U");
+        #[cfg(feature = "targets_per_zone_4")]
+        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 4U");
 
         // Write the file. This way the last 'cargo build' state remains available, even if
         // 'make' were run manually (compared to passing individual defines to 'make');

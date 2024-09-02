@@ -2,10 +2,9 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [FEATURES=...] make {nada|ranging_basic|...}
+#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=...] make {nada|ranging_basic|...}
 #		# builds and runs a certain sample
 #
-PROFILE?=release
 DEFMT_LOG?=debug
 FEATURES?=
 
@@ -19,14 +18,6 @@ DEFMT_FEATURES:=defmt,$(FEATURES)
 TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
-ifeq (dev,$(PROFILE))
---PROFILE:=--profile dev
-else ifeq (release,$(PROFILE))
---PROFILE:=--release
-else
-  $(error Unknown 'PROFILE': "$(PROFILE)")
-endif
-
 # List names of 'examples/[0-9]*.rs'
 EXAMPLE_NAMES:=$(notdir $(basename $(wildcard examples/_[0-9]*.rs) $(wildcard examples/[0-9]*.rs)))
 	# '_' prefix used until 'defmt' allows non-identifier file names
@@ -39,11 +30,11 @@ all:
 
 #TEMP
 nada:
-	$(LOG_ENV) cargo build $(--PROFILE) --features=defmt --example $@
-	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
+	$(LOG_ENV) cargo build --release --features=defmt --example $@
+	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/nada
 
 nada!:
-	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/nada
+	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/nada
 
 1 ranging-basic:
 	FEATURES=distance_mm $(MAKE) _1-ranging_basic
@@ -52,8 +43,8 @@ nada!:
 	FEATURES=target_status,distance_mm $(MAKE) _2-get_set_parameters
 
 $(EXAMPLE_NAMES):
-	$(LOG_ENV) cargo build --timings $(--PROFILE) --features=$(DEFMT_FEATURES) --example $@
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/$(PROFILE)/examples/$@
+	$(LOG_ENV) cargo build --timings --release --features=$(DEFMT_FEATURES) --example $@
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/$@
 
 echo:
 	@echo $(TARGET)

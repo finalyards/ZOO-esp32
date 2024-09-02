@@ -5,28 +5,31 @@ rust-version = "1.80"
     # 1.80: checks for validity of configuration names
     # 1.77.0 provides `cargo::` syntax for build script output instructions
 publish = false
+resolver = "2"
+    # "build-dependencies [...] do not share features with normal dependencies."
 
 # Profiles are important (for compilation speed); they deserve to be up here!
-#   tbd. should we have profiles in a lib crate?  What is their relationship to a higher one?   Use a workspace?
+#   tbd. should we have profiles in a lib crate?  What is their relationship to a higher one?
 #
-[profile.dev]
-opt-level = "z"
-# 1: "basic" optimizations
-overflow-checks = false     # disable integer overflow checks
-panic = "abort"
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#dev
+#[profile.dev]
+#opt-level = "z"
+## 1: "basic" optimizations
+#overflow-checks = false     # disable integer overflow checks
+#panic = "abort"
 
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 [profile.release]
-#debug         = "line-tables-only"
-debug = true
+#debug         = "line-tables-only"     # gives "WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info."
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
-codegen-units = 32
+codegen-units = 4
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
 panic = "abort"
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
-# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
-
 
 [dependencies]
 defmt           = { version = "0.3.8", optional = true }
@@ -35,16 +38,14 @@ strum           = { version = "0.26.3", default-features = false, features = ["d
 [dev-dependencies]
 assert_cfg      = "0.1.0"
 defmt-rtt       = { version = "0.4.1" }
-esp-backtrace   = { version = "0.14.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
-#esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c6"] }     # "embedded-hal", "async"
-esp-hal         = { version = "0.20.1", git = "https://github.com/esp-rs/esp-hal", features = ["defmt", "esp32c6"] }     # "embedded-hal", "async"
-#esp-hal         = { git = "https://github.com/liebman/esp-hal", branch="fix-i2c-transactions", features = ["defmt", "esp32c6"] }     # "embedded-hal", "async"
-#esp-hal-smartled    = { version = "0.12.0", features = ["esp32c6"] }
-static_cell     = { version = "2.1.0" }
+esp-backtrace   = { version = "0.14.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
+#esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c3"] }     # "embedded-hal", "async"
+esp-hal         = { version = "0.20.1", git = "https://github.com/esp-rs/esp-hal", features = ["defmt", "esp32c3"] }     # "embedded-hal", "async"
+#esp-hal-smartled    = { version = "0.12.0", features = ["esp32c3"] }
 
 [build-dependencies]
-esp-build = "0.1.0"
-itertools = "0.13.0"
+esp-build       = "0.1.0"
+itertools       = "0.13.0"
 
 # C compile-time features
 #
@@ -73,8 +74,8 @@ target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS; "Status indicating th
 
 targets_per_zone_1=[]
 targets_per_zone_2=[]
-#targets_per_zone_3=[]
-#targets_per_zone_4=[]
+targets_per_zone_3=[]
+targets_per_zone_4=[]
 
 defmt = [
     "dep:defmt"

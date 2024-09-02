@@ -2,6 +2,11 @@
 
 set -e
 
+if [[ $OSTYPE == 'darwin'* ]]; then
+  echo -e >&2 "SORRY! The use of 'sed' in this script did not work on macOS. Please run on Linux.\n"
+  false
+fi
+
 #
 # .cargo/config.toml:
 #     ^target = "riscv32imc-unknown-none-elf"    | ESP32-C3
@@ -22,7 +27,7 @@ if grep -q '"esp32c3"' Cargo.toml; then
 elif grep -q '"esp32c6"' Cargo.toml; then
   MCU=esp32c6
 else
-  (echo >2 "Error parsing 'Cargo.toml'; please set up manually!"; false)
+  (echo >&2 "Error parsing 'Cargo.toml'; please set up manually!"; false)
 fi
 
 # Ask interactively
@@ -56,7 +61,7 @@ fi
 case "$MCU" in
   esp32c3) TARGET=riscv32imc-unknown-none-elf ;;
   esp32c6) TARGET=riscv32imac-unknown-none-elf ;;
-  *) (echo >2 "Unexpected MCU=${MCU}"; exit 50) ;;
+  *) (echo >&2 "Unexpected MCU=${MCU}"; exit 50) ;;
 esac
 
 # Modify the files, to anchor the selection
@@ -79,7 +84,33 @@ cp Cargo.toml tmp-2
 cat tmp-2 | sed -E "s/(\")esp32c[36](\")/\1${MCU}\2/g" \
   > Cargo.toml
 
-rm tmp-[12]
+# #Later: This is where the 'sed' parameter just didn't cut in in macOS. 😢
+#
+# Take such lines, and enable the one with the '// {MCU}' in the trailing comment
+#   <<
+#         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
+#         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
+#   <<
+#
+# Note: Why do we do it like this?   Sure, features would be easier (would work, but we don't really change the target
+#     that often...) Doing if/else in the source file _does not work_, without unifying the types of the pins (author
+#     did not get it right). This is a brute force approach, and plain STUPID for multiple files, but... "good enough,
+#     for now!".
+
+# First, check such line exists, for '$MCU':
+(cat examples/_2-get_set_parameters.rs \
+  | grep -oPq "^\s+(?://)?\(io\.pins\..+\)\s*//\s*${MCU}\s*$" \
+  ) || (
+  echo >&2 "ERROR: Did NOT find a line for the pins, for ${MCU}."; false
+)
+
+cp examples/_2-get_set_parameters.rs tmp-3
+cat tmp-3 \
+  | sed -E 's_^(\s+)(//)?(\(io\.pins\..+\)\s*//\s*esp32.+$)_\1//\3_g' \
+  | sed -E "s_^(\s+)//(\(io\.pins\..+\)\s*//\s*${MCU})\s*\$_\1\2_g" \
+  > examples/_2-get_set_parameters.rs tmp-3
+
+rm tmp-[123]
 
 # Finally, remove the 'src/uld_raw.rs' to force it to be recreated. Without this, one got these:
 #   <<
@@ -91,7 +122,14 @@ rm tmp-[12]
 #
 # IDEALLY, our changing the 'Cargo.toml' should have caused a recreate. Don't know why it didn't.
 #
-rm src/uld_raw.rs
+# Note: The above error message seems to still sometimes come up. Is a more robust mechanism (no deletion here) possible? tbd.
+#   e.g. touch 'tmp/current-target' when it's being changed, and make 'tmp/current-target' a dependency of 'uld_raw.rs'
+#       or: include the target name in filename of 'uld_raw.rs' (they'll never mix, but more verbose; could use a symbolic
+#           link so the 'use' doesn't need to care; place the output in 'tmp' and use a symbolic link..?)
+#
+if [[ -f src/uld_raw.rs ]]; then
+  rm src/uld_raw.rs
+fi
 
 echo "Files '.cargo/config.toml' and 'Cargo.toml' now using:"
 echo ""

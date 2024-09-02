@@ -65,21 +65,18 @@ fn main() -> ! {
 
     #[allow(non_snake_case)]
     let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) /*: (I2CPin, I2CPin, Option<AnyOutput>, Option<AnyOutputOpenDrain>)*/ = {
-        //(io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
-        (io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
+        // changed via running './set-target.sh'
+        (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
+        //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
     };
 
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,
         pinSDA,
         pinSCL,
-        100.kHz(),
+        400.kHz(),
         &clocks,
-        None,   //Some(100u8 as _),     // tbd. -> https://github.com/esp-rs/esp-hal/issues/2026     // tbd. what is the value really about?
-            // ^--  Some(0 |100 |255) -> instant 'TimeOut'
-            //      None -> works..?
-        //None        // option: interrupt handler
-            // > esp-hal 0.19.0 doesn't have this
+        None,   //Some(100u8 as _),     // use 8-bit values only; tbd. what does the value actually steer?
     );
 
     let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));       // None if you pull it up to IOVDD via a resistor (47K)
