@@ -111,7 +111,7 @@ Run that command to prepare your shell for compiling. Its contents are:
 >export PATH="/home/ubuntu/.rustup/toolchains/esp/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin:$PATH"
 >export LIBCLANG_PATH="/home/ubuntu/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-17.0.1_20240419/esp-clang/lib"
 >export CLANG_PATH="/home/ubuntu/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-17.0.1_20240419/esp-clang/bin/clang"
-```
+>```
 
 Once you are done with ESP32, you can close the terminal (otherwise the settings might mess with your normal use of `clang` - or not).
 
