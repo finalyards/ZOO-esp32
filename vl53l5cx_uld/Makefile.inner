@@ -1,16 +1,19 @@
 #
 # Makefile for ULD (= C driver) wrapper
 #
+# NOTE: This one has also Xtensa features included; unlike the rest of ’main’ branch.
+#
 # Gets called by 'cargo build' (but can be used manually as well!).
 #
 # Usage:
 #	<<
-#	  $ make -f Makefile.inner tmp/libvendor_uld.a src/uld_raw.rs
+#	  $ [CLANG_PATH={path-to}/clang] make -f Makefile.inner tmp/libvendor_uld.a src/uld_raw.rs
 #	<<
 #
 # Requires:
 #	- bindgen
 #	- patch
+#	- clang		ESP fork if targeting Xtensa
 #
 # Note: 'bindgen' docs show how that tool can also build the static library as part of the 'cargo build' command run.
 #		We kind of follow that approach, but wrap all the C side actions still under a 'Makefile'.
@@ -31,10 +34,27 @@ _OBJ_PATH:=$(_TMP)/$(TARGET)
 
 _OTHER_INCS:=platform.h fake/*.h
 
-# Note: Unlike Rust, clang uses the same target arch for both ESP32-C3 and ESP32-C6.
-_TARGET_ARCH:=riscv32-unknown-elf
+_T:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+	# riscv32imac-unknown-none-elf
+	# riscv32imc-unknown-none-elf
+	# xtensa-esp32-none-elf
+
+# clang used target (RISC V: same for both variants, unlike Rust)
+ifneq (,$(findstring riscv32, $(_T)))
+  _TARGET_ARCH:=riscv32-unknown-elf
+  _CLANG_FLAGS:=--target=$(_TARGET_ARCH)
+else ifneq (,$(findstring xtensa, $(_T)))
+  _TARGET_ARCH:=xtensa-esp-unknown-elf
+  _CLANG_FLAGS:=--target=xtensa-esp-unknown-elf -mcpu=esp32
+endif
+	# tbd. do without '_TARGET_ARCH' if we don't need it elsewhere. #cleanup
 
 _MAKEFILE_INNER:=$(MAKEFILE_LIST)	# Makefile.inner
+
+# Note: Practically only 'esp32' will need the path env.var. to be observed.
+CLANG_PATH?=clang
+	# CLANG_PATH=/home/ubuntu/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-17.0.1_20240419/esp-clang/bin/clang
+_CLANG:=$(CLANG_PATH)
 
 all:
 	@false
@@ -174,7 +194,7 @@ _klean: _clean
 	cargo clean
 
 echo:
-	@echo $(MAKEFILE_LIST)
+	@echo $(_CLANG)
 
 #--
 .PHONY: all _clean _klean echo

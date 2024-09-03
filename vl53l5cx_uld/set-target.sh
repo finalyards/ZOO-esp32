@@ -84,7 +84,6 @@ esac
 #
 cp .cargo/config.toml tmp-1
 cat tmp-1 | sed -E "s/^(target[[:space:]]*=[[:space:]]*\")riscv32im[a]?c\-unknown\-none\-elf(\".+)$/\1${TARGET}\2/g" \
-  | sed -E "s/(\-\-chip=)esp32c[36]/\1${MCU}/g" \
   > .cargo/config.toml
 
 cp Cargo.toml tmp-2
@@ -109,25 +108,6 @@ cat tmp-3 \
   > examples/_2-get_set_parameters.rs
 
 rm tmp-[123]
-
-# Finally, remove the 'src/uld_raw.rs' to force it to be recreated. Without this, one got these:
-#   <<
-#     error[E0080]: evaluation of constant value failed
-#       --> src/uld_raw.rs:36:10
-#     36 |         [::core::mem::size_of::<VL53L5CX_Configuration>() - 2336usize];
-#        |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ attempt to compute `2328_usize - 2336_usize`, which would overflow
-#   <<
-#
-# IDEALLY, our changing the 'Cargo.toml' should have caused a recreate. Don't know why it didn't.
-#
-# Note: The above error message seems to still sometimes come up. Is a more robust mechanism (no deletion here) possible? tbd.
-#   e.g. touch 'tmp/current-target' when it's being changed, and make 'tmp/current-target' a dependency of 'uld_raw.rs'
-#       or: include the target name in filename of 'uld_raw.rs' (they'll never mix, but more verbose; could use a symbolic
-#           link so the 'use' doesn't need to care; place the output in 'tmp' and use a symbolic link..?)
-#
-if [[ -f src/uld_raw.rs ]]; then
-  rm src/uld_raw.rs
-fi
 
 echo "Files '.cargo/config.toml' and 'Cargo.toml' now using:"
 echo ""

@@ -89,7 +89,7 @@ The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.h
 <!-- Developed on
 macOS 14.6
 Multipass 1.14.0
-ESP32-C3-Devkit-C02 (revision 0.4)
+ESP32-C3-Devkit-C02 (revision 0.4) and ESP32-C6-DevKitM-1 
 VL53L5CX-SATEL (marking "PCB4109A")
 bindgen 0.70.1
 -->
