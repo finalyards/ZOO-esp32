@@ -13,10 +13,8 @@ LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 DEFMT_HOST_FMT:='[{L:bold}] {s}'
 DEFMT_FEATURES:=defmt,$(FEATURES)
 
-# Read the 'TARGET' from './cargo/config.toml'
-#
-TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
-	# riscv32imac-unknown-none-elf
+# FIXED ESP32 target (same for all Xtensa)
+TARGET:=xtensa-esp32-none-elf
 
 # List names of 'examples/[0-9]*.rs'
 EXAMPLE_NAMES:=$(notdir $(basename $(wildcard examples/_[0-9]*.rs) $(wildcard examples/[0-9]*.rs)))

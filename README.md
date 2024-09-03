@@ -86,10 +86,42 @@ The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.h
 	
 	>Open Source Software [...] is not subject to the terms of this PLLA to the extent [...]
 
+### Targeting ESP32 (Xtensa based MCU's)
+
+If you want to target the ESP32 (or any other Xtensa-based) core, there is a separate branch `adafruit-feather-v2` for this. The `main` branch only targets RISC V based ESP32 chips. This may change.
+
+First, you need some additional installs:
+
+```
+$ cargo install espup
+
+$ espup install -e
+```
+
+Note the `-e`. This is important to get the full, ESP32-compatible `clang` compiler on your system.
+
+```
+$ source $HOME/export-esp.sh		# each time you need it
+```
+
+Run that command to prepare your shell for compiling. Its contents are:
+
+>```
+>$ cat /home/ubuntu/export-esp.sh
+>export PATH="/home/ubuntu/.rustup/toolchains/esp/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin:$PATH"
+>export LIBCLANG_PATH="/home/ubuntu/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-17.0.1_20240419/esp-clang/lib"
+>export CLANG_PATH="/home/ubuntu/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-17.0.1_20240419/esp-clang/bin/clang"
+```
+
+Once you are done with ESP32, you can close the terminal (otherwise the settings might mess with your normal use of `clang` - or not).
+
+Based on: The Rust on ESP book > ["RISC-V and Xtensa targets"](https://docs.esp-rs.org/book/installation/riscv-and-xtensa.html)
+
+
 <!-- Developed on
 macOS 14.6
 Multipass 1.14.0
-ESP32-C3-Devkit-C02 (revision 0.4)
+ESP32-C3-Devkit-C02 (revision 0.4) and ESP32-C6-DevKitM-1 
 VL53L5CX-SATEL (marking "PCB4109A")
 bindgen 0.70.1
 -->

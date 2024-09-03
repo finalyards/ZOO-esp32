@@ -66,8 +66,9 @@ fn main() -> ! {
     #[allow(non_snake_case)]
     let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) /*: (I2CPin, I2CPin, Option<AnyOutput>, Option<AnyOutputOpenDrain>)*/ = {
         // changed via running './set-target.sh'
-        (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
+        //(io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
+        (io.pins.gpioX, io.pins.gpioY, NO_PIN, NO_PIN)    // esp32
     };
 
     let i2c_bus = I2C::new_with_timeout(

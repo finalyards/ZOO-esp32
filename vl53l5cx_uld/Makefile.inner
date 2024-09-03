@@ -5,22 +5,17 @@
 #
 # Usage:
 #	<<
-#	  $ make -f Makefile.inner tmp/libvendor_uld.a src/uld_raw.rs
+#	  $ CLANG_PATH={path-to}/clang \
+#		make -f Makefile.inner tmp/libvendor_uld.a src/uld_raw.rs
 #	<<
 #
 # Requires:
 #	- bindgen
 #	- patch
+#	- clang		ESP fork if targeting Xtensa
 #
 # Note: 'bindgen' docs show how that tool can also build the static library as part of the 'cargo build' command run.
 #		We kind of follow that approach, but wrap all the C side actions still under a 'Makefile'.
-#
-# NOTE: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the more fine grained ones.
-#	<<
-#	  $ clang -print-targets | grep risc
-#     riscv32     - 32-bit RISC-V
-#	  riscv64     - 64-bit RISC-V
-#	<<
 #
 _VL53L5CX_ULD_API:=VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API
 
@@ -31,10 +26,15 @@ _OBJ_PATH:=$(_TMP)/$(TARGET)
 
 _OTHER_INCS:=platform.h fake/*.h
 
-# Note: Unlike Rust, clang uses the same target arch for both ESP32-C3 and ESP32-C6.
-_TARGET_ARCH:=riscv32-unknown-elf
+_CLANG_FLAGS:=--target=xtensa-esp-unknown-elf -mcpu=esp32
 
 _MAKEFILE_INNER:=$(MAKEFILE_LIST)	# Makefile.inner
+
+_CLANG:=$(CLANG_PATH)
+ifeq (,$(_CLANG))
+	$(error "Need 'CLANG_PATH' env.var. for ESP32. Consider running '. ~/export-esp.sh'")
+endif
+	# CLANG_PATH=/home/ubuntu/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-17.0.1_20240419/esp-clang/bin/clang
 
 all:
 	@false
@@ -54,7 +54,7 @@ tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
 #
 tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Cargo.toml
 	@echo $<
-	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
+	$(_CLANG) -nostdinc $(_CLANG_FLAGS) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
 #---
 # Patch ST.com sources from './VL53LCX_ULD_API/**' to 'tmp/c_src/'
@@ -174,7 +174,7 @@ _klean: _clean
 	cargo clean
 
 echo:
-	@echo $(MAKEFILE_LIST)
+	@echo $(_CLANG)
 
 #--
 .PHONY: all _clean _klean echo
