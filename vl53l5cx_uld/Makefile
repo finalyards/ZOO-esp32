@@ -11,7 +11,7 @@ FEATURES?=
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='[{L:bold}] {s}'
-DEFMT_FEATURES:=defmt,$(FEATURES)
+DEFMT_FEATURES:=defmt
 
 # Read the 'TARGET' from './cargo/config.toml'
 #
@@ -28,25 +28,30 @@ all:
 # Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
 #		feature.
 
-#TEMP
-nada:
+_nada:
 	$(LOG_ENV) cargo build --release --features=defmt --example $@
 	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/nada
 
-nada!:
-	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/nada
+#1 ranging-basic:
+#	FEATURES=distance_mm $(MAKE) _1-ranging_basic
 
-1 ranging-basic:
-	FEATURES=distance_mm $(MAKE) _1-ranging_basic
+#2 get-set-parameters:
+#	FEATURES=target_status,distance_mm $(MAKE) _2-get_set_parameters
 
-2 get-set-parameters:
-	FEATURES=target_status,distance_mm $(MAKE) _2-get_set_parameters
+m matrix:
+	EXAMPLE=matrix FEATURES=target_status,distance_mm $(MAKE) _build _run
 
-$(EXAMPLE_NAMES):
-	$(LOG_ENV) cargo build --timings --release --features=$(DEFMT_FEATURES) --example $@
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/$@
+matrix-build:
+	EXAMPLE=matrix FEATURES=target_status,distance_mm $(MAKE) _build
+
+#---
+_build:
+	$(LOG_ENV) cargo build --timings --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
+
+_run:
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/$(EXAMPLE)
 
 echo:
-	@echo $(TARGET)
+	@echo a
 
-.PHONY: all lib $(EXAMPLE_NAMES) _clean echo
+.PHONY: all _nada m matrix matrix-build _build _run echo

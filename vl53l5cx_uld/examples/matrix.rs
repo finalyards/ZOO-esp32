@@ -1,12 +1,8 @@
 /*
-* Based on vendor 'Example_2_get_set_parameters.c'
-*
 * Initializes the ULD, sets some parameters and starts a ranging to capture 10 frames, with custom:
 *   - resolution
 *   - frequency
 *   - target order
-*
-* Otherwise, the same as example 1 (ranging basic).
 *
 * References:
 *   - embedded_hal::i2c documentation
@@ -23,7 +19,7 @@ use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
-    gpio::{Io, AnyOutput, InputPin, OutputPin, Level, AnyOutputOpenDrain, Pull, NO_PIN},
+    gpio::{Io, AnyOutput, InputPin, OutputPin, Level, AnyOutputOpenDrain, Pull},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
@@ -32,6 +28,7 @@ use esp_hal::{
 
 extern crate vl53l5cx_uld as uld;
 mod common;
+mod pins;
 
 use common::MyPlatform;
 use uld::{
@@ -63,6 +60,7 @@ fn main() -> ! {
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
+    /***
     #[allow(non_snake_case)]
     let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = {
         // changed via running './set-target.sh'
@@ -70,6 +68,9 @@ fn main() -> ! {
         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
     };
     // tbd. how to erase the pins of their specific numbers in the types?
+    ***/
+    #[allow(non_snake_case)]
+    let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = pins::get_pins(&io);
 
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,

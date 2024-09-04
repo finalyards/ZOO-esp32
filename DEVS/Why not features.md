@@ -62,3 +62,9 @@ Please share them in Discussions or as Issues.
 
 I hope you like the repo!
 
+## Postum
+
+Forgot this reason against chip-type-as-a-feature.
+
+They are not supposed to be mutually exclusive, but cumulative (whenever possible).
+

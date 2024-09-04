@@ -79,9 +79,8 @@ targets_per_zone_4=[]
 defmt = [
     "dep:defmt"
 ]
-exp_mitigate_timeouts=[]    # DEBUG
 
-default = ["targets_per_zone_1", "exp_mitigate_timeouts"]
+default = ["targets_per_zone_1", "target_status"]
 
 # tbd. Does the restriction to 'targets_per_zone_1' matter?
 [[example]]
