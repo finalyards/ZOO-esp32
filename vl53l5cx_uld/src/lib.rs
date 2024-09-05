@@ -5,6 +5,7 @@
 pub mod ranging;    // TEMP: for now, exposing also as 'ranging::{Resolution, ...}'; let's see
 mod platform;
 mod uld_raw;
+mod results_data;
 pub mod units;
 
 #[allow(unused_imports)]
@@ -215,8 +216,8 @@ impl VL53L5CX<'_> {
     //---
     // Ranging (getting values)
     //
-    pub fn start_ranging(&mut self, cfg: &RangingConfig) -> Result<Ranging> {    // Rust note: 'impl Into<...>' would allow either '&T' or 'T' by the caller.
-        let r: Ranging = Ranging::new_maybe(&mut self.vl, cfg)?;
+    pub fn start_ranging<const DIM: u8>(&mut self, cfg: &RangingConfig<DIM>) -> Result<Ranging<DIM>> {    // Rust note: 'impl Into<...>' would allow either '&T' or 'T' by the caller.
+        let r = Ranging::new_maybe(&mut self.vl, cfg)?;
         Ok(r)
     }
 

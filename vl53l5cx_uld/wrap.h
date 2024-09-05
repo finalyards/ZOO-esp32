@@ -76,3 +76,6 @@ const uint8_t ST_ERROR = VL53L5CX_STATUS_ERROR;	                // |255
 /* tbd. do we need this?
 const size_t MAX_RESULTS_SIZE = VL53L5CX_MAX_RESULTS_SIZE;
 */
+
+// This comes from Rust features -> built into #define -> here back to Rust.
+//const uint8_t NB_TARGET_PER_ZONE = VL53L5CX_NB_TARGET_PER_ZONE;     // 1..4

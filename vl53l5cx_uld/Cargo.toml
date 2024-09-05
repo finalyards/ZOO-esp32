@@ -82,7 +82,9 @@ defmt = [
 
 default = ["targets_per_zone_1", "target_status"]
 
-# tbd. Does the restriction to 'targets_per_zone_1' matter?
+# Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
+# this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
+#
 [[example]]
-name = "_1-ranging_basic"
+name = "matrix"
 required-features = ["defmt", "targets_per_zone_1", "distance_mm"]

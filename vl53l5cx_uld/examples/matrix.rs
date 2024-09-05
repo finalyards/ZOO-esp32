@@ -19,16 +19,17 @@ use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
+    gpio,
     gpio::{Io, AnyOutput, InputPin, OutputPin, Level, AnyOutputOpenDrain, Pull},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
-    system::SystemControl,
+    system::SystemControl
 };
 
 extern crate vl53l5cx_uld as uld;
 mod common;
-mod pins;
+//mod pins;
 
 use common::MyPlatform;
 use uld::{
@@ -36,7 +37,7 @@ use uld::{
     Ranging,
     ranging::{
         RangingConfig,
-        Resolution::_8X8,
+        //R Resolution::_8X8,
         TargetOrder::CLOSEST,
         Mode::AUTONOMOUS,
     },
@@ -44,7 +45,7 @@ use uld::{
 };
 
 // Vendor ULD C example:
-// "we also suppose that the number of target per zone is set to 1, and all output are enabled."
+// "we also suppose that the number of target[s] per zone is set to 1, and all output[s] are enabled."
 //
 // Note: 'Cargo.toml' may use 'required_features' to make sure we'd not get build with a bad combo.
 //      This one is just a 2nd tier check.
@@ -60,17 +61,15 @@ fn main() -> ! {
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    /***
     #[allow(non_snake_case)]
     let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = {
         // changed via running './set-target.sh'
-        (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
-        //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
+        (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), gpio::NO_PIN)      // esp32c3
+        //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), gpio::NO_PIN)    // esp32c6
     };
-    // tbd. how to erase the pins of their specific numbers in the types?
-    ***/
-    #[allow(non_snake_case)]
+    /*** tbd. replace above with:
     let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = pins::get_pins(&io);
+    ***/
 
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,
@@ -82,7 +81,6 @@ fn main() -> ! {
     );
 
     let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));       // None if you pull it up to IOVDD via a resistor (47K)
-    let mut i2c_rst = pinI2C_RST.map(|pin| AnyOutputOpenDrain::new(pin, Level::Low, Pull::Up));     // SATEL: via 47k to GND (= we can pull it up, for resetting)
 
     let d_provider = Delay::new(&clocks);
     let delay_ms = |ms| d_provider.delay_millis(ms);
@@ -97,31 +95,28 @@ fn main() -> ! {
         info!("Target powered off and on again.");
     });
 
-    // Reset the I2C circuitry
+    /***R // Reset the I2C circuitry
     i2c_rst.iter_mut().for_each(|pin| {
         pin.set_high();
         delay_ms(10);  // tbd. see specs, what is a suitable time
         pin.set_low();
-    });
+    });***/
 
     let mut vl = VL53L5CX::new_and_init(pl)
-        .expect("Init unsuccessful");
+        .unwrap();
 
     info!("Init succeeded, driver version {}", vl.API_REVISION);
 
     //--- ranging loop
     //
-    let c = RangingConfig::default()
-        .with_resolution(_8X8)
+    let c = RangingConfig::default()        // to use 8x8: 'RangingConfig::<8>'
         .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
         .with_target_order(CLOSEST);
 
-    let mut ring: Ranging = vl.start_ranging(&c)
+    let mut ring = vl.start_ranging(&c)
         .expect("Failed to start ranging");
 
     for round in 0..10 {
-        // Using polling. Embassy will provide means to do this '.async'.
-
         while !ring.is_ready().unwrap() {   // poll; 'async' will allow sleep
             delay_ms(5);
         }

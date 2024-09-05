@@ -14,7 +14,7 @@ Below, we go through the SATEL pins from left to right.
 |---|---|---|---|---|
 |INT|---|Active low (open drain)|Pulled via 47k to IOVDD.|Make the waiting for a new frame non-polling. <font color=orange>*(tbd. confirm by testing)*</font>|
 |I2C_RST|---|Active high. Toggle `0->1->0` to reset the I2C target.|Pulled via 47k to GND.|Reset the I2C side by pulling the pin momentarily up while `PWR_EN` remains up. Not needed in practice.|
-|SDA|GPIO4|same pin as in a `esp-hal` I2C example|Pulled via 2.2k to IOVDD.<br />If you chain multiple boards, remove extra pull-ups by soldering open `SB5`, `SB7` on the underside of boards.|Talk with the device.|
+|SDA|GPIO4|same pin as in a `esp-hal` I2C example|Pulled via 2.2k to IOVDD.<br />If you chain multiple boards, you may want to remove extra pull-ups by soldering open `SB5`, `SB7` on the underside of boards.<sup>(2)</sup>|Talk with the device.|
 |SCL|GPIO5|-''-|-''-|-''-|
 |LPn|---|Chip enable, active high.|Pulled via 47k to IOVDD.|Disable the chip momentarily, by connecting to GND. Suggested to be used for programming non-default I2C addresses, but this can be reached also by simply plugging such chips in, on their own.<sup>(1)</sup>|
 |PWR_EN|(GPIO0)|Drive directly with a GPIO pin, or pull up with e.g. 47k to IOVDD.|Drives the `CE` (chip enable) of the larger board's regulator. The whole VL53L5CX chip is powered off, unless this signal is high.|Control the power cycle of the VC53L5CX chip.|
@@ -23,6 +23,8 @@ Below, we go through the SATEL pins from left to right.
 |GND|Gnd|
 
 `(1)`: Haven't tried. If the VL device doesn't have persistent memory of its I2C address, one needs to initialize them via this feature (disable all but one; program the I2C address).
+
+`(2)`: See [Wiring multiple boards](), below.
 
 
 >For detailed description of the pins, see [`[1]`](https://www.st.com/resource/en/datasheet/vl53l5cx.pdf) table 3 ("VL53L5CX pin description").
@@ -58,7 +60,9 @@ In particular, the following had been left unconnected: `INT`, `I2C_RST`, `PWR_E
 >Haven't tried this yet, but once I do, I will:
 >
 >- change boards 2..n I2C addresses by connecting them *individually* to the MCU (no playing with the `LPn` lines), and programming the new address in.
->- disabling the SDA & SCL pull-ups from all but one board, by removing `SB5`, `SB7` solder jumps (*tbd. image; backside of the smaller board*)
+>- try *without* disabling the SDA & SCL pull-ups. This should work for two boards (strengthens pull-up from 2k2 to 1k1, which is still within bounds), but for 3 and more boards, you'll need to unsolder some of the `SB5`, `SB7` solder bridges.
+
+*tbd. image; backside of the smaller board*
 
 <!-- tbd. once done, edit the above -->
 
