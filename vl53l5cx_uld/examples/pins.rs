@@ -15,8 +15,6 @@ pub fn get_pins<SDA,SCL,PWR_EN,_RESERVED>(&io: &Io) -> (SDA, SCL, Option<PWR_EN>
     { }
 ***/
 
-// Q: What's wrong with the code below?
-//
 #[allow(non_camel_case_types)]
 pub fn get_pins<SDA,SCL,PWR_EN,_RESERVED>(&io: &Io) -> (SDA, SCL, Option<PWR_EN>,Option<_RESERVED>)
 where SDA: Peripheral<P: OutputPin + InputPin>,

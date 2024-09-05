@@ -20,7 +20,7 @@ use esp_hal::{
     clock::ClockControl,
     delay::Delay,
     gpio,
-    gpio::{Io, AnyOutput, InputPin, OutputPin, Level, AnyOutputOpenDrain, Pull},
+    gpio::{Io, AnyOutput, /*InputPin, OutputPin,*/ Level},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
@@ -34,7 +34,6 @@ mod common;
 use common::MyPlatform;
 use uld::{
     VL53L5CX,
-    Ranging,
     ranging::{
         RangingConfig,
         //R Resolution::_8X8,
@@ -62,7 +61,7 @@ fn main() -> ! {
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     #[allow(non_snake_case)]
-    let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = {
+    let (pinSDA, pinSCL, pinPWR_EN, _pinI2C_RST) = {
         // changed via running './set-target.sh'
         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), gpio::NO_PIN)      // esp32c3
         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), gpio::NO_PIN)    // esp32c6
@@ -109,7 +108,7 @@ fn main() -> ! {
 
     //--- ranging loop
     //
-    let c = RangingConfig::default()        // to use 8x8: 'RangingConfig::<8>'
+    let c = RangingConfig::<4>::default()        // note: leaving '::<4>::' out doesn't seem to cut it (would like it to use '4')
         .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
         .with_target_order(CLOSEST);
 
