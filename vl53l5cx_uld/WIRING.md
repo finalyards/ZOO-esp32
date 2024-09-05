@@ -2,7 +2,7 @@
 
 This document applies to a version of the [VL53L5CX-SATEL](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html#documentation) development boards marked with "PCB4109A" on the bottom side.
 
-![](.images/VL53L5CX%20bottom.png)
+![](.images/SATEL%20bottom.png)
 
 ![](.images/Wiring-ESP32-C3-DevKit-C02.png)
 
@@ -55,17 +55,57 @@ In particular, the following had been left unconnected: `INT`, `I2C_RST`, `PWR_E
 
 ## Wiring multiple boards
 
-*tbd. Do it!*
+![](.images/two-boards.jpg)
 
->Haven't tried this yet, but once I do, I will:
->
->- change boards 2..n I2C addresses by connecting them *individually* to the MCU (no playing with the `LPn` lines), and programming the new address in.
->- try *without* disabling the SDA & SCL pull-ups. This should work for two boards (strengthens pull-up from 2k2 to 1k1, which is still within bounds), but for 3 and more boards, you'll need to unsolder some of the `SB5`, `SB7` solder bridges.
+Above, two SATEL boards are connected to the same MCU. One of them is disabled (for programming the I2C address of the other one), by connecting `LPn` pin to the ground.
 
-*tbd. image; backside of the smaller board*
+---
 
-<!-- tbd. once done, edit the above -->
+Multiple SATEL boards are intended to be chained together; they are I2C peripherals, after all.
 
+### Setting the I2C address
+
+For each but one board, you'll first need to set their I2C addresses to something else than the default `0x52`. Note that the vendor uses "8 bit addresses", meaning actual next address is `0x54`, then `0x56` and so forth.
+
+You can do this programming in either of these ways:
+
+**1. One board at a time**
+
+In this scenario, you physically connect only one SATEL board to the MCU, and run the address reprogramming command (below).
+
+**2. Disabling other boards via `LPn` pin**
+
+Here (presented in the picture above, for two boards), multiple boards (with still their default I2C addresses) can co-exist, as long as you disable the ones you don't want to participate. Do this by connecting the `LPn` pin(s) of excluded boards to ground.
+
+>There is a 47K pull-up resistor for the `LPn` pin, within each SATEL board. Thus, if you leave it open, the board will be active.
+
+Then run the reprogramming command on the I2C bus.
+
+### Reprogramming the address
+
+>tbd. Something like: `NEW_ADDRESS=0x54 [OLD_ADDRESS=0x52] cargo run --release --bin readdress`
+
+### More than 2 boards
+
+In the picture above, the `SDA` and `SCL` pins had simply been connected between the two boards. Since each of them carries 2.2k pull-up resistors for these pins, the overall pull-up resistance is now just 1.1k.
+
+If you were to add a third board, the value drops below the recommended 1k <sub>Don't remember where I saww this, but it was an authorative source</sub>, so instead:
+
+Open the `SB5` and `SB7` solder bridges (picture below).
+
+![](.images/SATEL_jumpers.jpg)
+
+
+## Open issues
+
+### More I2C buses needed?
+
+Once all this is done, you should be able to use a few boards on the same I2C bus, from a single MCU. Eventually, the bandwidth of the I2C bus should become the bottleneck, limiting the scanning frequencies you can use on the system.
+
+The author hasn't reached this, yet. If you do, please drop a line (PR) about where the limits were.
+
+<!-- tbd. chart on available bandwidth (scan frequencies) with 3..4 boards connected
+-->
 
 ## References
 
