@@ -1,7 +1,6 @@
 /*
 * Ranging: actually getting measurements from the sensor.
 */
-
 use core::mem::MaybeUninit;
 use defmt::{assert, panic};
 
@@ -22,7 +21,7 @@ use crate::uld_raw::{
     vl53l5cx_stop_ranging,
     ST_OK,
     RangingMode as RangingMode_R,
-    Resolution
+    Resolution as Resolution_R
 };
 pub use crate::uld_raw::{   // pass-throughs
     TargetOrder,
@@ -47,6 +46,25 @@ pub struct VL53L5CX_ResultsData {
 */
 // tbd. We likely end up copying values, so that the Rust side can get 'ResultsData_4x4' or 'ResultsData_8x8' classes.
 
+/*
+* The 'Resolution' trait became an implementation detail, and a plain function, expressing the
+* dimensions in app level being by the 'DIM' const generic.
+*
+* This defines which resolutions the system is able to play with; if there are new ones (for similar
+* sensors, in the future), adding the details here will open them up for the larger 'Ranging' and
+* other such structs.
+*
+* tbd. There's a feel this could be done more type-oriented; how to implement something just for
+*       DIM=4 and DIM=8? #rust
+*/
+fn get_reso_details<const DIM: usize>() -> (Resolution_R, u8, u8) {
+    match DIM {
+        4 => { (Resolution_R::_4X4, 1, 15) },
+        8 => { (Resolution_R::_8X8, 4, 60) },
+        _ => unreachable!()
+    }
+}
+
 // Adding to the C API by joining integration time with the ranging mode - since integration time
 // only applies to one of the modes.
 //
@@ -59,7 +77,7 @@ pub enum Mode {
 use Mode::{CONTINUOUS, AUTONOMOUS};
 
 impl Mode {
-    fn as_raw(&self) -> RangingMode_R {
+    fn as_uld(&self) -> RangingMode_R {
         match self {
             CONTINUOUS => RangingMode_R::CONTINUOUS,
             AUTONOMOUS(_,_) => RangingMode_R::AUTONOMOUS
@@ -82,13 +100,13 @@ impl Mode {
 *   - Integration time range is (for all resolutions): [2ms..1000ms]; inclusive
 *   - Sharpener range is [0..99]; inclusive; (0 = disabled)
 */
-pub struct RangingConfig<const DIM: u8 = 4> {
+pub struct RangingConfig<const DIM: usize = 4> {
     mode: Mode,      // also carries ranging frequency and integration time for 'AUTONOMOUS'
     sharpener_prc: Option<u8>,      // 'None' | 'Some(1..=99)'
     target_order: TargetOrder,
 }
 
-impl<const DIM: u8> RangingConfig<DIM> {
+impl<const DIM: usize> RangingConfig<DIM> {
     /* We allow construction to make potentially incompatible combinations, but check them within
     * '.apply()'. This is a compromise between simplicity and robustness. Note that some obvious
     * type-system robustness has been done, e.g. bundling ranging frequency and integration times
@@ -107,6 +125,8 @@ impl<const DIM: u8> RangingConfig<DIM> {
     }
 
     fn validate(&self) {
+        let (_,R_INTEGRATION_TIMES_N, R_FREQ_RANGE_MAX): (_,u8,u8) = get_reso_details::<DIM>();
+
         match self.mode {
             AUTONOMOUS(Ms(integration_time_ms), Hz(freq)) => {
                 assert!((2..=1000).contains(&integration_time_ms), "Integration time out of range");
@@ -117,16 +137,16 @@ impl<const DIM: u8> RangingConfig<DIM> {
                 // "4x4 is composed of one integration time"
                 // "8x8 is composed of four integration times" (same src)
                 //
-                let n = match DIM { 4 => 1, 8 => 4, _ => unreachable!() };
+                let n = R_INTEGRATION_TIMES_N;  // 1 (4x4); 4 (8x8)
 
                 // Note: The test itself is calculated so that inaccuracies don't occur (multiplication instead of division).
                 //      The error message parameter is let go more loosely; not a problem.
                 //
-                assert!((integration_time_ms+1)*n*(freq as u16) < 1000,
-                    "Integration time exceeds the available window ({}ms)", (1000_u16/(n * freq as u16))-1
+                assert!((integration_time_ms+1)*(n as u16)*(freq as u16) < 1000,
+                    "Integration time exceeds the available window ({}ms)", (1000_u16/(n as u16 * freq as u16))-1
                 );
 
-                let freq_range = 1..=match DIM { 4 => 15, 8 => 60, _ => unreachable!() };
+                let freq_range = 1..R_FREQ_RANGE_MAX;    // 1..15 (4x4); 1..60 (8x8)
                 assert!(freq_range.contains(&freq), "Frequency out of range");
             },
             _ => {}
@@ -143,12 +163,12 @@ impl<const DIM: u8> RangingConfig<DIM> {
 
     fn apply(&self, vl: &mut VL53L5CX_Configuration) -> Result<()> {
         self.validate();    // may panic
+        let ULD_RESO: Resolution_R = get_reso_details::<DIM>().0;
 
         // Set the resolution first. UM2884 (Rev 5) says:
         //  "['..._set_resolution()'] must be used before updating the ranging frequency"
 
-        // ULD C API uses the vector lengths: 16 (4x4), 64 (8x8); not available as enums or #define's
-        match unsafe { vl53l5cx_set_resolution(vl, DIM * DIM) } {
+        match unsafe { vl53l5cx_set_resolution(vl, ULD_RESO as u8) } {  // reso value: 16 (4x4); 64 (8x8)
             ST_OK => Ok(()),
             e => Err(e)
         }?;
@@ -164,7 +184,7 @@ impl<const DIM: u8> RangingConfig<DIM> {
             }?;
         }
 
-        match unsafe { vl53l5cx_set_ranging_mode(vl, self.mode.as_raw() as _) } {
+        match unsafe { vl53l5cx_set_ranging_mode(vl, self.mode.as_uld() as _) } {
             ST_OK => Ok(()),
             e => Err(e)
         }?;
@@ -183,23 +203,26 @@ impl<const DIM: u8> RangingConfig<DIM> {
     }
 }
 
-impl<const DIM: u8> Default for RangingConfig<DIM> {
+impl<const DIM: usize> Default for RangingConfig<DIM> {
     // defaults are those mentioned in the vendor docs.
+    // Note: Resolution default comes from the 'RangingConfig' struct definition (hopefully!).
+    //
     fn default() -> Self {
         Self {
             sharpener_prc: None,
             target_order: TargetOrder::STRONGEST,
-            mode: AUTONOMOUS(Ms(5),Hz(1))
+            mode: AUTONOMOUS(Ms(5),Hz(1)),
         }
     }
 }
 
-pub struct Ranging<'a, const DIM: u8> {
+pub struct Ranging<'a, const DIM: usize> {
     vl: &'a mut VL53L5CX_Configuration,
-    buf: VL53L5CX_ResultsData       // results of the latest '.get_data()' call; overwritten for each scan
+    buf: VL53L5CX_ResultsData,      // results of the latest '.get_data()' call; overwritten for each scan
+    rbuf: ResultsData<DIM>          // Rust-side results store
 }
 
-impl<'b: 'c,'c,const DIM: u8> Ranging<'c,DIM> {
+impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
     pub(crate) fn new_maybe(vl: &'b mut VL53L5CX_Configuration, cfg: &RangingConfig<DIM>) -> Result<Self> {
         cfg.apply(vl)?;
 
@@ -210,12 +233,21 @@ impl<'b: 'c,'c,const DIM: u8> Ranging<'c,DIM> {
 
         match unsafe { vl53l5cx_start_ranging(vl) } {
             ST_OK => {
-                Ok(Self{vl,buf})
+                let x = Self{
+                    vl,
+                    buf,
+                    rbuf: ResultsData::empty()
+                };
+                Ok(x)
             },
             e => Err(e)
         }
     }
 
+    // tbd. Consider (#later), whether this should _alwways_ be called (within 'get_data()');
+    //      there are very few cases (or one: single board with interrupt telling data is available)
+    //      where the application could skip the 'is_ready()' call.
+    //
     pub fn is_ready(&mut self) -> Result<bool> {
         let mut tmp: u8 = 0;
         match unsafe { vl53l5cx_check_data_ready(self.vl, &mut tmp) } {
@@ -226,27 +258,30 @@ impl<'b: 'c,'c,const DIM: u8> Ranging<'c,DIM> {
 
     /*
     * Collect results from the last successful scan. You can call this either after
-    *   a) checking for valid results using 'poll_ready()', or..
+    *   a) checking for valid results using 'is_ready()', or..
     *   b) having gotten a hardware signal showing a scan is complete.
     *
-    //tbd. Describe what happens, if you call here before a scan is ready.
+    * Note: If you have multiple boards sharing an interrupt, you will likely cycle all of them
+    *       through on each interrupt, and will thus end up calling 'is_ready()' anyways, per board.
     *
-    * The reference returned is to a buffer. It remains valid only until the next time 'get_data'
-    * is called (that should be enough for apps).
+    //tbd. Try and describe what happens, if you call here before a scan is ready.
+    *
+    * tbd. Describe the lifetime of the returned data (likely valid only until the next time 'get_data'
+    * is called (that should be enough for apps)).
     */
-    pub fn get_data(&mut self) -> Result<ResultsData<DIM>> {
+    pub fn get_data(&mut self) -> Result<&ResultsData<DIM>> {
 
         match unsafe { vl53l5cx_get_ranging_data(self.vl, &mut self.buf) } {
             ST_OK => {
-                let tmp: ResultsData<DIM> = self.buf.into();
-                Ok(tmp)
+                self.rbuf.feed(&self.buf);
+                Ok(&self.rbuf)
             },
             e => Err(e)
         }
     }
 }
 
-impl<const DIM: u8> Drop for Ranging<'_,DIM> {
+impl<const DIM: usize> Drop for Ranging<'_,DIM> {
     fn drop(&mut self) {
         match unsafe { vl53l5cx_stop_ranging(self.vl) } {
             ST_OK => (),

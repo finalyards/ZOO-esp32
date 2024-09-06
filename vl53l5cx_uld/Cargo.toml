@@ -5,8 +5,6 @@ rust-version = "1.80"
     # 1.80: checks for validity of configuration names
     # 1.77.0 provides `cargo::` syntax for build script output instructions
 publish = false
-resolver = "2"
-    # "build-dependencies [...] do not share features with normal dependencies."
 
 # Profiles are important (for compilation speed); they deserve to be up here!
 #   tbd. should we have profiles in a lib crate?  What is their relationship to a higher one?
@@ -65,11 +63,9 @@ distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
 reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
 motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
 
-# Raw (firmware) format: raw numbers, "provides better accuracy".
-use_raw_format=[]       # VL53L5CX_USE_RAW_FORMAT
-
 # These are suggested to be always enabled, by the vendor
-target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS; "Status indicating the measurement validity (5 & 9 means ranging OK)"
+target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
+nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
 
 targets_per_zone_1=[]
 targets_per_zone_2=[]
@@ -80,7 +76,7 @@ defmt = [
     "dep:defmt"
 ]
 
-default = ["targets_per_zone_1", "target_status"]
+default = ["target_status", "nb_targets_detected"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

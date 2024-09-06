@@ -36,7 +36,6 @@ use uld::{
     VL53L5CX,
     ranging::{
         RangingConfig,
-        //R Resolution::_8X8,
         TargetOrder::CLOSEST,
         Mode::AUTONOMOUS,
     },
@@ -76,7 +75,7 @@ fn main() -> ! {
         pinSCL,
         400.kHz(),
         &clocks,
-        None,   //Some(100u8 as _),     // use 8-bit values only; tbd. what does the value actually steer?
+        None,   // 'esp-hal' documentation on what exactly the 'timeout' parameter steers is hazy. // author, Sep'24; esp-hal 0.20.1
     );
 
     let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));       // None if you pull it up to IOVDD via a resistor (47K)
@@ -94,13 +93,6 @@ fn main() -> ! {
         info!("Target powered off and on again.");
     });
 
-    /***R // Reset the I2C circuitry
-    i2c_rst.iter_mut().for_each(|pin| {
-        pin.set_high();
-        delay_ms(10);  // tbd. see specs, what is a suitable time
-        pin.set_low();
-    });***/
-
     let mut vl = VL53L5CX::new_and_init(pl)
         .unwrap();
 
@@ -108,7 +100,7 @@ fn main() -> ! {
 
     //--- ranging loop
     //
-    let c = RangingConfig::<4>::default()        // note: leaving '::<4>::' out doesn't seem to cut it (would like it to use '4')
+    let c = RangingConfig::default()    // 4x4; use '::<_8X8>' if needed
         .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
         .with_target_order(CLOSEST);
 
@@ -127,19 +119,20 @@ fn main() -> ! {
         info!("Data #{}", round);
 
         #[cfg(feature = "target_status")]
-        info!(".target_status: {=[u8]}", res.target_status);
+        info!(".target_status:    {=[u8]}", res.target_status);
+        #[cfg(feature = "nb_targets_detected")]
+        info!(".targets_detected: {=[u8]}", res.targets_detected);
 
+        #[cfg(feature = "ambient_per_spad")]
+        info!(".ambient_per_spad: {=[u8]}", res.ambient_per_spad);
         #[cfg(feature = "distance_mm")]
-        info!(".distance_mm:   {}", res.distance_mm);   // "{=[i16]}" cannot be used as a display hint #defmt
+        info!(".distance_mm:      {}", res.distance_mm);   // "{=[i16]}" cannot be used as a display hint #defmt
     }
 
-    // Not really needed; Rust would stop it automatically
-    //ring.drop();
+    // Rust automatically stops the ranging in the ULD C driver, when 'Ranging' is dropped.
 
     info!("End of ULD demo");
 
-    // 'defmt' has had something like 'exit()' for tests, but doesn't seem to (0.3.8) have any more.
-    // What we would like here is for 'probe-rs run' to exit to the command line.
-    //exit();
-    loop { delay_ms(999) }
+    // If 'defmt' (or something) had a way for us to exit - so that 'probe-rs' would return control
+    // to the command line - this is the place to do it. :) #wish
 }

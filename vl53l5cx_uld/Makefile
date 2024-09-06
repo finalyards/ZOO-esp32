@@ -18,10 +18,6 @@ DEFMT_FEATURES:=defmt
 TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
-# List names of 'examples/[0-9]*.rs'
-EXAMPLE_NAMES:=$(notdir $(basename $(wildcard examples/_[0-9]*.rs) $(wildcard examples/[0-9]*.rs)))
-	# '_' prefix used until 'defmt' allows non-identifier file names
-
 all:
 	@false
 
@@ -39,10 +35,9 @@ _nada:
 #	FEATURES=target_status,distance_mm $(MAKE) _2-get_set_parameters
 
 m matrix:
-	EXAMPLE=matrix FEATURES=target_status,distance_mm $(MAKE) _build _run
-
-matrix-build:
-	EXAMPLE=matrix FEATURES=target_status,distance_mm $(MAKE) _build
+	EXAMPLE=matrix \
+	  FEATURES=targets_per_zone_1,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
+	  $(MAKE) _build _run
 
 #---
 _build:

@@ -73,6 +73,11 @@ fn main() {
         let mut defs: Vec<&str> = vec!();
 
         // Output-enabling features (in Rust, we have them enabling; in C they are disable flags). Same thing.
+        #[cfg(not(feature = "target_status"))]
+        defs.push("VL53L5CX_DISABLE_TARGET_STATUS");
+        #[cfg(not(feature = "nb_targets_detected"))]
+        defs.push("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
+
         #[cfg(not(feature = "ambient_per_spad"))]
         defs.push("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
         #[cfg(not(feature = "nb_spads_enabled"))]
@@ -83,19 +88,14 @@ fn main() {
         defs.push("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
         #[cfg(not(feature = "distance_mm"))]
         defs.push("VL53L5CX_DISABLE_DISTANCE_MM");
-        #[cfg(not(feature = "target_status"))]
-        defs.push("VL53L5CX_DISABLE_TARGET_STATUS");
         #[cfg(not(feature = "reflectance_percent"))]
         defs.push("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
         #[cfg(not(feature = "motion_indicator"))]
         defs.push("VL53L5CX_DISABLE_MOTION_INDICATOR");
 
-        #[cfg(feature = "use_raw_format")]
-        defs.push("VL53L5CX_USE_RAW_FORMAT");
-
-        // In brief,
-        //  "the number of target[s] per zone sent through I2C. [...] a lower number [...] means
-        //  a lower RAM [consumption]. The value must be between 1 and 4."
+        // Vendor docs:
+        //      "the number of target[s] per zone sent through I2C. [...] a lower number [...] means
+        //      a lower RAM [consumption]."
         //
         #[cfg(feature = "targets_per_zone_1")]
         defs.push("VL53L5CX_NB_TARGET_PER_ZONE 1U");

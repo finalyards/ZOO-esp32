@@ -18,12 +18,10 @@
 # Note: 'bindgen' docs show how that tool can also build the static library as part of the 'cargo build' command run.
 #		We kind of follow that approach, but wrap all the C side actions still under a 'Makefile'.
 #
-# NOTE: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the more fine grained ones.
-#	<<
-#	  $ clang -print-targets | grep risc
-#     riscv32     - 32-bit RISC-V
-#	  riscv64     - 64-bit RISC-V
-#	<<
+# NOTE: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the chip specific ones that Rust uses.
+#
+# NOTE: Unconditional (manual) make with 'make -B -f Makefile.inner [...]' is CURRENTLY BROKEN. Just run 'make _clean',
+#		instead.
 #
 _VL53L5CX_ULD_API:=VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API
 
@@ -68,11 +66,7 @@ all:
 tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
 	ar rcs $@ $<
 
-# Note: Dependency on features is via 'Cargo.toml'. 'build.rs' rebuilds 'tmp/config.h' on each run, so it's not
-#		a good idea to use it (would cause everything to recompile, all the time). This may be overthinking, but
-#		..it works.
-#
-tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) Cargo.toml
+tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
@@ -91,12 +85,6 @@ $(_C_SRC)/vl53l5cx_api.c: $(_VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch
 # Error at Make root level, if vendor sources aren't there
 ifeq ("$(wildcard $(_VL53L5CX_ULD_API)/src/*)", "")
 $(error ST.com ULD driver not found; please download and place in the folder $(_VL53L5CX_ULD_API))
-endif
-
-# Make sure features have been processed.
-# We don't use regular 'tmp/config.h:' target, because it would not work with 'make -B' (force rebuilds).
-ifeq ("$(wildcard tmp/config.h)", "")
-$(error No 'tmp/config.h'. Either create an empty file or run once with 'cargo build')
 endif
 
 #---
@@ -147,7 +135,7 @@ endif
 #
 #	NOTE: Pretty vital to raise logging level (for non-internals) to 'WARN'. Can be done!!
 #
-src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) $(_MAKEFILE_INNER) Cargo.toml
+src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) $(_MAKEFILE_INNER) tmp/config.h
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
@@ -187,6 +175,15 @@ x: src/uld_raw.rs
 	@echo ""
 	@echo "Yay!"
 
+# Check that 'tmp/config.h' is later than 'Cargo.toml'. 'build.rs' writes it _on every build_ and since we are called
+# from within such builds, this should always be the case.
+#
+# If you do manual 'make -f Makefile.inner [...]' runs, this prevents from building features-out-of-sync targets.
+#
+tmp/config.h: Cargo.toml
+	$(error 'tmp/config.h' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)
+
+#---
 _clean:
 	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a
 
@@ -197,4 +194,4 @@ echo:
 	@echo $(_CLANG)
 
 #--
-.PHONY: all _clean _klean echo
+.PHONY: all _test_feature_propagation _clean _klean echo

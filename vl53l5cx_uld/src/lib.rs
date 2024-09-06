@@ -36,7 +36,7 @@ use uld_raw::{
     vl53l5cx_set_power_mode,
     vl53l5cx_set_i2c_address,
     PowerMode,
-    ST_OK,
+    ST_OK, ST_ERROR,
 
     /*** tbd. if needed, bring under features
     *vl53l5cx_disable_internal_cp,
@@ -49,8 +49,6 @@ use uld_raw::{
     *vl53l5cx_set_VHV_repeat_count,
     */
 };
-
-use crate::uld_raw::ST_ERROR;
 
 pub type Result<T> = core::result::Result<T,u8>;
 
@@ -216,7 +214,7 @@ impl VL53L5CX<'_> {
     //---
     // Ranging (getting values)
     //
-    pub fn start_ranging<const DIM: u8>(&mut self, cfg: &RangingConfig<DIM>) -> Result<Ranging<DIM>> {    // Rust note: 'impl Into<...>' would allow either '&T' or 'T' by the caller.
+    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<Ranging<DIM>> {    // Rust note: 'impl Into<...>' would allow either '&T' or 'T' by the caller.
         let r = Ranging::new_maybe(&mut self.vl, cfg)?;
         Ok(r)
     }
