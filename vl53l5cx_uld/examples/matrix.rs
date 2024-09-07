@@ -100,7 +100,7 @@ fn main() -> ! {
 
     //--- ranging loop
     //
-    let c = RangingConfig::default()    // 4x4; use '::<_8X8>' if needed
+    let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
         .with_target_order(CLOSEST);
 
@@ -119,12 +119,12 @@ fn main() -> ! {
         info!("Data #{}", round);
 
         #[cfg(feature = "target_status")]
-        info!(".target_status:    {=[u8]}", res.target_status);
+        info!(".target_status:    {}", res.target_status);
         #[cfg(feature = "nb_targets_detected")]
-        info!(".targets_detected: {=[u8]}", res.targets_detected);
+        info!(".targets_detected: {}", res.targets_detected);
 
         #[cfg(feature = "ambient_per_spad")]
-        info!(".ambient_per_spad: {=[u8]}", res.ambient_per_spad);
+        info!(".ambient_per_spad: {}", res.ambient_per_spad);
         #[cfg(feature = "distance_mm")]
         info!(".distance_mm:      {}", res.distance_mm);   // "{=[i16]}" cannot be used as a display hint #defmt
     }
@@ -135,4 +135,5 @@ fn main() -> ! {
 
     // If 'defmt' (or something) had a way for us to exit - so that 'probe-rs' would return control
     // to the command line - this is the place to do it. :) #wish
+    loop {}
 }

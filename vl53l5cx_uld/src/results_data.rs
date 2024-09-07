@@ -42,8 +42,6 @@ pub struct ResultsData<const DIM: usize> {      // gets implemented for DIM=4, D
 }
 
 impl<const DIM: usize> ResultsData<DIM> {
-    const DIM_SQ: usize = DIM*DIM;
-
     /*
     * Provide an empty buffer-like struct; owned usually by the application and fed via 'feed()'.
     */
@@ -138,7 +136,7 @@ impl<const DIM: usize> ResultsData<DIM> {
 #[cfg(feature = "target_status")]
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-enum TargetStatus {
+pub enum TargetStatus {
     Valid(u8),          // 100% valid: 5
     HalfValid(u8),      // 50% valid: 6,9
     NoTarget,           // 255
