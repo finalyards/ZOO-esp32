@@ -10,7 +10,7 @@ FEATURES?=
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
-DEFMT_HOST_FMT:='[{L:bold}] {s}'
+DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 DEFMT_FEATURES:=defmt
 
 # Read the 'TARGET' from './cargo/config.toml'

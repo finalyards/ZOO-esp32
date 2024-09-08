@@ -107,6 +107,19 @@ cat tmp-3 \
   | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
   > examples/_2-get_set_parameters.rs
 
+cp examples/matrix.rs tmp-3
+cat tmp-3 \
+  | sed -E 's_^([[:space:]]+)(//)?(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*esp32.+$)_\1//\3_g' \
+  | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
+  > examples/matrix.rs
+
+# Eventually will transition only to using 'pins.rs'. tbd. #help
+cp examples/pins.rs tmp-3
+cat tmp-3 \
+  | sed -E 's_^([[:space:]]+)(//)?(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*esp32.+$)_\1//\3_g' \
+  | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
+  > examples/pins.rs
+
 rm tmp-[123]
 
 echo "Files '.cargo/config.toml' and 'Cargo.toml' now using:"

@@ -20,16 +20,17 @@ use esp_hal::{
     clock::ClockControl,
     delay::Delay,
     gpio,
-    gpio::{Io, AnyOutput, /*InputPin, OutputPin,*/ Level},
+    gpio::{Io, AnyOutput, Level},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
-    system::SystemControl
+    system::SystemControl,
 };
 
 extern crate vl53l5cx_uld as uld;
 mod common;
 //mod pins;
+mod defmt_timestamps;
 
 use common::MyPlatform;
 use uld::{
@@ -56,6 +57,8 @@ fn main() -> ! {
     let peripherals = Peripherals::take();
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+
+    defmt_timestamps::init();
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
