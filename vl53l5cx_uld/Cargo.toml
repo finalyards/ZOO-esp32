@@ -86,3 +86,7 @@ default = ["target_status", "nb_targets_detected"]
 [[example]]
 name = "matrix"
 required-features = ["defmt", "targets_per_zone_1", "distance_mm"]
+
+[[example]]
+name = "m2"
+required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"

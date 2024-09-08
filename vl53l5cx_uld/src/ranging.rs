@@ -216,10 +216,10 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
     }
 }
 
-pub struct Ranging<'a, const DIM: usize> {
+pub struct Ranging<'a, const DIM: usize> {    // DIM: 4|8
     vl: &'a mut VL53L5CX_Configuration,
-    buf: VL53L5CX_ResultsData,      // results of the latest '.get_data()' call; overwritten for each scan
-    rbuf: ResultsData<DIM>          // Rust-side results store
+    buf: VL53L5CX_ResultsData,  // results of the latest '.get_data()' call; overwritten for each scan
+    rbuf: ResultsData<DIM>      // Rust-side results store
 }
 
 impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
@@ -266,8 +266,9 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
     *
     //tbd. Try and describe what happens, if you call here before a scan is ready.
     *
-    * tbd. Describe the lifetime of the returned data (likely valid only until the next time 'get_data'
-    * is called (that should be enough for apps)).
+    * Note: The data is valid until the next '.get_data' call. However, Rust reference management
+    *       should take (?) care that all reads to these are dropped, before a new round is read.
+    *       App level does not need to care.
     */
     pub fn get_data(&mut self) -> Result<&ResultsData<DIM>> {
 

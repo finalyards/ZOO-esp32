@@ -1,4 +1,6 @@
 /*
+* Example for getting 2 (or more) targets, per sensor zone.
+*
 * Initializes the ULD, sets some parameters and starts a ranging to capture 10 frames, with custom:
 *   - resolution
 *   - frequency
@@ -28,7 +30,6 @@ use esp_hal::{
 
 extern crate vl53l5cx_uld as uld;
 mod common;
-//mod pins;
 mod defmt_timestamps;
 
 use common::MyPlatform;
@@ -42,11 +43,11 @@ use uld::{
     units::*
 };
 
-// Note: 'Cargo.toml' may use 'required_features' to make sure we'd not get build with a bad combo.
-//      This one is just a 2nd tier check.
+// Note: 'Cargo.toml' cannot use 'required_features' to ask for "one of many" features. This check
+//      becomes the primary one!
 //
-#[cfg(not(feature = "targets_per_zone_1"))]
-compile_error!("Expecting feature 'targets_per_zone_1'");
+#[cfg(feature = "targets_per_zone_1")]
+compile_error!("Expecting # of targets to be >1");
 
 #[entry]
 fn main() -> ! {
@@ -64,9 +65,6 @@ fn main() -> ! {
         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), gpio::NO_PIN)      // esp32c3
         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), gpio::NO_PIN)    // esp32c6
     };
-    /*** tbd. replace above with:   #help
-    let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = pins::get_pins(&io);
-    ***/
 
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,

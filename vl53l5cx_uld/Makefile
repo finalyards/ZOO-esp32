@@ -28,15 +28,14 @@ _nada:
 	$(LOG_ENV) cargo build --release --features=defmt --example $@
 	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/nada
 
-#1 ranging-basic:
-#	FEATURES=distance_mm $(MAKE) _1-ranging_basic
-
-#2 get-set-parameters:
-#	FEATURES=target_status,distance_mm $(MAKE) _2-get_set_parameters
-
 m matrix:
 	EXAMPLE=matrix \
 	  FEATURES=targets_per_zone_1,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
+	  $(MAKE) _build _run
+
+m2:
+	EXAMPLE=m2 \
+	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
 	  $(MAKE) _build _run
 
 #---
