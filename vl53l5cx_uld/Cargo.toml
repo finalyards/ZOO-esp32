@@ -19,13 +19,12 @@ publish = false
 # 'esp-hal' recommends only using 'release', so...
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 [profile.release]
-#debug         = "line-tables-only"     # gives "WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info."
-debug = 2
+debug         = "line-tables-only"
 #debug-assertions = true     # since we .. kind-of only live in the 'release'
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
-codegen-units = 4
+codegen-units = 32
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-panic = "abort"
+panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 

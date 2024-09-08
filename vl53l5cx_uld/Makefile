@@ -40,6 +40,7 @@ m2:
 
 #---
 _build:
+	cargo check --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 	$(LOG_ENV) cargo build --timings --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 
 _run:
