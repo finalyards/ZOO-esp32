@@ -6,10 +6,12 @@
 *       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
 */
 use esp_hal::time::current_time;
-use defmt::{debug, panic};
-use esp_hal::clock::Clocks;
-use esp_hal::delay::Delay;
-use esp_hal::timer;
+
+#[cfg(not(all()))]
+use {
+    defmt::{debug, panic},
+    esp_hal::{clock::Clocks, delay::Delay, timer}
+};
 
 // Must be called only once
 //

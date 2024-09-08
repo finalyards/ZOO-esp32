@@ -19,8 +19,7 @@ use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
-    gpio,
-    gpio::{Io, AnyOutput, Level},
+    gpio::{self, Io, AnyOutput, Level},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
@@ -68,7 +67,7 @@ fn main() -> ! {
         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), gpio::NO_PIN)      // esp32c3
         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), gpio::NO_PIN)    // esp32c6
     };
-    /*** tbd. replace above with:
+    /*** tbd. replace above with:   #help
     let (pinSDA, pinSCL, pinPWR_EN, pinI2C_RST) = pins::get_pins(&io);
     ***/
 
