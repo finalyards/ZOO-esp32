@@ -116,7 +116,7 @@ fn main() -> ! {
             .expect("Failed to get data");
 
         // 4x4 (default) = 16 zones
-        info!("Data #{}", round);
+        info!("Data #{} (sensor {}°C)", round, res.silicon_temp_degc);
 
         #[cfg(feature = "target_status")]
         info!(".target_status:    {}", res.target_status);
@@ -125,8 +125,16 @@ fn main() -> ! {
 
         #[cfg(feature = "ambient_per_spad")]
         info!(".ambient_per_spad: {}", res.ambient_per_spad);
+        #[cfg(feature = "nb_spads_enabled")]
+        info!(".spads_enabled:    {}", res.spads_enabled);
+        #[cfg(feature = "signal_per_spad")]
+        info!(".signal_per_spad:  {}", res.signal_per_spad);
+        #[cfg(feature = "range_sigma_mm")]
+        info!(".range_sigma_mm:   {}", res.range_sigma_mm);
         #[cfg(feature = "distance_mm")]
-        info!(".distance_mm:      {}", res.distance_mm);   // "{=[i16]}" cannot be used as a display hint #defmt
+        info!(".distance_mm:      {}", res.distance_mm);
+        #[cfg(feature = "reflectance_percent")]
+        info!(".reflectance:      {}", res.reflectance);
     }
 
     // Rust automatically stops the ranging in the ULD C driver, when 'Ranging' is dropped.

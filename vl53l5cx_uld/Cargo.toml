@@ -61,7 +61,7 @@ signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
 range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
 distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
 reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
-motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
+#motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
 
 # These are suggested to be always enabled, by the vendor
 target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS

@@ -29,14 +29,14 @@ pub struct ResultsData<const DIM: usize> {      // gets implemented for DIM=4, D
     pub spads_enabled: [[u32; DIM]; DIM],
     #[cfg(feature = "signal_per_spad")]
     pub signal_per_spad: [[u32; DIM]; DIM],
-    #[cfg(feature = "range_sigma_mm")]
-    pub range_sigma_mm: [[u16; DIM]; DIM],
+
     #[cfg(feature = "distance_mm")]
     pub distance_mm: [[u16; DIM]; DIM],
+    #[cfg(feature = "range_sigma_mm")]
+    pub range_sigma_mm: [[u16; DIM]; DIM],
+
     #[cfg(feature = "reflectance_percent")]
     pub reflectance: [[u8; DIM]; DIM],
-    #[cfg(feature = "motion_indicator")]
-    pub motion_indicator: [[!; DIM]; DIM],
 
     pub silicon_temp_degc: i8                   // "internal sensor silicon temperature"
 }
@@ -49,7 +49,7 @@ impl<const DIM: usize> ResultsData<DIM> {
 
         Self {
             #[cfg(feature = "target_status")]
-            target_status: [[TargetStatus::Misc(0);DIM];DIM],
+            target_status: [[TargetStatus::Other(0);DIM];DIM],
             #[cfg(feature = "nb_targets_detected")]
             targets_detected: [[0;DIM];DIM],
 
@@ -122,10 +122,6 @@ impl<const DIM: usize> ResultsData<DIM> {
 //---
 // Target status
 //
-// Vendor docs:
-//      "Measurements validity." "5 is considered 100% valid; [...] 6 or 9 can be considered
-//      [to be valid by a probability of] 50%; All other values [...] below the 50% level."
-//
 // Observed values:
 //      5, 6, 9, 10, 255
 //
@@ -139,9 +135,10 @@ impl<const DIM: usize> ResultsData<DIM> {
 pub enum TargetStatus {
     Valid(u8),          // 100% valid: 5
     HalfValid(u8),      // 50% valid: 6,9
-    NoTarget,           // 255
+    Invalid,            // 255
     //
-    Misc(u8)            // other values: 0..13 excluding above
+    Other(u8),          // other values: 0..13 excluding above; RARE
+                        //               14..254 (inclusive); should not occur
 }
 
 #[cfg(feature = "target_status")]
@@ -150,88 +147,13 @@ impl TargetStatus {
         match v {
             5 => { Self::Valid(v) },
             6 | 9 => { Self::HalfValid(v) },
-            255 => { Self::NoTarget },
+            255 => { Self::Invalid },
             v => {
                 if v > 13 {
                     warn!("Unexpected 'target_status' value: {=u8}", v);
                 }
-                Self::Misc(v)
+                Self::Other(v)
             }
         }
     }
 }
-
-//---
-// Number of targets detected
-//
-// Vendor docs:
-//      "Number of detected targets in the current zone. This value should be the first one to check to
-//      know a measurement validity."
-//
-// Observed values:
-//
-#[cfg(feature = "nb_targets_detected")]
-fn _no_op5() {}
-
-//---
-// Ambient per SPAD
-//
-// Vendor docs:
-//      "ambient signal rate due to noise" (unit: Kcps/SPAD)
-//
-// Observed values:
-//
-#[cfg(feature = "ambient_per_spad")]
-fn _no_op6() {}
-
-//---
-// Number of SPADs enabled
-//
-// Vendor docs:
-//      "Number of SPADs enabled for the current measurement. A far or low reflective target
-//      activates more SPADs."
-//
-// Observed values:
-//
-#[cfg(feature = "nb_spads_enabled")]
-fn _no_op7() {}
-
-//---
-// Signal per SPAD  // "signal returned to the sensor in kcps/spads"
-//
-// Vendor docs:
-//      "Quantity of photons measured during the VCSEL." (unit: Kcps/SPAD)
-//
-// Observed values:
-#[cfg(feature = "signal_per_spad")]
-fn _no_op8() {}
-
-//---
-// Range sigma  // "sigma of the current distance in mm"
-//
-// Vendor docs:
-//      "Sigma estimator for the noise in the reported" (unit: mm)
-//
-// Observed values:
-#[cfg(feature = "range_sigma_mm")]
-fn _no_op9() {}
-
-//---
-// Distance
-//
-// Vendor docs:
-//      "Target distance" (unit: mm)
-//
-// Observed values:
-#[cfg(feature = "distance_mm")]
-fn _no_op10() {}
-
-//---
-// Reflectance      // "estimated reflectance in percent"
-//
-// Vendor docs:
-//      "Estimated target reflectance in percent" (unit: percent)
-//
-// Observed values:
-#[cfg(feature = "reflectance_percent")]
-fn _no_op11() {}

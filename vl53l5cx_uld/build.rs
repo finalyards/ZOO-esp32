@@ -34,6 +34,9 @@ fn main() {
     #[allow(non_snake_case)]
     let IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
 
+    // If IDE runs, terminate early.
+    if IDE_RUN { return };
+
     /***
     // DEBUG: Show what we know about the compilation.
     //
@@ -44,7 +47,7 @@ fn main() {
     //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
     //   TARGET=riscv32imc-unknown-none-elf
     //
-    if !IDE_RUN {
+    {
         env::vars().for_each(|(a, b)| {
             eprintln!("{a}={b}");
         });
@@ -54,14 +57,19 @@ fn main() {
 
     //---
     // Config sanity checks
+    {
+        // Pick 1
+        assert_unique_used_features!(
+            "targets_per_zone_1",
+            "targets_per_zone_2",
+            "targets_per_zone_3",
+            "targets_per_zone_4",
+        );
 
-    // Pick 1
-    assert_unique_used_features!(
-        "targets_per_zone_1",
-        "targets_per_zone_2",
-        "targets_per_zone_3",
-        "targets_per_zone_4",
-    );
+        // "range_sigma_mm" relates to "distance_mm"
+        #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
+        println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
+    }
 
     //---
     // Create a C config header, based on the features from 'Cargo.toml'.
@@ -69,7 +77,7 @@ fn main() {
     // Note: Since the IDE runs don't really (in Sep'24, Rust Rover, yet?) have a clue on the right
     //      set of features, update the 'config.h' *only* on actual builds.
     //
-    if !IDE_RUN {
+    {
         let mut defs: Vec<&str> = vec!();
 
         // Output-enabling features (in Rust, we have them enabling; in C they are disable flags). Same thing.
@@ -90,7 +98,9 @@ fn main() {
         defs.push("VL53L5CX_DISABLE_DISTANCE_MM");
         #[cfg(not(feature = "reflectance_percent"))]
         defs.push("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
-        #[cfg(not(feature = "motion_indicator"))]
+
+        // 'motion_indicator' feature & support is not implemented; always disable in C
+        // #[cfg(not(feature = "motion_indicator"))]
         defs.push("VL53L5CX_DISABLE_MOTION_INDICATOR");
 
         // Vendor docs:
