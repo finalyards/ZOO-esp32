@@ -31,12 +31,12 @@ _nada:
 m matrix:
 	EXAMPLE=matrix \
 	  FEATURES=targets_per_zone_1,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-	  $(MAKE) _build _run
+	  @$(MAKE) _build _run
 
 m2:
 	EXAMPLE=m2 \
 	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-	  $(MAKE) _build _run
+	  @$(MAKE) _build _run
 
 #---
 _build:
@@ -49,4 +49,4 @@ _run:
 echo:
 	@echo a
 
-.PHONY: all _nada m matrix matrix-build _build _run echo
+.PHONY: all _nada m matrix m2 _build _run echo

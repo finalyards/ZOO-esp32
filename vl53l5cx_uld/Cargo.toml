@@ -40,6 +40,7 @@ esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c3"] }     # 
 #esp-hal-smartled    = { version = "0.12.0", features = ["esp32c3"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's internal use of it to get the 'defmt' feature.
+semihosting     = { version = "0.1.14" }
 
 [build-dependencies]
 esp-build       = "0.1.0"
@@ -62,7 +63,6 @@ signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
 range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
 distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
 reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
-#motion_indicator=[]     # VL53L5CX_DISABLE_MOTION_INDICATOR
 
 # These are suggested to be always enabled, by the vendor
 target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
@@ -73,9 +73,7 @@ targets_per_zone_2=[]
 targets_per_zone_3=[]
 targets_per_zone_4=[]
 
-defmt = [
-    "dep:defmt"
-]
+defmt = ["dep:defmt"]
 
 default = ["target_status", "nb_targets_detected"]
 

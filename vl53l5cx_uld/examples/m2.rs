@@ -138,7 +138,6 @@ fn main() -> ! {
 
     info!("End of ULD demo");
 
-    // If 'defmt' (or something) had a way for us to exit - so that 'probe-rs' would return control
-    // to the command line - this is the place to do it. :) #wish
-    loop {}
+    // With 'semihosting' feature enabled, execution can return back to the developer's command line.
+    semihosting::process::exit(0);
 }
