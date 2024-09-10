@@ -185,7 +185,8 @@ tmp/config.h: Cargo.toml
 
 #---
 _clean:
-	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a
+	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
+		tmp/config.h
 
 _klean: _clean
 	cargo clean

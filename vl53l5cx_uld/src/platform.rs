@@ -5,7 +5,7 @@
 
 #[cfg(feature = "defmt")]
 #[allow(unused_imports)]
-use defmt::trace;
+use defmt::{trace, warn};
 
 use core::{
     ffi::c_void,
@@ -147,27 +147,50 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
 * NOTE! *FINALLY* thinking like Rust!! Using 'with' and a closure, we don't need to worry about
 *   lifespans of the converted pointer!
 */
+pub(crate)  // open for 'set_i2c_address()' so that the I2C address can be changed, on the fly!!!
 fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
-    #[cfg(feature="defmt")]
-    //R trace!("Platform at: {:x}", pt);    // let's see if it moves
-        // 0x3fccd0a8
 
-    let x: &mut dyn Platform = /*** (not tried) ***/ if false { // R (but try first) tbd.
-        let pt = unsafe {
-            core::ptr::NonNull::new_unchecked(pt).cast::<&mut dyn Platform>()
-                .as_ptr()
-        };
-
-        unsafe { *pt }
-    } else {
-        // Re-interpret what's in '*pt' as '&mut dyn Platform'
-        //
+    let x: &mut dyn Platform = {    // re-interpret what's in '*pt' as '&mut dyn Platform'
         let pt: *mut &mut dyn Platform = pt as *mut c_void as _;
-
-        //R trace!("Pointer: {}", pt);
-            // 0x3fccd0a8
         unsafe{ *pt }
     };
 
+    /*** Something we didn't try:
+    let pt = unsafe {
+        core::ptr::NonNull::new_unchecked(pt).cast::<&mut dyn Platform>().as_ptr()
+    };
+    unsafe { *pt }
+    ***/
+
     f(x)
+}
+
+impl dyn Platform {
+    /**
+    * Check, whether there's a VL53L5CX device in the given I2C address. Calling does not require
+    * the device to have been initialized (so is quick to check in starting).
+    *
+    * Modeled akin to the vendor ULD 'vl53l5cx_is_alive()'.
+    *
+    * Returns:
+    *   Ok(true)    All fine, looks like a VL53L5CX
+    *   Ok(false)   Maybe.. I2C reply received, but 'dev_id', 'rev_id' values are unrecognized
+    *   Err(_)      Did not reach a device in the I2C address
+    */
+    pub fn ping(&mut self) -> Result<bool, ()> {
+        let mut buf: [u8; 2] = [u8::MAX; 2];
+
+        self.wr_bytes(0x7fff, &[0x00])?;
+        self.rd_bytes(0, &mut buf)?;   // [dev_id, rev_id]
+        self.wr_bytes(0x7fff, &[0x02])?;
+
+        match (buf[0],buf[1]) {
+            (0xf0, 0x02) => Ok(true),   // what vendor ULD C driver expects to find
+            (a,b) => {
+                #[cfg(feature = "defmt")]
+                warn!("Unexpected pair: {} != {}", (a,b), (0xf0,0x02));
+                Ok(false)
+            }
+        }
+    }
 }

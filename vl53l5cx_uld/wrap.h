@@ -77,5 +77,10 @@ const uint8_t ST_ERROR = VL53L5CX_STATUS_ERROR;	                // |255
 const size_t MAX_RESULTS_SIZE = VL53L5CX_MAX_RESULTS_SIZE;
 */
 
-// This comes from Rust features -> built into #define -> here back to Rust.
-//const uint8_t NB_TARGET_PER_ZONE = VL53L5CX_NB_TARGET_PER_ZONE;     // 1..4
+// This comes from Rust 'targets_per_zone_{1..4}' features -> built into #define -> here back to Rust.
+//
+// There IS an argument using this, over Rust 'features' (which we currently do):
+//      - since this already combines possible overlapping feature values
+//      - and because it makes sure the library is in sync with ULD C API.
+//
+//const uint8_t TARGETS_PER_ZONE = VL53L5CX_NB_TARGET_PER_ZONE;     // 1..4

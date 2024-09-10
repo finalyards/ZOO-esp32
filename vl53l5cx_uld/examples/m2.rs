@@ -43,11 +43,7 @@ use uld::{
     units::*
 };
 
-// Note: 'Cargo.toml' cannot use 'required_features' to ask for "one of many" features. This check
-//      becomes the primary one!
-//
-#[cfg(feature = "targets_per_zone_1")]
-compile_error!("Expecting # of targets to be >1");
+const I2C_ADDR: u8 = VL53L5CX::FACTORY_I2C_ADDR;
 
 #[entry]
 fn main() -> ! {
@@ -75,12 +71,10 @@ fn main() -> ! {
         None,   // 'esp-hal' documentation on what exactly the 'timeout' parameter steers is hazy. // author, Sep'24; esp-hal 0.20.1
     );
 
-    let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));       // None if you pull it up to IOVDD via a resistor (47K)
+    let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));
 
     let d_provider = Delay::new(&clocks);
     let delay_ms = |ms| d_provider.delay_millis(ms);
-
-    let pl = MyPlatform::new(&clocks, i2c_bus);
 
     // Reset VL53L5CX by pulling down its power for a moment
     pwr_en.iter_mut().for_each(|pin| {
@@ -89,6 +83,8 @@ fn main() -> ! {
         pin.set_high();
         info!("Target powered off and on again.");
     });
+
+    let pl = MyPlatform::new(&clocks, i2c_bus, I2C_ADDR);
 
     let mut vl = VL53L5CX::new_and_init(pl)
         .unwrap();

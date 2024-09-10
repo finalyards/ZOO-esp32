@@ -7,7 +7,7 @@
 */
 
 use itertools::Itertools;
-use esp_build::assert_unique_used_features;
+
 #[allow(unused_imports)]
 use std::{
     env,
@@ -58,13 +58,12 @@ fn main() {
     //---
     // Config sanity checks
     {
-        // Pick 1
-        assert_unique_used_features!(
-            "targets_per_zone_1",
-            "targets_per_zone_2",
-            "targets_per_zone_3",
-            "targets_per_zone_4",
-        );
+        // In the nature of Rust features being combinable, several 'targets_per_zone{2..4}' _are_ allowed, the
+        // grandest of them making the call. = we don't need to check for sanity.
+        //
+        //"targets_per_zone_2",
+        //"targets_per_zone_3",
+        //"targets_per_zone_4",
 
         // "range_sigma_mm" relates to "distance_mm"
         #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
@@ -78,43 +77,55 @@ fn main() {
     //      set of features, update the 'config.h' *only* on actual builds.
     //
     {
-        let mut defs: Vec<&str> = vec!();
+        let mut defs: Vec<String> = vec!();
+
+        macro_rules! add {
+            ($x:expr) => { defs.push($x.into()); }
+        }
+        // ^-- Practically the same as:
+        // let add = |s: dyn Into<String>| { defs.push(s.into()) };    // does not compile
 
         // Output-enabling features (in Rust, we have them enabling; in C they are disable flags). Same thing.
-        #[cfg(not(feature = "target_status"))]
-        defs.push("VL53L5CX_DISABLE_TARGET_STATUS");
-        #[cfg(not(feature = "nb_targets_detected"))]
-        defs.push("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
-
+        //
+        // First group: metadata of the sensor (DIMxDIM, regardless of targets)
+        //
         #[cfg(not(feature = "ambient_per_spad"))]
-        defs.push("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
+        add!("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
         #[cfg(not(feature = "nb_spads_enabled"))]
-        defs.push("VL53L5CX_DISABLE_NB_SPADS_ENABLED");
-        #[cfg(not(feature = "signal_per_spad"))]
-        defs.push("VL53L5CX_DISABLE_SIGNAL_PER_SPAD");
-        #[cfg(not(feature = "range_sigma_mm"))]
-        defs.push("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
+        add!("VL53L5CX_DISABLE_NB_SPADS_ENABLED");
+        #[cfg(not(feature = "nb_targets_detected"))]
+        add!("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
+        //
+        // Second group: data and metadata (DIMxDIMxTARGETS)
+        //
+        #[cfg(not(feature = "target_status"))]
+        add!("VL53L5CX_DISABLE_TARGET_STATUS");
         #[cfg(not(feature = "distance_mm"))]
-        defs.push("VL53L5CX_DISABLE_DISTANCE_MM");
+        add!("VL53L5CX_DISABLE_DISTANCE_MM");
+        #[cfg(not(feature = "range_sigma_mm"))]
+        add!("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
         #[cfg(not(feature = "reflectance_percent"))]
-        defs.push("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
+        add!("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
+        #[cfg(not(feature = "signal_per_spad"))]
+        add!("VL53L5CX_DISABLE_SIGNAL_PER_SPAD");
 
-        // 'motion_indicator' feature & support is not implemented; always disable in C
-        // #[cfg(not(feature = "motion_indicator"))]
-        defs.push("VL53L5CX_DISABLE_MOTION_INDICATOR");
+        // 'motion_indicator' support is not implemented; always disable in C
+        add!("VL53L5CX_DISABLE_MOTION_INDICATOR");
 
         // Vendor docs:
-        //      "the number of target[s] per zone sent through I2C. [...] a lower number [...] means
-        //      a lower RAM [consumption]."
+        //      "the number of target[s] per zone sent through I2C. [...] a lower number [...] means a lower RAM
+        //      [consumption]."
         //
-        #[cfg(feature = "targets_per_zone_1")]
-        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 1U");
-        #[cfg(feature = "targets_per_zone_2")]
-        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 2U");
-        #[cfg(feature = "targets_per_zone_3")]
-        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 3U");
-        #[cfg(feature = "targets_per_zone_4")]
-        defs.push("VL53L5CX_NB_TARGET_PER_ZONE 4U");
+        // NOTE: In the nature of Rust features being *combinable* (the merger matters; features should not be
+        //      exclusive), we use the *largest* given feature. If there are none, 1.
+        //
+        const TARGETS: usize =
+                 if cfg!(feature = "targets_per_zone_4") { 4 }
+            else if cfg!(feature = "targets_per_zone_3") { 3 }
+            else if cfg!(feature = "targets_per_zone_2") { 2 }
+            else { 1 };     // always one target
+
+        defs.push(format!("VL53L5CX_NB_TARGET_PER_ZONE {TARGETS}U"));
 
         // Write the file. This way the last 'cargo build' state remains available, even if
         // 'make' were run manually (compared to passing individual defines to 'make');

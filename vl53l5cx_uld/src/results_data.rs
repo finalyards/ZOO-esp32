@@ -16,17 +16,15 @@ use core::convert::identity;
 use defmt::{warn,debug,trace,assert};
 
 use crate::uld_raw::{
-    VL53L5CX_ResultsData
+    VL53L5CX_ResultsData,
 };
 
-#[cfg(feature = "targets_per_zone_1")]
-const TARGETS: usize = 1;
-#[cfg(feature = "targets_per_zone_2")]
-const TARGETS: usize = 2;
-#[cfg(feature = "targets_per_zone_3")]
-const TARGETS: usize = 3;
-#[cfg(feature = "targets_per_zone_4")]
-const TARGETS: usize = 4;
+// Note: We could also take in 'TARGETS_PER_ZONE' from the ULD C API wrapper.
+const TARGETS: usize =
+         if cfg!(feature = "targets_per_zone_4") { 4 }
+    else if cfg!(feature = "targets_per_zone_3") { 3 }
+    else if cfg!(feature = "targets_per_zone_2") { 2 }
+    else { 1 };
 
 pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     // Metadata: DIMxDIM matrix, regardless of 'TARGETS'
@@ -104,39 +102,30 @@ impl<const DIM: usize> ResultsData<DIM> {
         // ULD C API vector:
         //      [A₁ A₂ B₁ B₂ C₁ C₂ D₁ D₂]   // every "zone" is first covered; then next zone
         //
-        fn into_matrix_map_o<IN: Copy,OUT, const DIM: usize>(raw: &[IN], offset: usize, out: &mut [[OUT;DIM];DIM], f: impl Fn(IN) -> OUT) {
-            let raw = &raw[..DIM*DIM*TARGETS];      // take only the beginning of the C buffer
+        #[allow(dead_code)]
+        fn into_matrix_map_o<IN: Copy, OUT, const DIM: usize>(raw: &[IN], offset: usize, out: &mut [[OUT; DIM]; DIM], f: impl Fn(IN) -> OUT) {
+            let raw = &raw[..DIM * DIM * TARGETS];      // take only the beginning of the C buffer
 
             for r in 0..DIM {
                 for c in 0..DIM {
-                    out[r][c] = f(raw[(r*DIM+c)*TARGETS + offset]);
+                    out[r][c] = f(raw[(r * DIM + c) * TARGETS + offset]);
                 }
             }
         }
         #[inline]
-        fn into_matrix_o<X: Copy, const DIM: usize>(raw: &[X], offset: usize, out: &mut [[X;DIM];DIM]) {     // no mapping
-            into_matrix_map_o(raw,offset,out,identity)
+        #[allow(dead_code)]
+        fn into_matrix_o<X: Copy, const DIM: usize>(raw: &[X], offset: usize, out: &mut [[X; DIM]; DIM]) {     // no mapping
+            into_matrix_map_o(raw, offset, out, identity)
         }
         // Zone metadata: 'TARGETS' (and 'offset', by extension) are not involved.
-        fn into_matrix<X: Copy, const DIM: usize>(raw: &[X], out: &mut [[X;DIM];DIM]) {
-            let raw = &raw[..DIM*DIM];      // take only the beginning of the C buffer
+        fn into_matrix<X: Copy, const DIM: usize>(raw: &[X], out: &mut [[X; DIM]; DIM]) {
+            let raw = &raw[..DIM * DIM];      // take only the beginning of the C buffer
 
             for r in 0..DIM {
                 for c in 0..DIM {
                     out[r][c] = raw[r*DIM+c];
                 }
             }
-        }
-
-        {   // show incoming
-            trace!("RAW ambient_per_spad:   {}", &raw_results.ambient_per_spad);
-            trace!("RAW nb_target_detected: {}", &raw_results.nb_target_detected);
-            trace!("RAW nb_spads_enabled:   {}", &raw_results.nb_spads_enabled);
-            trace!("RAW signal_per_spad:    {}", &raw_results.signal_per_spad);
-            trace!("RAW range_sigma_mm:     {}", &raw_results.range_sigma_mm);
-            trace!("RAW distance_mm:        {}", &raw_results.distance_mm);
-            trace!("RAW reflectance:        {}", &raw_results.reflectance);
-            trace!("RAW target_status:      {}", &raw_results.target_status);
         }
 
         // Metadata: DIMxDIM (just once)

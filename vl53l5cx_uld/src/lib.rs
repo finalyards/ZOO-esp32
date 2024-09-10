@@ -1,7 +1,6 @@
 #![no_std]
 #![allow(non_snake_case)]
 
-//mod macros;
 pub mod ranging;    // TEMP: for now, exposing also as 'ranging::{Resolution, ...}'; let's see
 mod platform;
 mod uld_raw;
@@ -18,8 +17,6 @@ use core::{
     ptr::addr_of_mut,
     result::Result as CoreResult,
 };
-
-//not needed: use macros::field_size;
 pub use ranging::{
     RangingConfig,
     Ranging,
@@ -71,9 +68,14 @@ pub trait Platform {
     //
     //      A boolean would do, but using 'Result' is kinda customary.
     //
-    fn rd_bytes(&mut self, addr: u16, buf: &mut [u8]) -> CoreResult<(),()>;
-    fn wr_bytes(&mut self, addr: u16, vs: &[u8]) -> CoreResult<(),()>;
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> CoreResult<(),()>;
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> CoreResult<(),()>;
     fn delay_ms(&mut self, ms: u32);
+
+    // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
+    // address the device identifies with, inform the 'Platform' struct about it.
+    //
+    fn addr_changed(&mut self, new_addr_8bit: u8);
 }
 
 impl VL53L5CX_Configuration {
@@ -200,8 +202,10 @@ impl VL53L5CX<'_> {
 
     fn ping<P : Platform>(p: &mut P) -> CoreResult<(),()> {
         match vl53l5cx_ping(p)? {
-            (a@ 0xf0, b@ 0x02) =>
-                debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b),   // vendor driver ONLY proceeds with this
+            (a@ 0xf0, b@ 0x02) => {     // vendor driver ONLY proceeds with this
+                #[cfg(feature="defmt")]
+                debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b)
+            },
             t => {
                 #[cfg(feature="defmt")]
                 error!("Unexpected '(device id, rev id)': {:#04x}", t);
@@ -240,7 +244,22 @@ impl VL53L5CX<'_> {
         match unsafe { vl53l5cx_set_i2c_address(&mut self.vl, addr as u16) } {
             ST_OK => Ok(()),
             e => Err(e)
-        }
+        }?;
+
+        platform::with(&mut self.vl.platform, |pl| {
+            pl.addr_changed(addr);
+        });
+
+        // Further comms will happen to the new address.
+
+        // Let's still make a small access with the new address, e.g. reading something.
+        // No need for 'ping' since the firmware is still there.
+        //
+        self.get_power_mode().map_err(|e| {
+            error!("Device wasn't reached after its I2C address changed."); e
+        })?;
+
+        Ok(())
     }
 
     // tbd. if exposing these, make them into a "dci" feature
@@ -254,6 +273,11 @@ impl VL53L5CX<'_> {
     //  vl53l5cx_disable_internal_cp
     //  vl53l5cx_set_VHV_repeat_count
     //  vl53l5cx_get_VHV_repeat_count
+
+    // Note: vendor docs use "8 bit" format (7-bit address, shifted one left to expose the read/write
+    //      bit as 0).
+    //
+    pub const FACTORY_I2C_ADDR: u8 = 0x52;    // vendor default
 }
 
 /**
@@ -265,7 +289,7 @@ impl VL53L5CX<'_> {
 * is supposed to be functioning also before the firmware and parameters initialization.
 *
 * Vendor note:
-*   - ULD C driver code expects '(0xf0, 0x02)'. The author has only seen '(0x03, 0x00)'.
+*   - ULD C driver code expects '(0xf0, 0x02)'.
 */
 fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     let mut buf: [u8;2] = [u8::MAX;2];
@@ -276,6 +300,7 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
 
     Ok( (buf[0], buf[1]) )
 }
+// tbd. 'Platform::ping()' is almost the same
 
 /**
 * Based on forum comment [1] (Feb'24), checking that the byte wrapping is as VL53L5CX would like it.

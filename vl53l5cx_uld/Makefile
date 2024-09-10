@@ -24,23 +24,19 @@ all:
 # Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
 #		feature.
 
-_nada:
-	$(LOG_ENV) cargo build --release --features=defmt --example $@
-	probe-rs run --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/nada
-
 m matrix:
 	EXAMPLE=matrix \
-	  FEATURES=targets_per_zone_1,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-	  @$(MAKE) _build _run
+	  FEATURES=ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
+	  $(MAKE) --no-print-directory _build _run
 
 m2:
 	EXAMPLE=m2 \
 	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-	  @$(MAKE) _build _run
+	  $(MAKE) --no-print-directory _build _run
 
 #---
 _build:
-	cargo check --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
+	@#cargo check --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 	$(LOG_ENV) cargo build --timings --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 
 _run:

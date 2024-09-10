@@ -19,10 +19,11 @@ publish = false
 # 'esp-hal' recommends only using 'release', so...
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 [profile.release]
-debug         = "line-tables-only"
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
 #debug-assertions = true     # since we .. kind-of only live in the 'release'
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
-codegen-units = 32
+codegen-units = 16
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
 panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
@@ -40,10 +41,9 @@ esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c3"] }     # 
 #esp-hal-smartled    = { version = "0.12.0", features = ["esp32c3"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's internal use of it to get the 'defmt' feature.
-semihosting     = { version = "0.1.14" }
+semihosting     = { version = "0.1.14" }     # "args"
 
 [build-dependencies]
-esp-build       = "0.1.0"
 itertools       = "0.13.0"
 
 # C compile-time features
@@ -68,12 +68,17 @@ reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
 target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
 nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
 
-targets_per_zone_1=[]
+# The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
+# If you want to see more, enable these:
 targets_per_zone_2=[]
 targets_per_zone_3=[]
 targets_per_zone_4=[]
 
 defmt = ["dep:defmt"]
+
+# Enable to try 'semihosting' 'args' feature, which IS EXPERIMENTAL. It likely works, but probe-rs doesn't like it.
+# Without this, we do a work-around.
+semihosting_args = [ "semihosting/args" ]
 
 default = ["target_status", "nb_targets_detected"]
 
@@ -82,8 +87,15 @@ default = ["target_status", "nb_targets_detected"]
 #
 [[example]]
 name = "matrix"
-required-features = ["defmt", "targets_per_zone_1", "distance_mm"]
+required-features = ["defmt", "distance_mm"]
 
 [[example]]
 name = "m2"
 required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
+
+# Note: 'set-address' really is a "bin" tool, but 'src/bin' in Cargo doesn't have access to
+#       'dev-dependencies'. Thus, we need to make it either a 'test' or 'example' (which, neither it is..).
+#
+[[example]]
+name = "set-address"
+required-features = ["defmt"]
