@@ -142,7 +142,7 @@ src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_
 	    --allowlist-function 'vl53l5cx_check_data_ready' \
 	    --allowlist-function 'vl53l5cx_get_(?:(power_mode)|(ranging_data))' \
 	    --allowlist-function 'vl53l5cx_init' \
-	    --allowlist-function 'vl53l5cx_set_(?:(i2c_address)|(power_mode))' \
+	    --allowlist-function 'vl53l5cx_set_(?:(power_mode))' \
 	    --allowlist-function 'vl53l5cx_set_(?:(resolution)|(ranging_frequency_hz)|(integration_time_ms)|(sharpener_percent)|(target_order)|(ranging_mode))' \
 	    --allowlist-function 'vl53l5cx_st(?:(art)|(op))_ranging' \
 	    --allowlist-item 'API_REVISION' \

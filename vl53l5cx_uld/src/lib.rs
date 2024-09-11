@@ -31,7 +31,6 @@ use uld_raw::{
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
     vl53l5cx_get_power_mode,
     vl53l5cx_set_power_mode,
-    vl53l5cx_set_i2c_address,
     PowerMode,
     ST_OK, ST_ERROR,
 
@@ -240,20 +239,29 @@ impl VL53L5CX<'_> {
         }
     }
 
+    /*
+    * Change the I2C address on-the-fly and continue the session with the new I2C address.
+    *
+    * Unlike other functions, we don't refer to the ULD C API because the changing of the address
+    * mechanism is... not well designed. Instead, we do the full bytewise comms here.
+    */
     pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
-        match unsafe { vl53l5cx_set_i2c_address(&mut self.vl, addr as u16) } {
-            ST_OK => Ok(()),
-            e => Err(e)
-        }?;
+
+        // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
 
         platform::with(&mut self.vl.platform, |pl| {
+            // Note: Ignore the return codes. The '.wr_bytes' implementation might not even ever
+            //      return an error, but fail instantly. If there were an error, we'd find out anyways.
+            //
+            _= pl.wr_bytes(0x7fff, &[0]);
+            _= pl.wr_bytes(0x4, &[addr >> 1]);
             pl.addr_changed(addr);
+
+            _= pl.wr_bytes(0x7fff, &[2]);  // now with the new I2C address
         });
 
-        // Further comms will happen to the new address.
-
-        // Let's still make a small access with the new address, e.g. reading something.
-        // No need for 'ping' since the firmware is still there.
+        // Further comms will happen to the new address. Let's still make a small access with the
+        // new address, e.g. reading something.
         //
         self.get_power_mode().map_err(|e| {
             error!("Device wasn't reached after its I2C address changed."); e

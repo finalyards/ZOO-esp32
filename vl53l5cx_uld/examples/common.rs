@@ -74,10 +74,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                     index = index + chunk.len() as u16;
 
                     // There should be 1.2ms between transactions, by the VL spec.
-                    //
-                    // #later: Check from the signal that/whether we are within spec (and remove delay).
-                    //      - separately for both C3, C6!!!
-                    //
                     self.d_provider.delay_millis(1);
                 }
             };
@@ -164,10 +160,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            //
-            // #later: Check from the signal that/whether we are within spec (and remove delay).
-            //      - separately for both C3, C6!!!
-            //
             self.d_provider.delay_millis(1);
         }
 
