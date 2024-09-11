@@ -16,7 +16,7 @@ In order to work with multiple boards, one needs to either:
 
 In order to initialize the boards to be on the same I2C bus, one needs N wires from the MCU, in order to gradually bring them on the bus.
 
->*tbd. An image showing the wiring*
+![](.images/wiring-2-satel-boards.png)
 
 
 We choose the same-bus, gradually bring chips onto it -approach.

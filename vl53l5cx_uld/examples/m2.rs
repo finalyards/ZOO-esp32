@@ -79,7 +79,7 @@ fn main() -> ! {
     // Reset VL53L5CX by pulling down its power for a moment
     pwr_en.iter_mut().for_each(|pin| {
         pin.set_low();
-        delay_ms(50);      // tbd. how long is suitable, by the specs?
+        delay_ms(20);      // tbd. how long is suitable, by the specs?
         pin.set_high();
         info!("Target powered off and on again.");
     });
