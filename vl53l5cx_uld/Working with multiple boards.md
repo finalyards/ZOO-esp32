@@ -19,15 +19,32 @@ In order to initialize the boards to be on the same I2C bus, one needs N wires f
 ![](.images/wiring-2-satel-boards.png)
 
 
-We choose the same-bus, gradually bring chips onto it -approach.
-
 ## Exercise!
 
 1. Create the wiring shown above (2 or more boards)
-2. Run 
+2. Update `pins.toml` (its `LPn` array):
+
+   ```toml
+   LPn = [2,3]
+   ```
+   
+   The default has the image's setup. For example to add a third board, just do this:
+   
+   ```toml
+   LPn = [2,3,4]
+   ```
+
+3. Run the example
 
    ```
    $ make multiboard
    ```
 
+   *tbd. Complete!*
+
+4. Interactively, see how one after the other board is detected, and its addresses changed.
+
+5. At the end, there's a data demo pulling data from all the added boards.
+
+Note that the steps 3..4 need to be repeated in the beginning of any multiboard exercise. It may be that merely starting a new `probe-rs` session doesn't reset your fleet, but the examples pull `PWR_EN` down for some `ms`s, in order to guarantee a known-good starting situation. This also resets the I2C addresses.
 

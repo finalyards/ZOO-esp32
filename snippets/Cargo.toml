@@ -1,0 +1,11 @@
+[package]
+name = "flakes-2"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+serde = { version = "1.0.210", features=["derive"] }
+toml = { version = "0.8.19" }
+
+[[example]]
+name = "toml"

@@ -5,7 +5,7 @@
 *   - IDE on host; WRONG FEATURES!!
 *   - 'cargo build' (CLI); correct features
 */
-
+use anyhow::*;
 use itertools::Itertools;
 
 #[allow(unused_imports)]
@@ -13,11 +13,15 @@ use std::{
     env,
     fs::{self, OpenOptions, File},
     fmt::format,
-    process::exit as _exit
+    process::{exit, Command},
+    mem::ManuallyDrop
 };
 
-const FN: &str = "tmp/config.h";
-const MAKEFILE_INNER: &str = "Makefile.inner";
+// Snippets need to be read in here (cannot do in "statement position")
+//
+include!("snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
+
+const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
@@ -26,7 +30,7 @@ const MAKEFILE_INNER: &str = "Makefile.inner";
 *   - Environment variables set
 *       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 */
-fn main() {
+fn main() -> Result<()> {
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
@@ -35,7 +39,30 @@ fn main() {
     let IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
 
     // If IDE runs, terminate early.
-    if IDE_RUN { return };
+    if IDE_RUN { return Ok(()) };
+
+    // Pick the current MCU. To be used as board id for 'pins.toml'.
+    //
+    // $ grep -oE -m 1 '"esp32(c3|c6)"' Cargo.toml | cut -d '"' -f2
+    //  esp32c3
+    //
+    // Note: Unnecessarily much String/slice hacking here.
+    //
+    let board_id: String = {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg("grep -oE -m 1 '\"esp32(c3|c6)\"' Cargo.toml | cut -d '\"' -f2")
+            .output()
+            .expect("'sh' to run");
+
+        // 'output.stdout' is a 'Vec<u8>' (since, well, could be binary)
+        //
+        let us: &[u8] = output.stdout.as_slice().trim_ascii();
+        let x = String::from_utf8_lossy(us);
+
+        //: println!("cargo:warning=BOARD ID: '{}'", &x);     // BOARD ID: 'esp32c3'
+        x.into()
+    };
 
     /***
     // DEBUG: Show what we know about the compilation.
@@ -71,11 +98,20 @@ fn main() {
     }
 
     //---
-    // Create a C config header, based on the features from 'Cargo.toml'.
+    // Turn 'pins.toml' -> 'src/pins_volatile.rs' (named within the TOML itself)
+    {
+        let toml = include_str!("./pins.toml");
+        process_pins(toml, &board_id)?;
+    }
+
+    //---
+    // Create a C config header, reflecting the Rust-side features required.
     //
-    // Note: Since the IDE runs don't really (in Sep'24, Rust Rover, yet?) have a clue on the right
-    //      set of features, update the 'config.h' *only* on actual builds.
+    // MUST BE BEFORE running the Makefile.
     //
+    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't
+    //      necessarily match what the real builds will be about. This is likely going to be
+    //      a lasting (non?-)problem.
     {
         let mut defs: Vec<String> = vec!();
 
@@ -135,14 +171,13 @@ fn main() {
             .map(|s| format!("#define {s}"))
             .join("\n");
 
-        fs::write(FN, contents)
-            .expect("Unable to write a file");  // note: cannot pass 'FN' here; tbd.
+        fs::write(CONFIG_H_NEXT, contents)
+            .expect( &format!("Unable to write {}", CONFIG_H_NEXT) );
     }
 
     // make stuff
     //
     let st = std::process::Command::new("make")
-        .arg("-f").arg(MAKEFILE_INNER)
         .arg("tmp/libvendor_uld.a")    // ULD C library
         .arg("src/uld_raw.rs")      // generate the ULD Rust bindings
         .output()
@@ -171,4 +206,6 @@ fn main() {
 
     // Allow using '#[cfg(disabled)]' for block-disabling code
     println!("cargo::rustc-check-cfg=cfg(disabled)");
+
+    Ok(())  // the end
 }

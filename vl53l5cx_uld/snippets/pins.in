@@ -1,0 +1,57 @@
+/*
+* Helper for 'build.rs'
+*
+* Processes the 'pins.toml', injecting its contents - as Rust code - into the given path.
+*
+* This is 'incude!'ed by 'build.rs', see -> https://doc.rust-lang.org/std/macro.include.html
+*/
+use anyhow::{Context, Result};
+use serde::Deserialize;
+use toml;
+
+use std::{
+    collections::HashMap,
+};
+
+// TOML objects
+//
+#[derive(Debug, Deserialize)]
+struct PinsToml {
+    generate: String,
+    boards: HashMap<String,Board>
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(non_snake_case)]
+struct Board {
+    SDA: u32,
+    SCL: u32,
+    PWR_EN: u32,
+    LPn: Vec<u32>
+}
+
+fn process_pins(toml: &str, board_id: &str) -> Result<()> {
+    let c: PinsToml = toml::from_str(toml)?;
+
+    let board = c.boards.get(board_id).with_context(
+        || format!("No section '[boards.{}]' found in 'pins.toml'", board_id)
+    )?;
+
+    let fn_ = &c.generate;
+    assert!(fn_.len() > 0);
+
+    #[allow(non_snake_case)]
+    // unpack, because "field access not supported [...] in a format string"
+    let (SDA, SCL, PWR_EN, _LPn) = (board.SDA, board.SCL, board.PWR_EN, &board.LPn);
+
+    let contents = format!(r#"
+let (SDA, SCL, PWR_EN, _RESERVED) =
+    (io.pins.gpio{SDA}, io.pins.gpio{SCL}, Some(io.pins.gpio{PWR_EN}), NO_PIN);      // {board_id}
+"#);
+
+    fs::write(fn_, contents).with_context(
+        || format!("Unable to write {fn_}")
+    )?;
+
+    Ok(())
+}

@@ -1,0 +1,22 @@
+#
+# pins.toml
+#
+# Pins configuration for the project. A source code is generated, based on information in this file.
+#
+generate = "examples/pins-volatile.in"
+
+[boards.esp32c3]
+#[[boards]]
+#id = "esp32c3"
+SDA = 4
+SCL = 5
+PWR_EN = 0
+LPn = [2,3]
+
+[boards.esp32c6]
+#[[boards]]
+#id = "esp32c6"
+SDA = 22
+SCL = 23
+PWR_EN = 21
+LPn = []    #tbd.

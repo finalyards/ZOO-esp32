@@ -21,13 +21,11 @@ rustflags = [
     "-C", "force-frame-pointers",
 ]
 
-[target.'cfg(all())']   # unconditional '[target]' #hack
-#runner = ["probe-rs", "run", "--log-format={L} {s}"]
-runner = ["probe-rs", "run", "--log-format={[{L}]%bold} {s}  {{c} {ff}:{l:1}%dimmed}"]
+[target.'cfg(all())']   # unconditional '[target]'
+runner = ["probe-rs", "run", "--log-format={{t:dimmed} [{L:bold}]} {s}  {{c} {ff}:{l:1}%dimmed}"]
     #
     # Note: Using the '[...]' format is the ONLY WAY that a space can be expressed in the '--log-format' syntax!
-    #
-    # Note: The author wasn't able to place a space in the '--log-format'. Tried:
+    #       Tried:
     #       "[...] --log-format '{L} {s}'"
     #       "[...] --log-format \"{L} {s}\""
     #       '[...] --log-format "{L} {s}"'

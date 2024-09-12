@@ -55,23 +55,25 @@ fn main() -> ! {
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
+    include!("./pins.in");
+    /***
     #[allow(non_snake_case)]
-    let (pinSDA, pinSCL, pinPWR_EN, _pinI2C_RST) = {
+    let (SDA, SCL, PWR_EN, _) = {
         // changed via running './set-target.sh'
         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), gpio::NO_PIN)      // esp32c3
         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), gpio::NO_PIN)    // esp32c6
-    };
+    };***/
 
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,
-        pinSDA,
-        pinSCL,
+        SDA,
+        SCL,
         400.kHz(),
         &clocks,
         None,   // 'esp-hal' documentation on what exactly the 'timeout' parameter steers is hazy. // author, Sep'24; esp-hal 0.20.1
     );
 
-    let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));
+    let mut pwr_en = PWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));
 
     let d_provider = Delay::new(&clocks);
     let delay_ms = |ms| d_provider.delay_millis(ms);
