@@ -12,14 +12,26 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;
 use esp_hal::{
-    clock::ClockControl,
     delay::Delay,
-    gpio::{Io, AnyOutput, /*AnyFlex,*/ Level},
+    gpio::{Io, Level},
     i2c::I2C,
-    peripherals::Peripherals,
     prelude::*,
+};
+
+#[cfg(feature="next_api")]
+use esp_hal::{
+    gpio::Output
+};
+#[cfg(not(feature="next_api"))]
+use esp_hal::{
+    clock::ClockControl,
+    gpio::{AnyOutput},
+    peripherals::Peripherals,
     system::SystemControl,
 };
+
+#[cfg(feature="next_api")]
+const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
 mod common;
@@ -40,29 +52,34 @@ const DEFAULT_I2C_ADDR: u8 = VL53L5CX::FACTORY_I2C_ADDR;
 
 #[entry]
 fn main() -> ! {
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    #[cfg(feature="next_api")]
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+    #[cfg(not(feature="next_api"))]
+    let (peripherals, system, clocks);
+    #[cfg(not(feature="next_api"))]
+    {
+        peripherals = Peripherals::take();
+        system = SystemControl::new(peripherals.SYSTEM);
+        clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    }
 
     defmt_timestamps::init();
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    /***
-    #[allow(non_snake_case)]
-    let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn)
-        : (AnyFlex,AnyFlex,Option<AnyOutput>,&[AnyOutput]) = { (
-            AnyFlex::new(io.pins.gpio4),
-            AnyFlex::new(io.pins.gpio5),
-            Some(AnyOutput::new(io.pins.gpio0, Level::Low)),
-            &[AnyOutput::new(io.pins.gpio1, Level::Low), AnyOutput::new(io.pins.gpio2, Level::Low)]
-        // esp32c3
-    )};
-    ***/
-
     // Problems with pin types:
     //  - 'I2C::new' cannot take 'AnyFlex' for the SDA/SCL pins
     //
+    #[cfg(feature="next_api")]
+    #[allow(non_snake_case)]
+    let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
+        io.pins.gpio4,
+        io.pins.gpio5,
+        Some(Output::new(io.pins.gpio0, Level::Low)),
+        &mut [Output::new(io.pins.gpio1, Level::Low), Output::new(io.pins.gpio2, Level::Low)]
+        // esp32c3
+    );
+    #[cfg(not(feature="next_api"))]
     #[allow(non_snake_case)]
     let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
         io.pins.gpio4,
@@ -72,6 +89,14 @@ fn main() -> ! {
         // esp32c3
     );
 
+    #[cfg(feature="next_api")]
+    let i2c_bus = I2C::new(
+        peripherals.I2C0,
+        pinSDA,
+        pinSCL,
+        400.kHz()
+    );
+    #[cfg(not(feature="next_api"))]
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,
         pinSDA,
@@ -81,7 +106,11 @@ fn main() -> ! {
         None
     );
 
+    #[cfg(feature="next_api")]
+    let delay_ms = |ms| D_PROVIDER.delay_millis(ms);
+    #[cfg(not(feature="next_api"))]
     let d_provider = Delay::new(&clocks);
+    #[cfg(not(feature="next_api"))]
     let delay_ms = |ms| d_provider.delay_millis(ms);
 
     // Reset VL53L5CX by pulling down its power for a moment
@@ -92,12 +121,16 @@ fn main() -> ! {
         info!("Target powered off and on again.");
     });
 
+    /*** disabled (instead, wiring LPn's of all-but-one board to GND)
     // Pick which board to operate on
     pinsLPn[0].set_low();
     pinsLPn[1].set_high();   // offline
-
     info!("Selecting board {}", 0_u8);
+    ***/
 
+    #[cfg(feature="next_api")]
+    let pl = MyPlatform::new(i2c_bus, DEFAULT_I2C_ADDR);
+    #[cfg(not(feature="next_api"))]
     let pl = MyPlatform::new(&clocks, i2c_bus, DEFAULT_I2C_ADDR);
 
     let mut vl = VL53L5CX::new_and_init(pl)

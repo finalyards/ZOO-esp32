@@ -1,19 +1,20 @@
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, trace, panic};
 
-#[allow(unused_imports)]
 use core::{
-    cell::RefCell,
-    ffi::c_void,
     mem::MaybeUninit,
-    ptr::NonNull,
     iter::zip
 };
 use esp_hal::{
-    clock::Clocks,
     delay::Delay,
     i2c::{I2C, Instance},
     Blocking
+};
+#[cfg(feature="next_api")]
+use core::{};   // no-op
+#[cfg(not(feature="next_api"))]
+use esp_hal::{
+    clock::Clocks,
 };
 
 extern crate vl53l5cx_uld as uld;
@@ -25,11 +26,15 @@ use uld::Platform;
 const MAX_WR_LEN: usize = 254;
 const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err with 'ExceedingFifo'
 
+#[cfg(feature="next_api")]
+const D_PROVIDER: Delay = Delay::new();
+
 /*
 */
 pub struct MyPlatform<'a, T: Instance> {
     i2c: I2C<'a, T, Blocking>,
     addr: I2C_Addr,
+    #[cfg(not(feature="next_api"))]
     d_provider: Delay,
 }
 
@@ -38,11 +43,19 @@ pub struct MyPlatform<'a, T: Instance> {
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
 impl<'a,T> MyPlatform<'a,T> where T: Instance {
+    #[cfg(feature = "next_api")]
+    pub fn new(i2c: I2C<'a,T,Blocking>, addr_8bit: u8) -> Self {
+        Self{
+            i2c,
+            addr: I2C_Addr::from_8bit(addr_8bit),   // panics, if LSB of 'addr_8bit' is 1
+        }
+    }
+    #[cfg(not(feature = "next_api"))]
     pub fn new(clocks: &Clocks, i2c: I2C<'a,T,Blocking>, addr_8bit: u8) -> Self {
         Self{
             i2c,
             addr: I2C_Addr::from_8bit(addr_8bit),   // panics, if LSB of 'addr_8bit' is 1
-            d_provider: Delay::new(&clocks),
+            d_provider: Delay::new(&clocks)
         }
     }
 }
@@ -74,6 +87,9 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                     index = index + chunk.len() as u16;
 
                     // There should be 1.2ms between transactions, by the VL spec.
+                    #[cfg(feature="next_api")]
+                    D_PROVIDER.delay_millis(1);
+                    #[cfg(not(feature="next_api"))]
                     self.d_provider.delay_millis(1);
                 }
             };
@@ -121,13 +137,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
         for (_round,chunk) in zip(1.., chunks) {
             let n: usize = chunk.len();
 
-            /*** disabled /less trace
-            if chunks_n == 1 {
-                trace!("Writing: {:#06x} <- {=usize} bytes", addr, n);
-            } else {
-                trace!("Writing (round {}/{}): {:#06x} <- {=usize} bytes", round, rounds, addr, n);
-            } ***/
-
             // Writing needs to be done in one block, where the first two bytes are the address.
             //
             // Unfortunately, wasn't able to find a way in 'no_alloc' Rust to concatenate slices
@@ -146,9 +155,10 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                 &buf[..2+n]
             };
 
-            self.i2c.write(self.addr.0, &out).map_err(|e|
-                { error!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e); () }
-            )?;
+            self.i2c.write(self.addr.0, &out).unwrap_or_else(|e| {
+                // If we get an error, let's stop right away.
+                panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
+            });
 
             // Give the "written" log here, separately for each chunk (clearer to follow log).
             if n <= 20 {
@@ -160,6 +170,9 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
+            #[cfg(feature="next_api")]
+            D_PROVIDER.delay_millis(1);
+            #[cfg(not(feature="next_api"))]
             self.d_provider.delay_millis(1);
         }
 
@@ -169,6 +182,9 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     fn delay_ms(&mut self, ms: u32) {
         trace!("🔸 {}ms", ms);
 
+        #[cfg(feature="next_api")]
+        D_PROVIDER.delay_millis(ms);
+        #[cfg(not(feature="next_api"))]
         self.d_provider.delay_millis(ms);
     }
 
