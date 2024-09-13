@@ -1,10 +1,7 @@
 /*
-* Example for getting 2 (or more) targets, per sensor zone.
+* Working with multiple boards
 *
-* Initializes the ULD, sets some parameters and starts a ranging to capture 10 frames, with custom:
-*   - resolution
-*   - frequency
-*   - target order
+* - initializing their I2C addresses, so all boards can be used on the same bus
 */
 #![no_std]
 #![no_main]
@@ -17,7 +14,7 @@ use esp_backtrace as _;
 use esp_hal::{
     clock::ClockControl,
     delay::Delay,
-    gpio::{self, Io, AnyOutput, Level},
+    gpio::{Io, AnyOutput, /*AnyFlex,*/ Level},
     i2c::I2C,
     peripherals::Peripherals,
     prelude::*,
@@ -39,7 +36,7 @@ use uld::{
     units::*
 };
 
-const I2C_ADDR: u8 = VL53L5CX::FACTORY_I2C_ADDR;
+const DEFAULT_I2C_ADDR: u8 = VL53L5CX::FACTORY_I2C_ADDR;
 
 #[entry]
 fn main() -> ! {
@@ -51,11 +48,29 @@ fn main() -> ! {
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
+    /***
     #[allow(non_snake_case)]
-    let (pinSDA, pinSCL, pinPWR_EN, _pinI2C_RST) = {
-        (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), gpio::NO_PIN)      // esp32c3
-        //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), gpio::NO_PIN)    // esp32c6
-    };
+    let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn)
+        : (AnyFlex,AnyFlex,Option<AnyOutput>,&[AnyOutput]) = { (
+            AnyFlex::new(io.pins.gpio4),
+            AnyFlex::new(io.pins.gpio5),
+            Some(AnyOutput::new(io.pins.gpio0, Level::Low)),
+            &[AnyOutput::new(io.pins.gpio1, Level::Low), AnyOutput::new(io.pins.gpio2, Level::Low)]
+        // esp32c3
+    )};
+    ***/
+
+    // Problems with pin types:
+    //  - 'I2C::new' cannot take 'AnyFlex' for the SDA/SCL pins
+    //
+    #[allow(non_snake_case)]
+    let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
+        io.pins.gpio4,
+        io.pins.gpio5,
+        Some(AnyOutput::new(io.pins.gpio0, Level::Low)),
+        &mut [AnyOutput::new(io.pins.gpio1, Level::Low), AnyOutput::new(io.pins.gpio2, Level::Low)]
+        // esp32c3
+    );
 
     let i2c_bus = I2C::new_with_timeout(
         peripherals.I2C0,
@@ -63,23 +78,27 @@ fn main() -> ! {
         pinSCL,
         400.kHz(),
         &clocks,
-        None,   // 'esp-hal' documentation on what exactly the 'timeout' parameter steers is hazy. // author, Sep'24; esp-hal 0.20.1
+        None
     );
-
-    let mut pwr_en = pinPWR_EN.map(|pin| AnyOutput::new(pin, Level::Low));
 
     let d_provider = Delay::new(&clocks);
     let delay_ms = |ms| d_provider.delay_millis(ms);
 
     // Reset VL53L5CX by pulling down its power for a moment
-    pwr_en.iter_mut().for_each(|pin| {
+    pinPWR_EN.iter_mut().for_each(|pin| {
         pin.set_low();
         delay_ms(50);      // tbd. how long is suitable, by the specs?
         pin.set_high();
         info!("Target powered off and on again.");
     });
 
-    let pl = MyPlatform::new(&clocks, i2c_bus, I2C_ADDR);
+    // Pick which board to operate on
+    pinsLPn[0].set_low();
+    pinsLPn[1].set_high();   // offline
+
+    info!("Selecting board {}", 0_u8);
+
+    let pl = MyPlatform::new(&clocks, i2c_bus, DEFAULT_I2C_ADDR);
 
     let mut vl = VL53L5CX::new_and_init(pl)
         .unwrap();

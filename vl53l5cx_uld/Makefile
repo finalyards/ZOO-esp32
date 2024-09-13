@@ -34,6 +34,11 @@ m2:
 	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
 	  $(MAKE) --no-print-directory _build _run
 
+z multiboard:
+	EXAMPLE=multiboard \
+	  FEATURES= \
+	  $(MAKE) --no-print-directory _build _run
+
 #---
 _build:
 	@#cargo check --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
