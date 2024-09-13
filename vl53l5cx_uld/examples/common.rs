@@ -10,8 +10,7 @@ use esp_hal::{
     i2c::{I2C, Instance},
     Blocking
 };
-#[cfg(feature="next_api")]
-use core::{};   // no-op
+
 #[cfg(not(feature="next_api"))]
 use esp_hal::{
     clock::Clocks,

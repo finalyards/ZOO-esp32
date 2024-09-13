@@ -72,21 +72,29 @@ fn main() -> ! {
     //
     #[cfg(feature="next_api")]
     #[allow(non_snake_case)]
+    #[cfg(not(all()))]    // C3
     let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
         io.pins.gpio4,
         io.pins.gpio5,
         Some(Output::new(io.pins.gpio0, Level::Low)),
         &mut [Output::new(io.pins.gpio1, Level::Low), Output::new(io.pins.gpio2, Level::Low)]
-        // esp32c3
     );
+    #[cfg(all())]    // C6
+    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = (
+        io.pins.gpio18,
+        io.pins.gpio19,
+        Some(Output::new(io.pins.gpio20, Level::Low)),
+        [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
+    );
+
     #[cfg(not(feature="next_api"))]
     #[allow(non_snake_case)]
+    #[cfg(not(all))]    // C3
     let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
         io.pins.gpio4,
         io.pins.gpio5,
         Some(AnyOutput::new(io.pins.gpio0, Level::Low)),
-        &mut [AnyOutput::new(io.pins.gpio1, Level::Low), AnyOutput::new(io.pins.gpio2, Level::Low)]
-        // esp32c3
+        [AnyOutput::new(io.pins.gpio1, Level::Low), AnyOutput::new(io.pins.gpio2, Level::Low)]
     );
 
     #[cfg(feature="next_api")]
@@ -121,12 +129,20 @@ fn main() -> ! {
         info!("Target powered off and on again.");
     });
 
-    /*** disabled (instead, wiring LPn's of all-but-one board to GND)
     // Pick which board to operate on
-    pinsLPn[0].set_low();
-    pinsLPn[1].set_high();   // offline
-    info!("Selecting board {}", 0_u8);
-    ***/
+    const PICK: usize =0;
+    {
+        pinsLPn.iter_mut().for_each(|p| p.set_low());   // disabled all
+
+        /*** disabled; didn't get to compile
+        // "error[E0614]: type `[Output<'_>; 2]` cannot be dereferenced"
+        for p in &mut *pinsLPn {     // Rust: '&mut *' is called "fresh reborrow"; allows accessing the internals as 'mut'
+            p.set_low()    // disable all
+        }***/
+
+        pinsLPn[PICK].set_high();   // enable one
+        info!("Selected board {}", PICK);
+    }
 
     #[cfg(feature="next_api")]
     let pl = MyPlatform::new(i2c_bus, DEFAULT_I2C_ADDR);

@@ -36,7 +36,7 @@ m2:
 
 z multiboard:
 	EXAMPLE=multiboard \
-	  FEATURES= \
+	  FEATURES=distance_mm \
 	  $(MAKE) --no-print-directory _build _run
 
 #---

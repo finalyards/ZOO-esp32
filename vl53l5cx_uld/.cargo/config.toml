@@ -4,7 +4,7 @@
 #       -> https://doc.rust-lang.org/cargo/reference/config.html
 #
 [build]
-target = "riscv32imc-unknown-none-elf"      # change this by 'set-target.sh'
+target = "riscv32imac-unknown-none-elf"      # change this by 'set-target.sh'
 
 # The bare minimums (from esp-template [1]) needed for RISC V. IF THERE WAS A WAY TO DECLARE THESE IN 'build.rs',
 # that's where they'd go!!!
