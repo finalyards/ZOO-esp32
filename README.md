@@ -1,39 +1,114 @@
-# VL53L5CX with Rust and Embassy
+# Sensors with Rust and Embassy
 
-## Background
+<!-- tbd. Zoo picture & styling -->
 
-The ST [VL53L5CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html) is a tiny (6.4 x 3.0 x 1.5 mm) surface mounted, matrix capable laser distance meter. It is interfaced with I²C but the [native C library](https://www.st.com/en/embedded-software/stsw-img023.html) really is the way it needs to be steered with - I²C communication details are undocumented.
+## Aim of the repo
 
-This library aims to steer the sensor (multiple of them!) using `async` Rust via [Embassy](http://embassy.dev/).
+It's quite elaborate to take in new sensors to a project. It's about
 
-### Other projects / prior art
+- reading the documentation
+- ensuring drivers fit
+- learning the quirks that are not necessarily documented, anywhere
 
-- [`kriswiner/VL53L5CX`](https://github.com/kriswiner/VL53L5CX) (GitHub; 2021)
-- [`simondlevy/VL53L5CX`](https://github.com/simondlevy/VL53L5CX) (GitHub; 2021)
+This repo plans to cover various sensors, interesting to the author, and provide reliable, maintained Rust (Embassy) bindings to them.
 
-	<!-- tbd.!!! Once public, mention to those two, especially Simon - he's worked on ESP32, at some point.
-	-->
+It does not aim to be a cover-it-all. You may suggest sensors to bring in, but likely it's better to start a similar repo for the sensors you feel strongly about - and are willing to maintain.
+
+
+## Menu
+
+||folder|what is it?|stability|comments|
+|---|---|---|---|---|
+|![](vl53l5cx_uld/.images/about.png)|[`vl53l5cx_uld`](vl53l5cx_uld/README.md)|Time-of-flight distance sensor; 4x4 (60Hz) or 8x8 (15Hz), up to 400cm|Likely some changes but usable; beta||
+
+
+### MCU coverage
+
+The repo focuses on ESP32 series MCU's, but this is mainly so that the stated support remains maintained, and tested. **If you are ready to take on maintenance for other MCU's, let the author know**. The Rust / Embassy ecosystem, as such, provides us the possibility to keep the repo *very* MCU independent. That alone is great. 🎉🎉🎈🎈
+
+|MCU|dev board|support level|notes|
+|---|---|---|---|
+|ESP32-C3|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp32-c3-devkitc-02/user_guide.html)|used regularly|To use JTAG, you'll need to solder some wires.<br />I2C functionality is known to suffer from a `TimeOut` issue (that doesn't happen on the ESP32-C6).|
+|ESP32-C6|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|used regularly||
+|(ESP32)|[Adafruit ESP32 Feather V2](https://www.adafruit.com/product/5400)|2nd tier|ESP32 code is in another branch that's updated *on request*.<br />Rust support for Xtensa (which this one is) still needs a separate `espup` utility (and is based on `nightly`), unlike RISC V targets, which are mainstream and can be targeted with stable Rust. This is only an initial speed bump, however. Instructions for setting up the toolchain are in the particular branch.<br />Doesn't have built-in JTAG support so you'll need to purchase an adapter, e.g. ESP-Prog, for debug logging|
+
+>Note: The repo does debug logs using [defmt](https://defmt.ferrous-systems.com) which means JTAG support is highly recommended, for any development work.
+
+<!-- #whisper
+It's of course also possible to log to UART, and not need JTAG. The choice of DEFMT is one of the simplifying choices made in this repo, to keep possible configurations to a somewhat manageable dimension. For any semi-professional work, using JTAG is the way to go.
+-->
+
 
 ## Requirements (hardware)
 
-### Parts
+- One of the dev kits mentioned above
+- The necessary sensors
+- Breadboard
+- Wires
 
-- A pair of VL53L5CX sensors
+Each sensor's subsection has a `WIRING.md` that shows suggested wiring.
 
-	>The [VL53L5CX-SATEL](https://www.digikey.fi/fi/products/detail/stmicroelectronics/VL53L5CX-SATEL/14552430) development board is likely the one you will need. Each package contains two boards.
-
-- ESP32-C3 (or similar) MCU
-
-  - with a [USB soldered for JTAG access](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/api-guides/jtag-debugging/configure-builtin-jtag.html)
-  
-- breadboard and wires to connect the two
+### The computers setup
 
 ![](.images/layout.png)
-*Image 1. Development setup*
+*Image 1. Development setup with Multipass and USB/IP*
 <!-- editor's note: Original is stored in `../.excalidraw/` 
 -->
 
-*tbd. Wiring details*
+The repo can be used in many ways. The setup the author prefers is shown in Image 1, above.
+
+- Code editing happens on a host (Mac), using an IDE (Rust Rover)
+- Compilation happens in a virtual machine (using [Multipass](https://multipass.run) for this); the whole Rust and embedded toolchain *only needs to be installed within here*.
+- Hardware devices (MCU + sensors) are connected to *another PC* that runs `usbipd` (a USB/IP server).
+
+   The author uses Windows 10 Home for this, and recommends the setup. Using a Raspberry Pi for sharing the device would be nice, but the author failed to get it all the way. Contributions on this are WELCOME!!
+
+>Note: Where it says "Ethernet" in the view actually means WLAN. The software development and hardware setups are fully air-gapped from each other.
+
+#### Shortcomings of USB/IP
+
+- Programming the boards (ESP32-C3, ESP32-C6) are slightly slower than in a direct connection:
+
+   ||flash speed|..seconds|
+   |---|---|---|---|
+   |USB/IP|2..3 KiB/s|~30 <!-- tbd. more precise-->|
+   |WSL2|tens to 100 KiB/s <!-- tbd. make more precise-->|~5|
+
+<!-- VM + USB/IP (reference):
+probe-rs run --speed=200 --log-format '{t:dimmed} [{L:bold}] {s}' target/riscv32imac-unknown-none-elf/release/examples/multiboard
+      Erasing ✔ [00:00:02] [####################################################################################################################] 256.00 KiB/256.00 KiB @ 92.27 KiB/s (eta 0s )
+  Programming ✔ [00:00:44] [#####################################################################################################################] 107.53 KiB/107.53 KiB @ 2.41 KiB/s (eta 0s )    Finished in 44.580067s
+-->
+
+<!-- WSL2 (reference) 
+tbd.
+-->
+
+#### Shortcomings of Multipass
+
+- You cannot bind USB devices to the VM; that's why we use USB/IP
+
+	With other virtualization tools, you could virtually attach the development kit directly.
+
+- Mounting folders with lots of small files (e.g. Cargo's `target` folder) may be slowish.
+
+   *tbd. build speed comparison between Multipass and WSL2 setups.*
+
+#### Conclusion: your setup!
+
+If you have only a single computer, that's fine. Plug the USB's to it; install stuff natively. Or use a virtualization setup that shares the USB ports. Or install Multipass on the *same* computer where your VMs are. To find the right options, we should set up some discussion board, really (not planned).
+
+What's important is that the development environment will only be maintained in Linux (and Ubuntu/Debian variant at that). This is where Multipass comes in so handy, providing support for all macOS, Windows and Linux desktop OSes.
+
+>Note: If you run WSL2, that's fine (it is Ubuntu, after all). The author occasionally does this, but support may be shaky.
+
+<div >
+
+>Note: For running Multipass on Windows, please note that only Windows Home has Hyper-V hypervisor support. You *can* run Multipass with Windows Home, but the author rather uses WSL2 with that OS. <!-- tbd. in 2025, I hopefully have Windows Pro + Multipass as a properly supported setup-->
+
+Good luck! ☀️☀️☀️
+
+
 
 ## Requirements (software)
 
@@ -48,25 +123,22 @@ We airgap the electronics from the main development computer using USB/IP (anywa
 >Note: If you don't like using Multipass, you can try other approaches. Everything should work as long as you're in Linux VM (e.g. WSL2 on Windows). See the shell scripts within the `mp` repo to find out, how to install tooling. Using a VM sandboxes your development environment from your main account, which is the reason the author prefers it. If you do things differently, you are on your own. :)
 
 
-### `bindgen`
+### Basic `rust+emb` setup
 
-Install dependencies:
+The subfolders expect you to have a virtual machine prepped with the `rust+emb/prep.sh` command of the [`akauppi/mp`](https://github.com/akauppi/mp) repo.
 
-```
-$ sudo apt install llvm-dev libclang-dev clang
-```
+Using `mp` allows you to easily re-create a Rust (and Embassy) capable VM, if you need to.
 
-```
-$ cargo install bindgen-cli
-```
+>![TIP]
+>If you are building code natively (or e.g. using WSL2), have a look at the `rust` and `rust+emb` folders of `mp` - and replicate the install commands from there, manually.
 
->Note: Bindgen docs recommend using it as a library, but we prefer to use it as a command line tool.
 
-### Check `probe-rs` version
+### [ESP32-C3] Check `probe-rs` version
 
->Note: The `rust-emb` VM contains a suitable `probe-rs`. If you're using it, you can skip to the next section.
+>![NOTE]
+>The `rust-emb` VM contains a suitable `probe-rs`. If you're using it, you can skip to the next section.
 
-You want an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748), so either:
+To get an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748), either:
 
 - check that your version is > 0.24.0
 - ..or install from sources:
@@ -75,16 +147,7 @@ You want an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2
    $ cargo install --git https://github.com/probe-rs/probe-rs probe-rs-tools --force
    ```
 
-### The vendor C libary
-
-The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.html) is a separate download.
-
-1. Fetch it from ST (link above)
-2. Place the `VL53L5CX_ULD_driver_2.0.0` folder to `vl53l5cx_uld/`
-
-	Note that while you need to `Agree` to the larger ST.com license, it has the clause: 
-	
-	>Open Source Software [...] is not subject to the terms of this PLLA to the extent [...]
+<!-- tbd. remove this section once >= 0.24.1 is out -->
 
 <!-- Developed on
 macOS 14.6
@@ -95,32 +158,6 @@ bindgen 0.70.1
 -->
 
 
-## Subprojects
-
-```
-$ cd vl53l5cx_uld
-```
-
-Follow instructions in its [`vl53l5cx_uld/README`](vl53l5cx_uld/README.md).
-
-
-<!--
-## Tests
-etc..
--->
-
-
-
 ## References
 
-### VL53L5CX
-
-- [Breakout Boards for VL53L5CX](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) (ST.com)
-- [Ultra Lite Driver (ULD) for VL53L5CX multi-zone sensor](https://www.st.com/en/embedded-software/stsw-img023.html) (ST.com)
-
-	- ["Ultra lite driver (ULD) [...] with wide field of view"](https://www.st.com/resource/en/data_brief/stsw-img023.pdf) (PDF, May'21; 3pp)
-	- ["A guide to using the VL53L5CX multizone [...]"](https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf) (PDF, revised Feb'24; 18pp)
-
-		<font size=5 color=red>⇫</font> The main API usage guide
-
-	- [Software licensing agreement](https://www.st.com/resource/en/license_agreement/dm00484327.pdf) (PDF, Feb'18; 5pp)
+- ()

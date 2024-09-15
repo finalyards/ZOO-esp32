@@ -30,6 +30,11 @@ use esp_hal::{
     peripherals::Peripherals,
     system::SystemControl,
 };
+#[cfg(all())]
+use esp_hal::{
+    gpio::{PeripheralInput, PeripheralOutput, GpioPin},
+    peripheral::Peripheral
+};
 
 #[cfg(feature="next_api")]
 const D_PROVIDER: Delay = Delay::new();
@@ -80,13 +85,36 @@ fn main() -> ! {
         Some(Output::new(io.pins.gpio0, Level::Low)),
         &mut [Output::new(io.pins.gpio1, Level::Low), Output::new(io.pins.gpio2, Level::Low)]
     );
-    #[cfg(all())]    // C6
-    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = (
+    /* NOT because:
+    *   <<
+    *       error[E0562]: `impl Trait` is not allowed in the type of variable bindings
+    *       [...]
+    *       note: `impl Trait` is only allowed in arguments and return types of functions and methods
+    *   <<
+    *let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn)
+    *    :(impl Peripheral<P: PeripheralOutput + PeripheralInput>,
+    *      impl Peripheral<P: PeripheralOutput + PeripheralInput>,
+    *      Option<Output>,
+    *      &[Output]) = (
+    *    io.pins.gpio18,
+    *    io.pins.gpio19,
+    *    Some(Output::new(io.pins.gpio20, Level::Low)),
+    *    [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
+    *); */
+    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn): (GpioPin<18>, GpioPin<19>, Option<Output>, [Output;2]) = (
         io.pins.gpio18,
         io.pins.gpio19,
         Some(Output::new(io.pins.gpio20, Level::Low)),
         [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
     );
+
+    /*** WORKS***
+    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = (
+        io.pins.gpio18,
+        io.pins.gpio19,
+        Some(Output::new(io.pins.gpio20, Level::Low)),
+        [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
+    ); ***/
 
     #[cfg(not(feature="next_api"))]
     #[allow(non_snake_case)]
@@ -99,7 +127,7 @@ fn main() -> ! {
     );
 
     #[cfg(feature="next_api")]
-    let mut i2c_bus = I2C::new(
+    let i2c_bus = I2C::new(
         peripherals.I2C0,
         pinSDA,
         pinSCL,
@@ -132,39 +160,7 @@ fn main() -> ! {
 
     // Disable all boards, by default
     pinsLPn.iter_mut().for_each(|p| p.set_low());
-
-    /*** TEST ***
-    // Pick which board to operate on
-    const PICK: usize =0;
-    {
-        /_*** disabled; didn't get to compile
-        // "error[E0614]: type `[Output<'_>; 2]` cannot be dereferenced"
-        for p in &mut *pinsLPn {     // Rust: '&mut *' is called "fresh reborrow"; allows accessing the internals as 'mut'
-            p.set_low()    // disable all
-        }***_/
-
-        pinsLPn[PICK].set_high();   // enable one
-        info!("Selected board {}", PICK);
-    } ***/
-
-    // TEST whether we can change the board addresses already before init (= no firmware)
-    {
-        // leave [0] in default address
-        for n in 1..pinsLPn.len() {     // tbd. iterate over entry, and index (how to, in Rust?)
-            let pin = &mut pinsLPn[n];
-            let new_addr = DEFAULT_I2C_ADDR + 2*n as u8;
-
-            pin.set_high();   // enable one
-
-            change_addr(&mut i2c_bus, DEFAULT_I2C_ADDR, new_addr)
-                .unwrap_or_else(|e| panic!("Write failed: {:?}", e) );
-
-            // Leave the 'LPn' enabled; the board now has a unique I2C address.
-
-            info!("Address changed for board {}", n);
-        }
-        pinsLPn[0].set_high();  // finally, enable the one keeping the default address
-    }
+    pinsLPn[0].set_high();      // enable one
 
     #[cfg(feature="next_api")]
     let pl = MyPlatform::new(i2c_bus, DEFAULT_I2C_ADDR);
@@ -223,6 +219,7 @@ fn main() -> ! {
     semihosting::process::exit(0);
 }
 
+#[cfg(not(all))]
 fn change_addr<'a,T>(i2c: &mut I2C<'a,T,Blocking>, old_addr: u8, new_addr: u8) -> Result<(),i2c::Error>
     where T: Instance
 {
