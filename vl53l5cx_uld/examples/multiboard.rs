@@ -14,8 +14,9 @@ use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
     gpio::{Io, Level},
-    i2c::I2C,
+    i2c::{self, I2C, Instance},
     prelude::*,
+    Blocking
 };
 
 #[cfg(feature="next_api")]
@@ -98,7 +99,7 @@ fn main() -> ! {
     );
 
     #[cfg(feature="next_api")]
-    let i2c_bus = I2C::new(
+    let mut i2c_bus = I2C::new(
         peripherals.I2C0,
         pinSDA,
         pinSCL,
@@ -121,27 +122,48 @@ fn main() -> ! {
     #[cfg(not(feature="next_api"))]
     let delay_ms = |ms| d_provider.delay_millis(ms);
 
-    // Reset VL53L5CX by pulling down its power for a moment
+    // Reset VL53L5CX's by pulling down their power for a moment
     pinPWR_EN.iter_mut().for_each(|pin| {
         pin.set_low();
-        delay_ms(50);      // tbd. how long is suitable, by the specs?
+        delay_ms(20);      // tbd. how long is suitable, by the specs?
         pin.set_high();
         info!("Target powered off and on again.");
     });
 
+    // Disable all boards, by default
+    pinsLPn.iter_mut().for_each(|p| p.set_low());
+
+    /*** TEST ***
     // Pick which board to operate on
     const PICK: usize =0;
     {
-        pinsLPn.iter_mut().for_each(|p| p.set_low());   // disabled all
-
-        /*** disabled; didn't get to compile
+        /_*** disabled; didn't get to compile
         // "error[E0614]: type `[Output<'_>; 2]` cannot be dereferenced"
         for p in &mut *pinsLPn {     // Rust: '&mut *' is called "fresh reborrow"; allows accessing the internals as 'mut'
             p.set_low()    // disable all
-        }***/
+        }***_/
 
         pinsLPn[PICK].set_high();   // enable one
         info!("Selected board {}", PICK);
+    } ***/
+
+    // TEST whether we can change the board addresses already before init (= no firmware)
+    {
+        // leave [0] in default address
+        for n in 1..pinsLPn.len() {     // tbd. iterate over entry, and index (how to, in Rust?)
+            let pin = &mut pinsLPn[n];
+            let new_addr = DEFAULT_I2C_ADDR + 2*n as u8;
+
+            pin.set_high();   // enable one
+
+            change_addr(&mut i2c_bus, DEFAULT_I2C_ADDR, new_addr)
+                .unwrap_or_else(|e| panic!("Write failed: {:?}", e) );
+
+            // Leave the 'LPn' enabled; the board now has a unique I2C address.
+
+            info!("Address changed for board {}", n);
+        }
+        pinsLPn[0].set_high();  // finally, enable the one keeping the default address
     }
 
     #[cfg(feature="next_api")]
@@ -199,4 +221,20 @@ fn main() -> ! {
 
     // With 'semihosting' feature enabled, execution can return back to the developer's command line.
     semihosting::process::exit(0);
+}
+
+fn change_addr<'a,T>(i2c: &mut I2C<'a,T,Blocking>, old_addr: u8, new_addr: u8) -> Result<(),i2c::Error>
+    where T: Instance
+{
+    let mut wr = |a: u8, index: u16, v: u8| -> Result<(),_> {
+        let mut buf: [u8;3] = [0;3];
+        buf[0..2].copy_from_slice(&index.to_be_bytes());
+        buf[2] = v;
+
+        i2c.write(a, &buf)
+    };
+    wr(old_addr, 0x7fff, 0x00)?;
+    wr(old_addr, 0x4, new_addr >> 1)?;
+    wr(new_addr, 0x7fff, 0x02)?;
+    Ok(())
 }
