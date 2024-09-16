@@ -1,7 +1,5 @@
 /*
-* Working with multiple boards
-*
-* - initializing their I2C addresses, so all boards can be used on the same bus
+* Test writing to UART
 */
 #![no_std]
 #![no_main]
@@ -16,28 +14,9 @@ use esp_hal::{
     gpio::{Io, Level},
     i2c::{self, I2C, Instance},
     prelude::*,
-    Blocking
+    Blocking,
+    time::now
 };
-
-#[cfg(feature="next_api")]
-use esp_hal::{
-    gpio::Output
-};
-#[cfg(not(feature="next_api"))]
-use esp_hal::{
-    clock::ClockControl,
-    gpio::{AnyOutput},
-    peripherals::Peripherals,
-    system::SystemControl,
-};
-#[cfg(all())]
-use esp_hal::{
-    gpio::{PeripheralInput, PeripheralOutput, GpioPin},
-    peripheral::Peripheral
-};
-
-#[cfg(feature="next_api")]
-const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
 mod common;
@@ -100,7 +79,7 @@ fn main() -> ! {
     *    Some(Output::new(io.pins.gpio20, Level::Low)),
     *    [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
     *); */
-    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn): (_, _, Option<Output>, [Output;2]) = (
+    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn): (GpioPin<18>, GpioPin<19>, Option<Output>, [Output;2]) = (
         io.pins.gpio18,
         io.pins.gpio19,
         Some(Output::new(io.pins.gpio20, Level::Low)),
@@ -216,21 +195,4 @@ fn main() -> ! {
 
     // With 'semihosting' feature enabled, execution can return back to the developer's command line.
     semihosting::process::exit(0);
-}
-
-#[cfg(not(all()))]
-fn change_addr<'a,T>(i2c: &mut I2C<'a,T,Blocking>, old_addr: u8, new_addr: u8) -> Result<(),i2c::Error>
-    where T: Instance
-{
-    let mut wr = |a: u8, index: u16, v: u8| -> Result<(),_> {
-        let mut buf: [u8;3] = [0;3];
-        buf[0..2].copy_from_slice(&index.to_be_bytes());
-        buf[2] = v;
-
-        i2c.write(a, &buf)
-    };
-    wr(old_addr, 0x7fff, 0x00)?;
-    wr(old_addr, 0x4, new_addr >> 1)?;
-    wr(new_addr, 0x7fff, 0x02)?;
-    Ok(())
 }
