@@ -11,9 +11,14 @@ use esp_hal::{
     Blocking
 };
 
-#[cfg(not(feature="next_api"))]
+#[cfg(feature = "next_api")]
+use esp_hal::{
+    time::now
+};
+#[cfg(not(feature = "next_api"))]
 use esp_hal::{
     clock::Clocks,
+    time::current_time as now
 };
 
 extern crate vl53l5cx_uld as uld;
@@ -210,4 +215,24 @@ impl I2C_Addr {
         assert!(v%2 == 0, "Expecting LSB to be 0 for an \"8 bit\" I2C address");
         I2C_Addr(v>>1)
     }
+}
+
+//---
+/*
+* Support '{t}' in 'defmt' logging
+*
+* Reference:
+*   - defmt book > ... > Hardware timestamp
+*       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
+*/
+
+// Must be called only once
+//
+// Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
+//      read operation". Not sure, whether 'now()' qualifies - seems to work O:).
+//
+pub fn init() {
+    defmt::timestamp!("{=u64:us}", {
+        now().duration_since_epoch().to_micros()
+    });
 }

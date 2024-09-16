@@ -41,7 +41,7 @@ esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-
 esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }     # "async"
 #esp-hal-smartled    = { version = "0.12.0", features = ["esp32c6"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
-    # merely adding this (with the 'defmt' feature), causes 'esp-hal's internal use of it to get the 'defmt' feature.
+    # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
 semihosting     = { version = "0.1.14" }     # "args"
 
 [build-dependencies]
@@ -84,7 +84,7 @@ semihosting_args = [ "semihosting/args" ]
 # Use latest 'esp-hal' API; i.e. pull the library from GitHub (> 0.20.1)
 next_api = []
 
-default = ["next_api",  # <-- change here, as well as the 'esp-hal' git/version
+default = ["next_api",  # <-- comment out if wanting to use esp-hal 0.20.1 from crates.io
     "target_status", "nb_targets_detected"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check

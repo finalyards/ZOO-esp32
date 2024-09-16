@@ -8,16 +8,12 @@
 
 use itertools::Itertools;
 
-#[allow(unused_imports)]
 use std::{
-    env,
-    fs::{self, OpenOptions, File},
-    fmt::format,
-    process::exit as _exit
+    fs,
+    process::Command
 };
 
-const FN: &str = "tmp/config.h";
-const MAKEFILE_INNER: &str = "Makefile.inner";
+const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
@@ -35,7 +31,29 @@ fn main() {
     let IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
 
     // If IDE runs, terminate early.
-    if IDE_RUN { return };
+    if IDE_RUN { return; };
+
+    // Pick the current MCU. To be used as board id for 'pins.toml'.  tbd. ONCE/IF we process such
+    //
+    // $ grep -oE -m 1 '"esp32(c3|c6)"' Cargo.toml | cut -d '"' -f2
+    //  esp32c3
+    //
+    #[cfg(not(all()))]      //#[cfg(feature = "pins_toml")]
+    let board_id: String = {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg("grep -oE -m 1 '\"esp32(c3|c6)\"' Cargo.toml | cut -d '\"' -f2")
+            .output()
+            .expect("'sh' to run");
+
+        // 'output.stdout' is a 'Vec<u8>' (since, well, could be binary)
+        //
+        let us: &[u8] = output.stdout.as_slice().trim_ascii();
+        let x = String::from_utf8_lossy(us);
+
+        //: println!("cargo:warning=BOARD ID: '{}'", &x);     // BOARD ID: 'esp32c3'
+        x.into()
+    };
 
     /***
     // DEBUG: Show what we know about the compilation.
@@ -71,11 +89,12 @@ fn main() {
     }
 
     //---
-    // Create a C config header, based on the features from 'Cargo.toml'.
+    // Create a C config header, reflecting the Rust-side features required.
     //
-    // Note: Since the IDE runs don't really (in Sep'24, Rust Rover, yet?) have a clue on the right
-    //      set of features, update the 'config.h' *only* on actual builds.
+    // MUST BE BEFORE running the Makefile.
     //
+    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match 
+    //       what the real builds will be about.
     {
         let mut defs: Vec<String> = vec!();
 
@@ -135,14 +154,13 @@ fn main() {
             .map(|s| format!("#define {s}"))
             .join("\n");
 
-        fs::write(FN, contents)
-            .expect("Unable to write a file");  // note: cannot pass 'FN' here; tbd.
+        fs::write(CONFIG_H_NEXT, contents)
+            .expect( &format!("Unable to write {}", CONFIG_H_NEXT) );
     }
 
     // make stuff
     //
-    let st = std::process::Command::new("make")
-        .arg("-f").arg(MAKEFILE_INNER)
+    let st = Command::new("make")
         .arg("tmp/libvendor_uld.a")    // ULD C library
         .arg("src/uld_raw.rs")      // generate the ULD Rust bindings
         .output()

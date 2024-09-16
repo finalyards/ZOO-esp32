@@ -71,55 +71,87 @@ Between RISC V variants, the code allows you to change targets rather easily, ba
 
 ### Wiring
 
-See [WIRING](./WIRING.md).
+See [WIRING](./WIRING.md) for how you are expected to wire a single SATEL board to your MCU.
+
+### Using multiple boards
+
+See [Working with multiple boards](./Working%20with%20multiple%20boards.md) if you intend to have multiple sensors. There are some hoops involved in that setup.
+
 
 ## Compiling 
 
 ```
-$ cargo build --release
+$ cargo build --release --lib
 ```
 
->The command uses `Makefile.inner` internally. If there are problems with the build, you may want to run the Makefile separately (see below). Also, have a look at its contents.
+This compiles the library, and is a good place to start. 
+
+>One thing to note about the library is that it's fully hardware agnostic; this is something we inherit from the approach of the vendor ULD C API. *Your code* (represented by `examples/` in this repo) brings in, for example, how to drive the I2C bus.
+
+<span />
+
+>The command uses `Makefile` internally. If there are problems with the build, you may want to run the Makefile separately (see below).
 >
 >```
->$ make -f Makefile.inner src/uld_raw.rs tmp/libvendor_uld.a
+>$ make src/uld_raw.rs tmp/libvendor_uld.a
 >```
+
+Likely you are more interested in the runnable samples, though. Let's have a look!
 
 ## Running samples
 
+Running a sample expects that you have a device accessible via `probe-rs`:
+
 ```
-$ cargo run --release --features=defmt --example nada
+$ probe-rs list
+The following debug probes were found:
+[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
+```
+
+```
+$ cargo run --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent,defmt --example m2
 [...]
-      Erasing ✔ [00:00:03] [#############] 192.00 KiB/192.00 KiB @ 53.17 KiB/s (eta 0s )
-  Programming ✔ [00:00:18] [#############] 22.54 KiB/22.54 KiB @ 1.23 KiB/s (eta 0s )    Finished in 18.28534s
-INFO  Nada
-DEBUG Ding!
-DEBUG Dong!
+      Erasing ✔ [00:00:02] [######################] 256.00 KiB/256.00 KiB @ 98.28 KiB/s (eta 0s )
+  Programming ✔ [00:00:47] [######################] 104.38 KiB/104.38 KiB @ 2.21 KiB/s (eta 0s )    
+  Finished in 47.16089s
+0.848963 [INFO ] Target powered off and on again.
+0.852650 [DEBUG] Ping succeeded: 0xf0,0x02
+3.621574 [INFO ] Init succeeded, driver version VL53L5CX_2.0.0
+4.007674 [INFO ] Data #0 (sensor 36°C)
 ...
+5.386734 [INFO ] Data #9 (sensor 35°C)
+5.386766 [INFO ] .target_status:    [[[Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)]], [[Valid(5), Other(4), Other(0), Other(0)], [Other(0), Other(4), Other(4), Other(0)], [Other(0), Other(2), Other(0), Other(4)], [Other(0), Other(0), Other(4), Other(0)]]]
+5.386989 [INFO ] .targets_detected: [[2, 1, 1, 1], [1, 1, 2, 1], [1, 1, 1, 1], [1, 1, 1, 1]]
+5.387078 [INFO ] .ambient_per_spad: [[1, 0, 0, 1], [1, 2, 1, 0], [1, 2, 1, 1], [1, 1, 1, 1]]
+5.387188 [INFO ] .spads_enabled:    [[16128, 15872, 15104, 15872], [15104, 15104, 15872, 14848], [15616, 14848, 15616, 15104], [15360, 15360, 15872, 15360]]
+5.387302 [INFO ] .signal_per_spad:  [[[3, 15, 13, 13], [18, 17, 14, 12], [18, 16, 16, 11], [18, 15, 14, 13]], [[11, 11, 0, 0], [0, 2, 8, 0], [0, 2, 0, 2], [0, 0, 2, 0]]]
+5.387497 [INFO ] .range_sigma_mm:   [[[28, 8, 8, 10], [7, 6, 7, 10], [7, 6, 8, 12], [6, 7, 8, 12]], [[15, 9, 0, 0], [0, 39, 7, 0], [0, 52, 0, 47], [0, 0, 46, 0]]]
+5.387656 [INFO ] .distance_mm:      [[[1217, 1711, 1858, 1946], [1746, 1804, 1837, 1908], [1747, 1768, 1841, 1894], [1736, 1778, 1852, 1911]], [[1542, 1653, 0, 0], [0, 726, 1963, 0], [0, 4042, 0, 524], [0, 0, 2247, 0]]]
+5.387846 [INFO ] .reflectance:      [[[8, 65, 66, 74], [79, 80, 70, 66], [80, 72, 78, 57], [79, 70, 67, 70]], [[37, 45, 0, 0], [0, 2, 43, 0], [0, 57, 0, 1], [0, 0, 17, 0]]]
+5.387989 [INFO ] End of ULD demo
 ```
 
-```
-$ cargo run --release --features=defmt,distance_mm --example _1-ranging_basic
-```
+That's a bunch of features!!!
 
-|||
-|---|---|
-|`nada`|Checks the build setup and `defmt` logging; no sensor activity|
-|`_1-ranging_basic`|...|
+You can steer the `m2` example's behaviour by the set of features you define. Equally, the `targets_per_zone_2` defines the "depth" of possibly separate targets, per zone, that the sensor will report.
 
+>Playing with these will be more fun once we get graphical tools to show the data, instead of matrices.
 
-*tbd. Hardware setup for those.*
+Note how this change of behaviour of the code is steered by the Cargo `feature` system. It goes so deep that the *underlying ULD C API* gets compiled differently, omitting the features you don't state you are needing.
+
+By leaving the `targets_per_zone_2` feature out, you will get only one data per zone (closest or strongest, depending on the source code; which seems to be favouring `CLOSEST`).
+
 
 ## Troubleshooting
 
 ### General
 
-Make sure you've installed `probe-rs` from GitHub. Stock version 0.24.0 is NOT FRESH ENOUGH!
+Make sure you've installed `probe-rs` from GitHub.
 
 ### No log output (ESP32-C3 only)
 
 ```
-$ probe-rs run --log-format '{L}_{s}' target/riscv32imc-unknown-none-elf/release/examples/nada
+$ probe-rs run --log-format [...] target/riscv32imc-unknown-none-elf/release/examples/m2
       Erasing ✔ [00:00:03] [################] 192.00 KiB/192.00 KiB @ 57.05 KiB/s (eta 0s )
   Programming ✔ [00:00:18] [################] 22.54 KiB/22.54 KiB @ 1.25 KiB/s (eta 0s )    Finished in 18.072815s
 
@@ -127,16 +159,14 @@ $ probe-rs run --log-format '{L}_{s}' target/riscv32imc-unknown-none-elf/release
 
 ```
 
-The C3 board may needs a physical reset (and reattaching) prior to each run.
+The C3 board *sometimes* needs a physical reset (or even reattaching to the USB), to recover. This should not be frequent, but if you have problems, try:
 
-- keep both `RESET` and `BOOT` buttons pressed; release `RESET`
-- release `BOOT`
+- keep both `RESET` and `BOOT` buttons pressed; release `RESET`; then release `BOOT`. This sets the device in "download mode".
 
-This sets the device in "download mode".
+Other things to try:
 
-- push the `RESET` button
-- re-attach on USB/IP: e.g. `sudo attach -r 192.168.1.29 -b 3-1`
-- try again
+- just press the `RESET` button
+- detach the USB cable; re-attach
 
 
 ## Prior art

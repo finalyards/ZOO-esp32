@@ -41,7 +41,6 @@ const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
 mod common;
-mod defmt_timestamps;
 
 use common::MyPlatform;
 use uld::{
@@ -69,7 +68,7 @@ fn main() -> ! {
         clocks = ClockControl::boot_defaults(system.clock_control).freeze();
     }
 
-    defmt_timestamps::init();
+    common::init();
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
@@ -219,7 +218,7 @@ fn main() -> ! {
     semihosting::process::exit(0);
 }
 
-#[cfg(not(all))]
+#[cfg(not(all()))]
 fn change_addr<'a,T>(i2c: &mut I2C<'a,T,Blocking>, old_addr: u8, new_addr: u8) -> Result<(),i2c::Error>
     where T: Instance
 {
