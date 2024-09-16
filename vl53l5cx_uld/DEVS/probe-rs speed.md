@@ -19,8 +19,9 @@ Let's keep an eye on this. Below is a table of environments we know about (glad 
 
 |env|VM|USB/IP|MCU/JTAG|erasing (KiB/s)|flashing (KiB/s)|finished (s)|
 |---|---|---|---|---|---|---|
-|macOS 14.6 (Intel)|Multipass 1.14.0|Over WLAN to Windows 10 Home|esp32c3 (JTAG, added wire)|**100**|**3.36**|**30**|
-|-''-|-''-|-''-|esp32c6 (dedicated JTAG port)||||
+|macOS 14.6 (Intel)|Multipass 1.14.0|Over WLAN to Windows 10 Home|esp32c3 (JTAG;&nbsp;soldered)|**100**|**3.36**|**30**|
+|-''-|-''-|-''-|esp32c6 (JTAG)||||
+|Windows 10 Home, WSL 2|-|Over to WSL2|esp32c3 (JTAG;&nbsp;soldered)|**269**|**18.5**|**5.7**|
 |Windows 10 Home, WSL 2|-|Over to WSL2|esp32c6 (JTAG)|**100**|**6**|**17**|
 
 <!-- tbd. fill in the C6, next time -->

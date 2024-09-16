@@ -144,29 +144,38 @@ By leaving the `targets_per_zone_2` feature out, you will get only one data per 
 
 ## Troubleshooting
 
-### General
+<!-- hidden
+### `probe-rs` from GitHub
 
 Make sure you've installed `probe-rs` from GitHub.
 
-### No log output (ESP32-C3 only)
+```
+$ probe-rs --version
+probe-rs 0.24.0 (git commit: 0fb93950)
+```
+-->
+
+
+### [ESP32-C3] I2C `TimeOut`
 
 ```
-$ probe-rs run --log-format [...] target/riscv32imc-unknown-none-elf/release/examples/m2
-      Erasing ✔ [00:00:03] [################] 192.00 KiB/192.00 KiB @ 57.05 KiB/s (eta 0s )
-  Programming ✔ [00:00:18] [################] 22.54 KiB/22.54 KiB @ 1.25 KiB/s (eta 0s )    Finished in 18.072815s
-
-
-
+0.956520 [INFO ] Target powered off and on again.
+0.960236 [DEBUG] Ping succeeded: 0xf0,0x02
+1.522238 [ERROR] panicked at 'I2C write to 0x0bd0 (252 bytes) failed: TimeOut'
+1.522361 [ERROR] ====================== PANIC ======================
 ```
 
-The C3 board *sometimes* needs a physical reset (or even reattaching to the USB), to recover. This should not be frequent, but if you have problems, try:
+This happens with **certain versions of `probe-rs`**.
 
-- keep both `RESET` and `BOOT` buttons pressed; release `RESET`; then release `BOOT`. This sets the device in "download mode".
+- `0.24.0 (git commit: crates.io)` is bad
+- `83d08aaf` (latest, at the time of writing) is bad
 
-Other things to try:
+Make sure you have:
 
-- just press the `RESET` button
-- detach the USB cable; re-attach
+```
+$ probe-rs --version
+probe-rs 0.24.0 (git commit: 0fb93950)
+```
 
 
 ## Prior art

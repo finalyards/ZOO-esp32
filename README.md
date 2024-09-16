@@ -135,29 +135,40 @@ Using `mp` allows you to easily re-create a Rust (and Embassy) capable VM, if yo
 
 ### [ESP32-C3] Check `probe-rs` version
 
->![NOTE]
->The `rust-emb` VM contains a suitable `probe-rs`. If you're using it, you can skip to the next section.
+To get an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748) (until >0.24.0 is out):
 
-To get an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748), either:
+- Install `git` CLI
 
-- check that your version is > 0.24.0
-- ..or install from sources:
+	```
+	$ sudo apt install git
+	```
+
+	This matters for `cargo` - *[details if you want to read them](https://github.com/probe-rs/probe-rs/issues/2816)*.
+
+- Install a **specific revision** of `probe-rs`:
 
    ```
-   $ cargo install --git https://github.com/probe-rs/probe-rs probe-rs-tools --force
+   $ cargo install --git https://github.com/probe-rs/probe-rs --rev 0fb93950 probe-rs-tools --locked --force
+   ```
+
+- Test by:
+
+   ```
+   $ probe-rs --version
+	probe-rs 0.24.0 (git commit: 0fb93950)
    ```
 
 <!-- tbd. remove this section once >= 0.24.1 is out -->
 
-<!-- Developed on
+---
+
+Developed on:
+
+```
 macOS 14.6
 Multipass 1.14.0
 ESP32-C3-Devkit-C02 (revision 0.4) and ESP32-C6-DevKitM-1 
 VL53L5CX-SATEL (marking "PCB4109A")
 bindgen 0.70.1
--->
+```
 
-
-## References
-
-- ()
