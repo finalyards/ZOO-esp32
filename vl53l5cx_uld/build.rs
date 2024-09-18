@@ -5,13 +5,17 @@
 *   - IDE on host; WRONG FEATURES!!
 *   - 'cargo build' (CLI); correct features
 */
-
+use anyhow::*;
 use itertools::Itertools;
 
 use std::{
     fs,
     process::Command
 };
+
+// Snippets need to be read in here (cannot do in "statement position")
+//
+include!("snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
 
 const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 
@@ -22,7 +26,7 @@ const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 *   - Environment variables set
 *       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 */
-fn main() {
+fn main() -> Result<()> {
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
@@ -31,14 +35,28 @@ fn main() {
     let IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
 
     // If IDE runs, terminate early.
-    if IDE_RUN { return; };
+    if IDE_RUN { return Ok(()) };
 
-    // Pick the current MCU. To be used as board id for 'pins.toml'.  tbd. ONCE/IF we process such
+    /***
+    // DEBUG: Show what we know about the compilation.
+    //
+    // Potentially useful env.vars.
+    //   CARGO_CFG_TARGET_FEATURE=c,m
+    //   CARGO_FEATURE_{..feature..}=1
+    //   LD_LIBRARY_PATH=/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release/deps:/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib
+    //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
+    //   TARGET=riscv32imc-unknown-none-elf
+    //
+    {
+        env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); }); std::process::exit(1);
+    }
+    ***/
+
+    // Pick the current MCU. To be used as board id for 'pins.toml'.
     //
     // $ grep -oE -m 1 '"esp32(c3|c6)"' Cargo.toml | cut -d '"' -f2
     //  esp32c3
     //
-    #[cfg(not(all()))]      //#[cfg(feature = "pins_toml")]
     let board_id: String = {
         let output = Command::new("sh")
             .arg("-c")
@@ -55,24 +73,6 @@ fn main() {
         x.into()
     };
 
-    /***
-    // DEBUG: Show what we know about the compilation.
-    //
-    // Potentially useful env.vars.
-    //   CARGO_CFG_TARGET_FEATURE=c,m
-    //   CARGO_FEATURE_{..feature..}=1
-    //   LD_LIBRARY_PATH=/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release/deps:/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib
-    //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
-    //   TARGET=riscv32imc-unknown-none-elf
-    //
-    {
-        env::vars().for_each(|(a, b)| {
-            eprintln!("{a}={b}");
-        });
-        _exit(1);
-    }
-    ***/
-
     //---
     // Config sanity checks
     {
@@ -86,6 +86,13 @@ fn main() {
         // "range_sigma_mm" relates to "distance_mm"
         #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
         println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
+    }
+
+    //---
+    // Turn 'pins.toml' -> 'src/pins_volatile.in’ (named within the TOML itself)
+    {
+        let toml = include_str!("./pins.toml");
+        process_pins(toml, &board_id)?;
     }
 
     //---
@@ -189,4 +196,6 @@ fn main() {
 
     // Allow using '#[cfg(disabled)]' for block-disabling code
     println!("cargo::rustc-check-cfg=cfg(disabled)");
+
+    Ok(())
 }

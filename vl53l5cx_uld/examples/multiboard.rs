@@ -14,16 +14,10 @@ use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
     gpio::Io,
-    i2c::{self, I2C, Instance},
+    i2c::I2C,
     prelude::*,
-    Blocking
 };
 
-#[cfg(feature="next_api")]
-use esp_hal::{
-    gpio::{PeripheralInput, PeripheralOutput},
-    peripheral::Peripheral
-};
 #[cfg(not(feature="next_api"))]
 use esp_hal::{
     clock::ClockControl,

@@ -46,7 +46,10 @@ fugit           = { version = "0.3.7", features = ["defmt"] }
 semihosting     = { version = "0.1.15" }     # "args"
 
 [build-dependencies]
+anyhow          = "1.0.89"
 itertools       = "0.13.0"
+serde           = { version = "1.0.210", features = ["derive"] }
+toml            = "0.8.19"
 
 # C compile-time features
 #
