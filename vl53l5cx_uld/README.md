@@ -144,18 +144,6 @@ By leaving the `targets_per_zone_2` feature out, you will get only one data per 
 
 ## Troubleshooting
 
-<!-- hidden
-### `probe-rs` from GitHub
-
-Make sure you've installed `probe-rs` from GitHub.
-
-```
-$ probe-rs --version
-probe-rs 0.24.0 (git commit: 0fb93950)
-```
--->
-
-
 ### [ESP32-C3] I2C `TimeOut`
 
 ```
@@ -168,14 +156,29 @@ probe-rs 0.24.0 (git commit: 0fb93950)
 This happens with **certain versions of `probe-rs`**.
 
 - `0.24.0 (git commit: crates.io)` is bad
-- `83d08aaf` (latest, at the time of writing) is bad
+- the problem is [wont-fix](https://github.com/probe-rs/probe-rs/issues/2818#issuecomment-2358791448), unless they get news from Espressif
 
-Make sure you have:
+See [../README](../README.md) for instructions on how to install commit `6fee4b6` of `probe-rs` (latest revision with the hacks) + other alternatives.
+
+
+### [ESP32-C3] No `defmt` output
 
 ```
-$ probe-rs --version
-probe-rs 0.24.0 (git commit: 0fb93950)
+$ probe-rs run --speed=200 --log-format '{t:dimmed} [{L:bold}] {s}' target/riscv32imc-unknown-none-elf/release/examples/multiboard
+      Erasing ✔ [00:00:02] [################################] 256.00 KiB/256.00 KiB @ 112.53 KiB/s (eta 0s )
+  Programming ✔ [00:00:33] [################################] 105.54 KiB/105.54 KiB @ 3.13 KiB/s (eta 0s )
+    Finished in 33.767773s
+
+
+
 ```
+
+This sometimes happens. Something is confused. This seems to resolve the situation:
+
+- detach the USB cable of the device
+- attach back
+- `usbip attach -r ...` (if you are using USB/IP)
+- try again
 
 
 ## Prior art

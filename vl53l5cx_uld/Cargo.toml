@@ -38,12 +38,12 @@ assert_cfg      = "0.1.0"
 defmt-rtt       = { version = "0.4.1" }
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 #esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c6"] }     # "async"
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }     # "async"
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }     # "async"; use "next-api" feature
 #esp-hal-smartled    = { version = "0.12.0", features = ["esp32c6"] }
 esp-println     = { version = "0.11.0", default-features = false, features = ["uart", "esp32c6"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
-semihosting     = { version = "0.1.14" }     # "args"
+semihosting     = { version = "0.1.15" }     # "args"
 
 [build-dependencies]
 itertools       = "0.13.0"

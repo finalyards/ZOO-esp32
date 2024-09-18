@@ -13,7 +13,7 @@ use defmt_rtt as _;
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Level},
+    gpio::Io,
     i2c::{self, I2C, Instance},
     prelude::*,
     Blocking
@@ -21,7 +21,8 @@ use esp_hal::{
 
 #[cfg(feature="next_api")]
 use esp_hal::{
-    gpio::Output
+    gpio::{PeripheralInput, PeripheralOutput},
+    peripheral::Peripheral
 };
 #[cfg(not(feature="next_api"))]
 use esp_hal::{
@@ -30,17 +31,14 @@ use esp_hal::{
     peripherals::Peripherals,
     system::SystemControl,
 };
-#[cfg(all())]
-use esp_hal::{
-    gpio::{PeripheralInput, PeripheralOutput, GpioPin},
-    peripheral::Peripheral
-};
 
 #[cfg(feature="next_api")]
 const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
 mod common;
+
+include!("./pins.in");  // pins!
 
 use common::MyPlatform;
 use uld::{
@@ -67,63 +65,13 @@ fn main() -> ! {
         system = SystemControl::new(peripherals.SYSTEM);
         clocks = ClockControl::boot_defaults(system.clock_control).freeze();
     }
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     common::init();
 
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    // tbd. This will get into 'pins.in|rs' and be a macro.
 
-    // Problems with pin types:
-    //  - 'I2C::new' cannot take 'AnyFlex' for the SDA/SCL pins
-    //
-    #[cfg(feature="next_api")]
-    #[allow(non_snake_case)]
-    #[cfg(not(all()))]    // C3
-    let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
-        io.pins.gpio4,
-        io.pins.gpio5,
-        Some(Output::new(io.pins.gpio0, Level::Low)),
-        &mut [Output::new(io.pins.gpio1, Level::Low), Output::new(io.pins.gpio2, Level::Low)]
-    );
-    /* NOT because:
-    *   <<
-    *       error[E0562]: `impl Trait` is not allowed in the type of variable bindings
-    *       [...]
-    *       note: `impl Trait` is only allowed in arguments and return types of functions and methods
-    *   <<
-    *let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn)
-    *    :(impl Peripheral<P: PeripheralOutput + PeripheralInput>,
-    *      impl Peripheral<P: PeripheralOutput + PeripheralInput>,
-    *      Option<Output>,
-    *      &[Output]) = (
-    *    io.pins.gpio18,
-    *    io.pins.gpio19,
-    *    Some(Output::new(io.pins.gpio20, Level::Low)),
-    *    [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
-    *); */
-    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn): (_, _, Option<Output>, [Output;2]) = (
-        io.pins.gpio18,
-        io.pins.gpio19,
-        Some(Output::new(io.pins.gpio20, Level::Low)),
-        [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
-    );
-
-    /*** WORKS***
-    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = (
-        io.pins.gpio18,
-        io.pins.gpio19,
-        Some(Output::new(io.pins.gpio20, Level::Low)),
-        [Output::new(io.pins.gpio21, Level::Low), Output::new(io.pins.gpio22, Level::Low)]
-    ); ***/
-
-    #[cfg(not(feature="next_api"))]
-    #[allow(non_snake_case)]
-    #[cfg(not(all))]    // C3
-    let (pinSDA, pinSCL, mut pinPWR_EN, pinsLPn) = (
-        io.pins.gpio4,
-        io.pins.gpio5,
-        Some(AnyOutput::new(io.pins.gpio0, Level::Low)),
-        [AnyOutput::new(io.pins.gpio1, Level::Low), AnyOutput::new(io.pins.gpio2, Level::Low)]
-    );
+    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = pins!(io);
 
     #[cfg(feature="next_api")]
     let i2c_bus = I2C::new(
@@ -152,14 +100,17 @@ fn main() -> ! {
     // Reset VL53L5CX's by pulling down their power for a moment
     pinPWR_EN.iter_mut().for_each(|pin| {
         pin.set_low();
-        delay_ms(20);      // tbd. how long is suitable, by the specs?
+        delay_ms(50);      // tbd. how long is suitable, by the specs?
         pin.set_high();
         info!("Target powered off and on again.");
     });
 
-    // Disable all boards, by default
+    // Disable all boards, but [0]
     pinsLPn.iter_mut().for_each(|p| p.set_low());
-    pinsLPn[0].set_high();      // enable one
+    match pinsLPn.first_mut() {
+        Some(p0) => { p0.set_high(); },      // enable one
+        _ => ()          // only one board and its LPn is already pulled up
+    }
 
     #[cfg(feature="next_api")]
     let pl = MyPlatform::new(i2c_bus, DEFAULT_I2C_ADDR);
@@ -216,21 +167,4 @@ fn main() -> ! {
 
     // With 'semihosting' feature enabled, execution can return back to the developer's command line.
     semihosting::process::exit(0);
-}
-
-#[cfg(not(all()))]
-fn change_addr<'a,T>(i2c: &mut I2C<'a,T,Blocking>, old_addr: u8, new_addr: u8) -> Result<(),i2c::Error>
-    where T: Instance
-{
-    let mut wr = |a: u8, index: u16, v: u8| -> Result<(),_> {
-        let mut buf: [u8;3] = [0;3];
-        buf[0..2].copy_from_slice(&index.to_be_bytes());
-        buf[2] = v;
-
-        i2c.write(a, &buf)
-    };
-    wr(old_addr, 0x7fff, 0x00)?;
-    wr(old_addr, 0x4, new_addr >> 1)?;
-    wr(new_addr, 0x7fff, 0x02)?;
-    Ok(())
 }

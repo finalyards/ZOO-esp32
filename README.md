@@ -133,32 +133,22 @@ Using `mp` allows you to easily re-create a Rust (and Embassy) capable VM, if yo
 >If you are building code natively (or e.g. using WSL2), have a look at the `rust` and `rust+emb` folders of `mp` - and replicate the install commands from there, manually.
 
 
-### [ESP32-C3] Check `probe-rs` version
+### [ESP32-C3] Use a specific `probe-rs` version
 
-To get an ESP32-C3 -specific [fix](https://github.com/probe-rs/probe-rs/pull/2748) (until >0.24.0 is out):
+There's a specific case where ESP32-C3 seems to work against its spec, and while `probe-rs` had a fix for this, it won't be kept around. [Details here](https://github.com/probe-rs/probe-rs/issues/2818#issuecomment-2358791448). That is quite fair.
 
-- Install `git` CLI
+The problem only occurs when logging via `defmt`/`probe-rs`, and I2C communication is active. In that case it's a bit random, but the 80k firmware upload of the ULD driver never succeeds.
 
-	```
-	$ sudo apt install git
-	```
+Ways to circumvent this:
 
-	This matters for `cargo` - *[details if you want to read them](https://github.com/probe-rs/probe-rs/issues/2816)*.
-
-- Install a **specific revision** of `probe-rs`:
+- launch the code using e.g. `espflash`, ignoring `defmt` logging
+- use a specific revision that has the (now removed) hacks for C3:
 
    ```
-   $ cargo install --git https://github.com/probe-rs/probe-rs --rev 0fb93950 probe-rs-tools --locked --force
+   $ cargo install --git https://github.com/probe-rs/probe-rs --rev 6fee4b6 probe-rs-tools --locked --force
    ```
 
-- Test by:
-
-   ```
-   $ probe-rs --version
-	probe-rs 0.24.0 (git commit: 0fb93950)
-   ```
-
-<!-- tbd. remove this section once >= 0.24.1 is out -->
+- use another MCU than ESP32-C3; e.g. ESP32-C6.
 
 ---
 
@@ -171,4 +161,3 @@ ESP32-C3-Devkit-C02 (revision 0.4) and ESP32-C6-DevKitM-1
 VL53L5CX-SATEL (marking "PCB4109A")
 bindgen 0.70.1
 ```
-

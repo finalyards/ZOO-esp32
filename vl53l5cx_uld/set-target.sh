@@ -55,22 +55,6 @@ case "$MCU" in
   *) (echo >&2 "Unexpected MCU=${MCU}"; exit 50) ;;
 esac
 
-# Check here (before we make any changes) that there is a pin line in the examples, for this MCU.
-#
-#   Original attempt:
-#     $ grep -Eq "^\s+(?://)?\(io\.pins\..+\)\s*//\s*${MCU}\s*$"
-#       macOS: 👍
-#       Linux: grep: warning: ? at start of expression
-#
-#   Solution:
-#     - do NOT use non-capturing group '(?:...)', but only capturing ones '(...)'; works on both OSes.
-#
-(cat examples/_2-get_set_parameters.rs | \
-  grep -Eq "^\s+(//)?\(io\.pins\..+\)\s*//\s*${MCU}\s*$" \
-  ) || (
-  echo >&2 "ERROR: Did NOT find a line for the pins, for ${MCU}."; false
-)
-
 # Modify the files, to anchor the selection
 #
 # Note: we don't need backups since the files are (presumably) version controlled, anyhow.
@@ -90,37 +74,7 @@ cp Cargo.toml tmp-2
 cat tmp-2 | sed -E "s/(\")esp32c[36](\")/\1${MCU}\2/g" \
   > Cargo.toml
 
-# Take such lines, and enable the one with the '// {MCU}' in the trailing comment
-#   <<
-#         (io.pins.gpio4, io.pins.gpio5, Some(io.pins.gpio0), NO_PIN)      // esp32c3
-#         //(io.pins.gpio22, io.pins.gpio23, Some(io.pins.gpio21), NO_PIN)    // esp32c6
-#   <<
-#
-# Note: Why do we do it like this? Features are the normal way to go, but the author wanted to ... not use them ...
-#     mainly since they are only needed for our *examples* but defining them would (does it, with "resolver" 2) infect
-#     the library as well. The library is *agnostic* of architectures. IF you suggest something else, consider that
-#     first.    tbd. consider moving to 'DEVS/No\ to\ features.md'
-#
-cp examples/_2-get_set_parameters.rs tmp-3
-cat tmp-3 \
-  | sed -E 's_^([[:space:]]+)(//)?(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*esp32.+$)_\1//\3_g' \
-  | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
-  > examples/_2-get_set_parameters.rs
-
-cp examples/matrix.rs tmp-3
-cat tmp-3 \
-  | sed -E 's_^([[:space:]]+)(//)?(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*esp32.+$)_\1//\3_g' \
-  | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
-  > examples/matrix.rs
-
-# Eventually will transition only to using 'pins.rs'. tbd. #help
-cp examples/pins.rs tmp-3
-cat tmp-3 \
-  | sed -E 's_^([[:space:]]+)(//)?(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*esp32.+$)_\1//\3_g' \
-  | sed -E "s_^([[:space:]]+)//(\(io\.pins\..+\)[[:space:]]*//[[:space:]]*${MCU})[[:space:]]*\$_\1\2_g" \
-  > examples/pins.rs
-
-rm tmp-[123]
+rm tmp-[12]
 
 echo "Files '.cargo/config.toml' and 'Cargo.toml' now using:"
 echo ""
