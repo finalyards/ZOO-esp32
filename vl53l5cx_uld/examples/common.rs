@@ -11,14 +11,8 @@ use esp_hal::{
     Blocking
 };
 
-#[cfg(feature = "next_api")]
 use esp_hal::{
     time::now
-};
-#[cfg(not(feature = "next_api"))]
-use esp_hal::{
-    clock::Clocks,
-    time::current_time as now
 };
 
 extern crate vl53l5cx_uld as uld;
@@ -30,7 +24,6 @@ use uld::Platform;
 const MAX_WR_LEN: usize = 254;
 const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err with 'ExceedingFifo'
 
-#[cfg(feature="next_api")]
 const D_PROVIDER: Delay = Delay::new();
 
 /*
@@ -38,8 +31,6 @@ const D_PROVIDER: Delay = Delay::new();
 pub struct MyPlatform<'a, T: Instance> {
     i2c: I2C<'a, T, Blocking>,
     addr: I2C_Addr,
-    #[cfg(not(feature="next_api"))]
-    d_provider: Delay,
 }
 
 // Rust note: for the lifetime explanation, see:
@@ -47,19 +38,10 @@ pub struct MyPlatform<'a, T: Instance> {
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
 impl<'a,T> MyPlatform<'a,T> where T: Instance {
-    #[cfg(feature = "next_api")]
     pub fn new(i2c: I2C<'a,T,Blocking>, addr_8bit: u8) -> Self {
         Self{
             i2c,
             addr: I2C_Addr::from_8bit(addr_8bit),   // panics, if LSB of 'addr_8bit' is 1
-        }
-    }
-    #[cfg(not(feature = "next_api"))]
-    pub fn new(clocks: &Clocks, i2c: I2C<'a,T,Blocking>, addr_8bit: u8) -> Self {
-        Self{
-            i2c,
-            addr: I2C_Addr::from_8bit(addr_8bit),   // panics, if LSB of 'addr_8bit' is 1
-            d_provider: Delay::new(&clocks)
         }
     }
 }
@@ -91,10 +73,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                     index = index + chunk.len() as u16;
 
                     // There should be 1.2ms between transactions, by the VL spec.
-                    #[cfg(feature="next_api")]
                     D_PROVIDER.delay_millis(1);
-                    #[cfg(not(feature="next_api"))]
-                    self.d_provider.delay_millis(1);
                 }
             };
         }
@@ -174,10 +153,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            #[cfg(feature="next_api")]
             D_PROVIDER.delay_millis(1);
-            #[cfg(not(feature="next_api"))]
-            self.d_provider.delay_millis(1);
         }
 
         Ok(())
@@ -186,10 +162,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     fn delay_ms(&mut self, ms: u32) {
         trace!("🔸 {}ms", ms);
 
-        #[cfg(feature="next_api")]
         D_PROVIDER.delay_millis(ms);
-        #[cfg(not(feature="next_api"))]
-        self.d_provider.delay_millis(ms);
     }
 
     /*

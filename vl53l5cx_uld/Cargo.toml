@@ -86,10 +86,9 @@ defmt = ["dep:defmt"]
 semihosting_args = [ "semihosting/args" ]
 
 # Use latest 'esp-hal' API; i.e. pull the library from GitHub (> 0.20.1)
-next_api = []
+#next_api = []
 
-default = ["next_api",  # <-- comment out if wanting to use esp-hal 0.20.1 from crates.io
-    "target_status", "nb_targets_detected"]
+default = ["target_status", "nb_targets_detected"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

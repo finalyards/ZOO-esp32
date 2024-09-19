@@ -18,15 +18,6 @@ use esp_hal::{
     prelude::*,
 };
 
-#[cfg(not(feature="next_api"))]
-use esp_hal::{
-    clock::ClockControl,
-    gpio::{AnyOutput},
-    peripherals::Peripherals,
-    system::SystemControl,
-};
-
-#[cfg(feature="next_api")]
 const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
@@ -49,16 +40,7 @@ const DEFAULT_I2C_ADDR: u8 = VL53L5CX::FACTORY_I2C_ADDR;
 
 #[entry]
 fn main() -> ! {
-    #[cfg(feature="next_api")]
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    #[cfg(not(feature="next_api"))]
-    let (peripherals, system, clocks);
-    #[cfg(not(feature="next_api"))]
-    {
-        peripherals = Peripherals::take();
-        system = SystemControl::new(peripherals.SYSTEM);
-        clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    }
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     common::init();
@@ -67,29 +49,14 @@ fn main() -> ! {
 
     let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = pins!(io);
 
-    #[cfg(feature="next_api")]
     let i2c_bus = I2C::new(
         peripherals.I2C0,
         pinSDA,
         pinSCL,
         400.kHz()
     );
-    #[cfg(not(feature="next_api"))]
-    let i2c_bus = I2C::new_with_timeout(
-        peripherals.I2C0,
-        pinSDA,
-        pinSCL,
-        400.kHz(),
-        &clocks,
-        None
-    );
 
-    #[cfg(feature="next_api")]
     let delay_ms = |ms| D_PROVIDER.delay_millis(ms);
-    #[cfg(not(feature="next_api"))]
-    let d_provider = Delay::new(&clocks);
-    #[cfg(not(feature="next_api"))]
-    let delay_ms = |ms| d_provider.delay_millis(ms);
 
     // Reset VL53L5CX's by pulling down their power for a moment
     pinPWR_EN.iter_mut().for_each(|pin| {
@@ -106,10 +73,7 @@ fn main() -> ! {
         _ => ()          // only one board and its LPn is already pulled up
     }
 
-    #[cfg(feature="next_api")]
     let pl = MyPlatform::new(i2c_bus, DEFAULT_I2C_ADDR);
-    #[cfg(not(feature="next_api"))]
-    let pl = MyPlatform::new(&clocks, i2c_bus, DEFAULT_I2C_ADDR);
 
     let mut vl = VL53L5CX::new_and_init(pl)
         .unwrap();

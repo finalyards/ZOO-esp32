@@ -13,8 +13,5 @@
 
 /c-examples-TEMP/
 
-# git worktrees
-/wts/
-
 # TEMP
 /err*.log
