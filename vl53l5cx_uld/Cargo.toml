@@ -81,9 +81,10 @@ targets_per_zone_4=[]
 
 defmt = ["dep:defmt"]
 
-# Enable to try 'semihosting' 'args' feature, which IS EXPERIMENTAL. It likely works, but probe-rs doesn't like it.
-# Without this, we do a work-around.
-semihosting_args = [ "semihosting/args" ]
+# Was thought to be used with 'set-address', but since we don't set addresses.. not needed.
+#|# Enable to try 'semihosting' 'args' feature, which IS EXPERIMENTAL. It likely works, but probe-rs doesn't like it.
+#|# Without this, we do a work-around.
+#|semihosting_args = [ "semihosting/args" ]
 
 # Use latest 'esp-hal' API; i.e. pull the library from GitHub (> 0.20.1)
 #next_api = []
@@ -94,16 +95,12 @@ default = ["target_status", "nb_targets_detected"]
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
 #
 [[example]]
-name = "matrix"
-required-features = ["defmt", "distance_mm"]
-
-[[example]]
-name = "m2"
+name = "multiboard"
 required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
 
 # Note: 'set-address' really is a "bin" tool, but 'src/bin' in Cargo doesn't have access to
 #       'dev-dependencies'. Thus, we need to make it either a 'test' or 'example' (which, neither it is..).
 #
-[[example]]
-name = "set-address"
-required-features = ["defmt"]
+#|[[example]]
+#|name = "set-address"
+#|required-features = ["defmt"]

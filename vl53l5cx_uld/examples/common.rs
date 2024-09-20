@@ -7,16 +7,16 @@ use core::{
 };
 use esp_hal::{
     delay::Delay,
+    gpio::{Output},
     i2c::{I2C, Instance},
     Blocking
 };
 
-use esp_hal::{
-    time::now
-};
-
 extern crate vl53l5cx_uld as uld;
-use uld::Platform;
+use uld::{
+    Platform,
+    DEFAULT_I2C_ADDR
+};
 
 // Maximum sizes for I2C writes and reads, via 'esp-hal'. Unfortunately, it does not expose these
 // as values we could read (the values are burnt-in).
@@ -26,11 +26,12 @@ const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err
 
 const D_PROVIDER: Delay = Delay::new();
 
+const I2C_ADDR: u8 = DEFAULT_I2C_ADDR >> 1;
+
 /*
 */
 pub struct MyPlatform<'a, T: Instance> {
     i2c: I2C<'a, T, Blocking>,
-    addr: I2C_Addr,
 }
 
 // Rust note: for the lifetime explanation, see:
@@ -38,11 +39,22 @@ pub struct MyPlatform<'a, T: Instance> {
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
 impl<'a,T> MyPlatform<'a,T> where T: Instance {
-    pub fn new(i2c: I2C<'a,T,Blocking>, addr_8bit: u8) -> Self {
+    #[allow(non_snake_case)]
+    pub fn new(i2c: I2C<'a,T,Blocking>) -> Self {
         Self{
             i2c,
-            addr: I2C_Addr::from_8bit(addr_8bit),   // panics, if LSB of 'addr_8bit' is 1
         }
+    }
+
+    /*
+    * Reset all VL53L5CX's by pulling their power down for a moment.
+    *
+    * This is just a precaution. Likely things work just fine without doing the '.reset()'. (you try)
+    */
+    pub fn reset(&self, pin: &mut Output) {
+        pin.set_low();
+        delay_ms(20);      // tbd. how long is suitable, by the specs?
+        pin.set_high();
     }
 }
 
@@ -64,7 +76,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
         //
         for (round,chunk) in zip(1.., chunks) {
 
-            match self.i2c.write_read(self.addr.0, &index.to_be_bytes(), chunk) {
+            match self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), chunk) {
                 Err(e) => {
                     // If we get an error, let's stop right away.
                     panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, buf.len(), round, rounds, e);
@@ -73,7 +85,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                     index = index + chunk.len() as u16;
 
                     // There should be 1.2ms between transactions, by the VL spec.
-                    D_PROVIDER.delay_millis(1);
+                    delay_ms(1);
                 }
             };
         }
@@ -138,7 +150,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                 &buf[..2+n]
             };
 
-            self.i2c.write(self.addr.0, &out).unwrap_or_else(|e| {
+            self.i2c.write(I2C_ADDR, &out).unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
                 panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
             });
@@ -153,7 +165,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            D_PROVIDER.delay_millis(1);
+            delay_ms(1);
         }
 
         Ok(())
@@ -161,16 +173,19 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
 
     fn delay_ms(&mut self, ms: u32) {
         trace!("🔸 {}ms", ms);
-
-        D_PROVIDER.delay_millis(ms);
+        delay_ms(ms);
     }
 
     /*
     * Called when the application has changed the I2C address of a device. Further communication
     * should be using this new address.
     */
+    #[cfg(not(all()))]
     fn addr_changed(&mut self, new_addr_8bit: u8) {
-        self.addr = I2C_Addr::from_8bit(new_addr_8bit)
+        panic!("address change not implemented");
+
+        // was (but chose not to go this way):
+        //self.addr = I2C_Addr::from_8bit(new_addr_8bit)
     }
 }
 
@@ -179,33 +194,6 @@ fn slice_head(vs: &[u8],n_max: usize) -> &[u8] {
     &vs[..min(vs.len(),n_max)]
 }
 
-#[derive(Copy, Clone)]
-#[allow(non_camel_case_types)]
-struct I2C_Addr(u8);    // 7-bit, like 'esp-hal' wants it
-
-impl I2C_Addr {
-    fn from_8bit(v: u8) -> I2C_Addr {
-        assert!(v%2 == 0, "Expecting LSB to be 0 for an \"8 bit\" I2C address");
-        I2C_Addr(v>>1)
-    }
-}
-
-//---
-/*
-* Support '{t}' in 'defmt' logging
-*
-* Reference:
-*   - defmt book > ... > Hardware timestamp
-*       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
-*/
-
-// Must be called only once
-//
-// Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
-//      read operation". Not sure, whether 'now()' qualifies - seems to work O:).
-//
-pub fn init() {
-    defmt::timestamp!("{=u64:us}", {
-        now().duration_since_epoch().to_micros()
-    });
+fn delay_ms(ms: u32) {
+    D_PROVIDER.delay_millis(ms);
 }

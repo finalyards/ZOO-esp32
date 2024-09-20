@@ -1,7 +1,5 @@
 /*
 * Working with multiple boards
-*
-* - initializing their I2C addresses, so all boards can be used on the same bus
 */
 #![no_std]
 #![no_main]
@@ -16,6 +14,7 @@ use esp_hal::{
     gpio::Io,
     i2c::I2C,
     prelude::*,
+    time::now
 };
 
 const D_PROVIDER: Delay = Delay::new();
@@ -27,58 +26,69 @@ include!("./pins.in");  // pins!
 
 use common::MyPlatform;
 use uld::{
+    Result,
     VL53L5CX,
     ranging::{
         RangingConfig,
         TargetOrder::CLOSEST,
         Mode::AUTONOMOUS,
     },
-    units::*
+    units::*,
+    get_API_REVISION,
 };
-
-const DEFAULT_I2C_ADDR: u8 = VL53L5CX::FACTORY_I2C_ADDR;
 
 #[entry]
 fn main() -> ! {
+    match main2() {
+        Err(e) => {
+            panic!("Failed with ULD error code: {}", e);
+        },
+
+        Ok(()) => {
+            info!("End of ULD demo");
+            semihosting::process::exit(0);      // back to developer's command line
+        }
+    }
+}
+
+fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    common::init();
+    init();
 
-    // tbd. This will get into 'pins.in|rs' and be a macro.
-
-    let (pinSDA, pinSCL, mut pinPWR_EN, mut pinsLPn) = pins!(io);
+    #[allow(non_snake_case)]
+    let (SDA, SCL, mut PWR_EN, mut LPns) = pins!(io);
 
     let i2c_bus = I2C::new(
         peripherals.I2C0,
-        pinSDA,
-        pinSCL,
+        SDA,
+        SCL,
         400.kHz()
     );
 
     let delay_ms = |ms| D_PROVIDER.delay_millis(ms);
 
+    let pl = MyPlatform::new(i2c_bus);
+
     // Reset VL53L5CX's by pulling down their power for a moment
-    pinPWR_EN.iter_mut().for_each(|pin| {
-        pin.set_low();
-        delay_ms(50);      // tbd. how long is suitable, by the specs?
-        pin.set_high();
-        info!("Target powered off and on again.");
+    PWR_EN.iter_mut().for_each(|pin| {
+        pl.reset(pin);
+        info!("Target(s) powered off and on again.");
     });
 
-    // Disable all boards, but [0]
-    pinsLPn.iter_mut().for_each(|p| p.set_low());
-    match pinsLPn.first_mut() {
-        Some(p0) => { p0.set_high(); },      // enable one
-        _ => ()          // only one board and its LPn is already pulled up
+    //let mut vls = VL53L5CX::new_flock_maybe(pl, LPns)?.init()?;        // tbd. flock; feed 'LPns'
+
+    if true {
+        LPns.iter_mut().for_each(|p| p.set_low());
+        match LPns.first_mut() {
+            Some(p0) => { p0.set_high(); },      // enable one
+            _ => ()          // only one board and its LPn is already pulled up
+        }
     }
+    let mut vl = VL53L5CX::new_maybe(pl)?.init()?;
 
-    let pl = MyPlatform::new(i2c_bus, DEFAULT_I2C_ADDR);
-
-    let mut vl = VL53L5CX::new_and_init(pl)
-        .unwrap();
-
-    info!("Init succeeded, driver version {}", vl.API_REVISION);
+    info!("Init succeeded, driver version {}", get_API_REVISION());
 
     //--- ranging loop
     //
@@ -98,7 +108,7 @@ fn main() -> ! {
             .expect("Failed to get data");
 
         // 4x4 (default) = 16 zones
-        info!("Data #{} (sensor {}°C)", round, res.silicon_temp_degc);
+        info!("Data #{} ({}°C)", round, res.silicon_temp_degc);
 
         #[cfg(feature = "target_status")]
         info!(".target_status:    {}", res.target_status);
@@ -120,9 +130,21 @@ fn main() -> ! {
     }
 
     // Rust automatically stops the ranging in the ULD C driver, when 'Ranging' is dropped.
+    Ok(())
+}
 
-    info!("End of ULD demo");
-
-    // With 'semihosting' feature enabled, execution can return back to the developer's command line.
-    semihosting::process::exit(0);
+/*
+* Tell 'defmt' how to support '{t}' (timestamp) in logging.
+*
+* Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
+*       read operation". Out 'esp_hal::time::now' isn't, but sure seems to work.
+*
+* Reference:
+*   - defmt book > ... > Hardware timestamp
+*       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
+*/
+fn init() {
+    defmt::timestamp!("{=u64:us}", {
+        now().duration_since_epoch().to_micros()
+    });
 }

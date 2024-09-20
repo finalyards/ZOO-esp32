@@ -27,6 +27,9 @@ const TARGETS: usize =
     else { 1 };
 
 pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
+    // Scalar metadata
+    pub silicon_temp_degc: i8,                  // "internal sensor silicon temperature"
+
     // Metadata: DIMxDIM matrix, regardless of 'TARGETS'
     //
     #[cfg(feature = "ambient_per_spad")]
@@ -49,9 +52,6 @@ pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     pub reflectance: [[[u8; DIM]; DIM]; TARGETS],
     #[cfg(feature = "signal_per_spad")]
     pub signal_per_spad: [[[u32; DIM]; DIM]; TARGETS],
-
-    // Scalar metadata
-    pub silicon_temp_degc: i8                   // "internal sensor silicon temperature"
 }
 
 impl<const DIM: usize> ResultsData<DIM> {

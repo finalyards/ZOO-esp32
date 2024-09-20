@@ -165,6 +165,7 @@ fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T
     f(x)
 }
 
+#[cfg(not(all()))]  // Q: do we use this?
 impl dyn Platform {
     /**
     * Check, whether there's a VL53L5CX device in the given I2C address. Calling does not require

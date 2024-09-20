@@ -74,9 +74,26 @@ pub trait Platform {
     // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
     // address the device identifies with, inform the 'Platform' struct about it.
     //
+    #[cfg(not(all()))]  // de-activated
     fn addr_changed(&mut self, new_addr_8bit: u8);
 }
 
+// Note: vendor uses "8 bit" format (7-bit address, shifted one left to expose the read/write bit as 0).
+pub const DEFAULT_I2C_ADDR: u8 = 0x52;    // vendor default
+
+pub fn get_API_REVISION() -> &'static str {
+    let x: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
+        .to_str().unwrap();
+    x
+}
+
+/*
+* This adds a method to the ULD C API struct.
+*
+* Note: Since the C-side struct has quite a lot of internal "bookkeeping" fields, we don't expose
+*       this directly to Rust customers, but wrap it (later). We *could* also consider making
+*       those fields non-pub in the 'bindgen' phase, and be able to pass this struct, directly. #design
+*/
 impl VL53L5CX_Configuration {
     /** @brief Returns a default 'VL53L5CX_Configuration' struct, spiced with the application
     * provided 'Platform'-derived state (opaque to us, except for its size).
@@ -159,47 +176,41 @@ impl VL53L5CX_Configuration {
     }
 }
 
-pub struct VL53L5CX<'a> {
-    // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
-    // "device"), in the form of the "configuration" struct. It's not really configuration;
-    // more of a driver working memory area where all the state and buffers exist.
-    //
-    // The good part of this arrangement is, we have separate state when handling multiple sensors. :)
-    //
-    // The "state" also carries our 'Platform' struct within it (at the very head). The ULD
-    // code uses it to reach back to the app level, for MCU hardware access: I2C and delays.
-    //
-    // The "state" can be read, but we "MUST not manually change these field[s]". In this Rust API,
-    // the whole "state" is kept private, to enforce such read-only nature.
-    //
-    vl: VL53L5CX_Configuration,
-
-    pub API_REVISION: &'a str,
+/**
+* @brief Beginning of preparing access to a single VL53L5CX sensor.
+*/
+pub struct VL53L5CX<P: Platform + 'static> {
+    p: P,
+    #[cfg(not(all()))]
+    pub API_REVISION: &'a str,  // tbd. make this into '::get_API_REVISION()' instead (or just leave out)
 }
 
-impl VL53L5CX<'_> {
-    /** @brief Open a connection to a specific sensor; uses I2C and delays via the 'Platform'
-    ** provided by the caller.
-    **/
-    // Note: Didn't want to call this 'new()' since it does initialization, and returns 'Result'.
-    //      Making it in two phases ('::new().init()') with the intermediate struct not being
-    //      'VL53L5CX' also feels wrong. What would be the idiomatic way , in Rust? #advice
-    //
-    pub fn new_and_init<P : Platform + 'static>(/*move*/ mut p: P) -> Result<Self> {
+impl<P: Platform + 'static> VL53L5CX<P> {
+    /*
+    * Instead of just creating this structure, this already pings the bus to see, whether there's
+    * a suitable sensor out there. ((Not idiomatic Rust; let's see how it feels in practice.))
+    */
+    pub fn new_maybe(/*move*/ mut p: P) -> Result<Self> {
+        #[cfg(not(all()))]
         let API_REVISION: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
             .to_str().unwrap();
 
         Self::ping(&mut p).map_err(|_| ST_ERROR)?;
 
-        let vl = VL53L5CX_Configuration::init_with(/*move*/ p)?;
-
         Ok(Self {
-            vl,
+            p,
+            #[cfg(not(all()))]
             API_REVISION
         })
     }
 
-    fn ping<P : Platform>(p: &mut P) -> CoreResult<(),()> {
+    pub fn init(self) -> Result<VL53L5CX_InAction> {
+        let vl = VL53L5CX_Configuration::init_with(/*move*/ self.p)?;
+
+        Ok( VL53L5CX_InAction{ vl } )
+    }
+
+    fn ping(p: &mut P) -> CoreResult<(),()> {
         match vl53l5cx_ping(p)? {
             (a@ 0xf0, b@ 0x02) => {     // vendor driver ONLY proceeds with this
                 #[cfg(feature="defmt")]
@@ -213,7 +224,29 @@ impl VL53L5CX<'_> {
         }
         Ok(())
     }
+}
 
+/*
+* The structure of a working sensor; firmware has been downloaded.
+*/
+#[allow(non_camel_case_types)]
+pub struct VL53L5CX_InAction {
+    // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
+    // "device"), in the form of the "configuration" struct. It's not really configuration;
+    // more of a driver working memory area where all the state and buffers exist.
+    //
+    // The good part of this arrangement is, we have separate state when handling multiple sensors. :)
+    //
+    // The "state" also carries our 'Platform' struct within it (at the very head). The ULD
+    // code uses it to reach back to the app level, for MCU hardware access: I2C and delays.
+    //
+    // The "state" can be read, but we "MUST not manually change these field[s]". In this Rust API,
+    // the whole "state" is kept private, to enforce such read-only nature.
+    //
+    vl: VL53L5CX_Configuration,
+}
+
+impl VL53L5CX_InAction {
     //---
     // Ranging (getting values)
     //
@@ -245,6 +278,7 @@ impl VL53L5CX<'_> {
     * Unlike other functions, we don't refer to the ULD C API because the changing of the address
     * mechanism is... not well designed. Instead, we do the full bytewise comms here.
     */
+    #[cfg(not(all()))]  // disabled
     pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
 
         // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
@@ -281,11 +315,6 @@ impl VL53L5CX<'_> {
     //  vl53l5cx_disable_internal_cp
     //  vl53l5cx_set_VHV_repeat_count
     //  vl53l5cx_get_VHV_repeat_count
-
-    // Note: vendor docs use "8 bit" format (7-bit address, shifted one left to expose the read/write
-    //      bit as 0).
-    //
-    pub const FACTORY_I2C_ADDR: u8 = 0x52;    // vendor default
 }
 
 /**
@@ -309,43 +338,3 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     Ok( (buf[0], buf[1]) )
 }
 // tbd. 'Platform::ping()' is almost the same
-
-/**
-* Based on forum comment [1] (Feb'24), checking that the byte wrapping is as VL53L5CX would like it.
-*
-*   [1]: https://community.st.com/t5/imaging-sensors/struggling-to-successfully-operate-the-satel-vl53l8a-with-the/m-p/640828/highlight/true#M3625
-*/
-#[cfg(disabled)]
-fn vl53l5cx_check_polarity<P : Platform>(pl: &mut P) -> CoreResult<(),()> {
-    let abcd: &[u8;4] = &[0xaa, 0x55, 0x2a, 0xcb]; //[1,2,3,4];
-    let mut buf1: [u8;4] = [0;4];
-    let mut buf2: [u8;4] = [0;4];
-
-    // Write bytes to 0x100, read back both as individual bytes, and as a block of 4.
-    //
-    pl.wr_bytes(0x100, abcd)?;
-
-    for i in 0_usize..4 {
-        pl.rd_bytes(0x100+i as u16, &mut buf1[i..=i])?;
-    }
-    pl.rd_bytes(0x100, &mut buf2)?;
-
-    debug!("Swap expected: {:#04x}, got {:#04x}, {:#04x}", abcd, &buf1, &buf2);
-        // <<
-        //  [0x01, 0x02, 0x03, 0x04], got [0x52, 0x01, 0x02, 0x03], [0x52, 0x01, 0x02, 0x03]
-        // <<
-
-    assert_eq!(abcd, &buf1);
-    assert_eq!(abcd, &buf2);
-
-    Ok(())
-}
-
-// keep for possible use
-#[cfg(disabled)]
-fn mem_slice(p: *const c_void, _n: usize) -> [u32;2] {
-    let pp: *const u32 = p as _;
-    unsafe {
-        [*pp, *pp.wrapping_add(1)]
-    }
-}
