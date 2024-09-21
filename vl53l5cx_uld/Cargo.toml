@@ -95,12 +95,5 @@ default = ["target_status", "nb_targets_detected"]
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
 #
 [[example]]
-name = "multiboard"
+name = "m3"
 required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
-
-# Note: 'set-address' really is a "bin" tool, but 'src/bin' in Cargo doesn't have access to
-#       'dev-dependencies'. Thus, we need to make it either a 'test' or 'example' (which, neither it is..).
-#
-#|[[example]]
-#|name = "set-address"
-#|required-features = ["defmt"]

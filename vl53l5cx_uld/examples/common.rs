@@ -7,7 +7,6 @@ use core::{
 };
 use esp_hal::{
     delay::Delay,
-    gpio::{Output},
     i2c::{I2C, Instance},
     Blocking
 };
@@ -44,17 +43,6 @@ impl<'a,T> MyPlatform<'a,T> where T: Instance {
         Self{
             i2c,
         }
-    }
-
-    /*
-    * Reset all VL53L5CX's by pulling their power down for a moment.
-    *
-    * This is just a precaution. Likely things work just fine without doing the '.reset()'. (you try)
-    */
-    pub fn reset(&self, pin: &mut Output) {
-        pin.set_low();
-        delay_ms(20);      // tbd. how long is suitable, by the specs?
-        pin.set_high();
     }
 }
 

@@ -81,11 +81,23 @@ pub trait Platform {
 // Note: vendor uses "8 bit" format (7-bit address, shifted one left to expose the read/write bit as 0).
 pub const DEFAULT_I2C_ADDR: u8 = 0x52;    // vendor default
 
-pub fn get_API_REVISION() -> &'static str {
-    let x: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
-        .to_str().unwrap();
-    x
-}
+// Note:
+//      In order to expose 'API_REVISION' as a const, we do a couple of compromises:
+//          - exposing it as '&CStr' (not '&str'): conversion would require '.unwrap' which isn't
+//            'const'-compatible (neither is '.unwrap_of_default')
+//
+//      This is actually not a bad thing. The string _is_ a C String, and we don't cause much
+//      trouble for the application by exposing it as such (instead of '&str').
+//
+//      Alternatives could be:
+//          - use lazy init
+//          - expose as '.get_API_REVISION()'; clumsy
+//
+// #help:   If you can show a way how 'bindgen' itself can expose the string as 'CStr', go right ahead!
+//
+pub const API_REVISION: &CStr = {
+    unsafe { CStr::from_bytes_with_nul_unchecked(API_REVISION_r) }
+};
 
 /*
 * This adds a method to the ULD C API struct.
@@ -125,7 +137,7 @@ impl VL53L5CX_Configuration {
     *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
     *       {0x01, 0x01}
     */
-    fn init_with<P : Platform + 'static>(/*move*/ mut p: P) -> Result<Self> {
+    fn init_with<P : Platform + 'static>(mut p: P) -> Result<Self> {
 
         #[allow(unused_unsafe)]
         let ret: Result<VL53L5CX_Configuration> = unsafe {
@@ -180,9 +192,7 @@ impl VL53L5CX_Configuration {
 * @brief Beginning of preparing access to a single VL53L5CX sensor.
 */
 pub struct VL53L5CX<P: Platform + 'static> {
-    p: P,
-    #[cfg(not(all()))]
-    pub API_REVISION: &'a str,  // tbd. make this into '::get_API_REVISION()' instead (or just leave out)
+    p: P
 }
 
 impl<P: Platform + 'static> VL53L5CX<P> {
@@ -191,16 +201,10 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     * a suitable sensor out there. ((Not idiomatic Rust; let's see how it feels in practice.))
     */
     pub fn new_maybe(/*move*/ mut p: P) -> Result<Self> {
-        #[cfg(not(all()))]
-        let API_REVISION: &str = CStr::from_bytes_with_nul(API_REVISION_r).unwrap()
-            .to_str().unwrap();
-
         Self::ping(&mut p).map_err(|_| ST_ERROR)?;
 
         Ok(Self {
-            p,
-            #[cfg(not(all()))]
-            API_REVISION
+            p
         })
     }
 
@@ -211,6 +215,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     }
 
     fn ping(p: &mut P) -> CoreResult<(),()> {
+        #[cfg_attr(not(feature="defmt"), allow(unused_variables))]
         match vl53l5cx_ping(p)? {
             (a@ 0xf0, b@ 0x02) => {     // vendor driver ONLY proceeds with this
                 #[cfg(feature="defmt")]
@@ -337,4 +342,3 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
 
     Ok( (buf[0], buf[1]) )
 }
-// tbd. 'Platform::ping()' is almost the same

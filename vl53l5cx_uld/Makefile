@@ -167,16 +167,16 @@ EXP_x: src/uld_raw.rs
 # tbd. We could also compare the two files' contents, do the copy if they are different. Would be tidier...
 #
 tmp/config.h: Cargo.toml build.rs | tmp/config.h.next
-	@cp $< tmp/config.h.next
+	@cp $| $@
 
 tmp/config.h.next: Cargo.toml
-	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build --lib' to have features propagate to it)
+	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)
 
 #---
 _clean:
 	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
 		tmp/config.h tmp/config.h.* \
-		examples/pins.in
+		examples/pins.in	# not created by the Makefile (yet)
 
 _klean: _clean
 	cargo clean

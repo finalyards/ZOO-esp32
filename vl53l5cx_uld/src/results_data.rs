@@ -196,6 +196,7 @@ impl TargetStatus {
             255 => { Self::Invalid },
             v => {
                 if v > 13 {
+                    #[cfg(feature = "defmt")]
                     warn!("Unexpected 'target_status' value: {=u8}", v);
                 }
                 Self::Other(v)

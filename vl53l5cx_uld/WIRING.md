@@ -16,13 +16,11 @@ Below, we go through the SATEL pins from left to right.
 |I2C_RST|---|Active high. Toggle `0->1->0` to reset the I2C target.|Pulled via 47k to GND.|Reset the I2C side by pulling the pin momentarily up while `PWR_EN` remains up. Not needed in practice.|
 |SDA|GPIO4|same pin as in a `esp-hal` I2C example|Pulled via 2.2k to IOVDD.<br />If you chain multiple boards, you may want to remove extra pull-ups by soldering open `SB5`, `SB7` on the underside of boards.<sup>(2)</sup>|Talk with the device.|
 |SCL|GPIO5|-''-|-''-|-''-|
-|LPn|---|Chip enable, active high.|Pulled via 47k to IOVDD.|Disable the chip momentarily, by connecting to GND. Suggested to be used for programming non-default I2C addresses, but this can be reached also by simply plugging such chips in, on their own.<sup>(1)</sup>|
+|LPn|---|Chip enable, active high.|Pulled via 47k to IOVDD.|Disable the chip momentarily from participating in I2C comms, by connecting to GND. Not required in single-board operations.|
 |PWR_EN|(GPIO0)|Drive directly with a GPIO pin, or pull up with e.g. 47k to IOVDD.|Drives the `CE` (chip enable) of the larger board's regulator. The whole VL53L5CX chip is powered off, unless this signal is high.|Control the power cycle of the VC53L5CX chip.|
 |AVDD|5v / 3v3|Both AVDD and IOVDD must be provided, for the SATEL board to function. *(don't exactly understand, why, based on the schematics)*|
 |IOVDD|3v3|-''-|
 |GND|Gnd|
-
-`(1)`: Haven't tried. If the VL device doesn't have persistent memory of its I2C address, one needs to initialize them via this feature (disable all but one; program the I2C address).
 
 `(2)`: See [Wiring multiple boards](), below.
 
@@ -54,6 +52,8 @@ Based on [this ESP-focused library](https://github.com/RJRP44/VL53L5CX-Library) 
 In particular, the following had been left unconnected: `INT`, `I2C_RST`, `PWR_EN`
 
 ## Wiring multiple boards
+
+>*tbd. The multiple boards section is likely going to be cut out, to `vl53l5cx_flock` or similar (above ULD) project. Here for now.*
 
 ![](.images/two-boards.jpg)
 

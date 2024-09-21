@@ -26,13 +26,8 @@ all:
 # Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
 #		feature.
 
-m matrix:
-	EXAMPLE=matrix \
-	  FEATURES=ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-	  $(REMAKE) --no-print-directory _build _run
-
-m2:
-	EXAMPLE=m2 \
+m3:
+	EXAMPLE=m3 \
 	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
 	  $(REMAKE) --no-print-directory _build _run
 

@@ -25,6 +25,7 @@ mod common;
 include!("./pins.in");  // pins!
 
 use common::MyPlatform;
+
 use uld::{
     Result,
     VL53L5CX,
@@ -34,7 +35,7 @@ use uld::{
         Mode::AUTONOMOUS,
     },
     units::*,
-    get_API_REVISION,
+    API_REVISION,
 };
 
 #[entry]
@@ -58,7 +59,7 @@ fn main2() -> Result<()> {
     init();
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, mut PWR_EN, mut LPns) = pins!(io);
+    let (SDA, SCL, mut PWR_EN, _) = pins!(io);
 
     let i2c_bus = I2C::new(
         peripherals.I2C0,
@@ -73,22 +74,15 @@ fn main2() -> Result<()> {
 
     // Reset VL53L5CX's by pulling down their power for a moment
     PWR_EN.iter_mut().for_each(|pin| {
-        pl.reset(pin);
+        pin.set_low();
+        delay_ms(20);      // tbd. how long is suitable, by the specs?
+        pin.set_high();
         info!("Target(s) powered off and on again.");
     });
 
-    //let mut vls = VL53L5CX::new_flock_maybe(pl, LPns)?.init()?;        // tbd. flock; feed 'LPns'
-
-    if true {
-        LPns.iter_mut().for_each(|p| p.set_low());
-        match LPns.first_mut() {
-            Some(p0) => { p0.set_high(); },      // enable one
-            _ => ()          // only one board and its LPn is already pulled up
-        }
-    }
     let mut vl = VL53L5CX::new_maybe(pl)?.init()?;
 
-    info!("Init succeeded, driver version {}", get_API_REVISION());
+    info!("Init succeeded, driver version {}", API_REVISION.to_str().unwrap());
 
     //--- ranging loop
     //

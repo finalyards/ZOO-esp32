@@ -2,6 +2,8 @@
 * Ranging: actually getting measurements from the sensor.
 */
 use core::mem::MaybeUninit;
+
+#[cfg(feature = "defmt")]
 use defmt::{assert, panic};
 
 #[allow(unused_imports)]
