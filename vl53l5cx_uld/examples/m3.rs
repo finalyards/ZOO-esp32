@@ -82,7 +82,7 @@ fn main2() -> Result<()> {
 
     let mut vl = VL53L5CX::new_maybe(pl)?.init()?;
 
-    info!("Init succeeded, driver version {}", API_REVISION.to_str().unwrap());
+    info!("Init succeeded, driver version {}", API_REVISION);
 
     //--- ranging loop
     //

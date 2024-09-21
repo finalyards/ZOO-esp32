@@ -81,22 +81,16 @@ pub trait Platform {
 // Note: vendor uses "8 bit" format (7-bit address, shifted one left to expose the read/write bit as 0).
 pub const DEFAULT_I2C_ADDR: u8 = 0x52;    // vendor default
 
-// Note:
-//      In order to expose 'API_REVISION' as a const, we do a couple of compromises:
-//          - exposing it as '&CStr' (not '&str'): conversion would require '.unwrap' which isn't
-//            'const'-compatible (neither is '.unwrap_of_default')
+// After LOTS of variations, here's a way to expose a 'CStr' string as a '&str' const (as long as
+// we avoid '.unwrap*()' of any kind, it's const). Why it matters (does it tho?):
+//  - follows the ULD C API closely
+//  - works out-of-the-box for "defmt" ('&CStr' doesn't)
 //
-//      This is actually not a bad thing. The string _is_ a C String, and we don't cause much
-//      trouble for the application by exposing it as such (instead of '&str').
-//
-//      Alternatives could be:
-//          - use lazy init
-//          - expose as '.get_API_REVISION()'; clumsy
-//
-// #help:   If you can show a way how 'bindgen' itself can expose the string as 'CStr', go right ahead!
-//
-pub const API_REVISION: &CStr = {
-    unsafe { CStr::from_bytes_with_nul_unchecked(API_REVISION_r) }
+pub const API_REVISION: &str = {
+    match unsafe{ CStr::from_bytes_with_nul_unchecked(API_REVISION_r) }.to_str() {
+        Ok(s) => s,
+        _ => ""
+    }
 };
 
 /*
