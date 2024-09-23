@@ -32,7 +32,7 @@ impl<P: Platform + 'static> Dispenser<P> {
     }
     pub fn dispense(&mut self) -> Cover<P> {
         Cover(
-            RefCell::new(&mut self.p)
+            RefCell::new(&self.p)
         )
     }
 }

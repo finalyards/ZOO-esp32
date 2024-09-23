@@ -6,6 +6,8 @@
 #![no_std]
 #![no_main]
 
+use anyhow;
+
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
@@ -23,7 +25,6 @@ const D_PROVIDER: Delay = Delay::new();
 
 //extern crate vl53l5cx_flock as flock;
 mod flock_lib;
-use flock_lib as flock;
 
 mod common;
 
@@ -33,8 +34,6 @@ use common::MyPlatform;     // same as for single sensors ('uld')
 
 extern crate vl53l5cx_uld as uld;
 use uld::{
-    Result,
-    VL53L5CX,
     ranging::{
         RangingConfig,
         TargetOrder::CLOSEST,
@@ -44,7 +43,7 @@ use uld::{
     API_REVISION,
 };
 
-use flock::{
+use flock_lib::{
     Flock
 };
 
@@ -54,7 +53,7 @@ fn main() -> ! {
 
     match main2() {
         Err(e) => {
-            panic!("Failed with ULD error code: {}", e);
+            panic!("Failed with: {}", e);
         },
 
         Ok(()) => {
@@ -64,7 +63,7 @@ fn main() -> ! {
     }
 }
 
-fn main2() -> Result<()> {
+fn main2() -> anyhow::Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 

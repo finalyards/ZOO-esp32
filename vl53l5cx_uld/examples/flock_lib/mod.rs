@@ -5,6 +5,7 @@
 * Flock is when you tie multiple sensors together, to gain a larger matrix (and/or orient it in
 * space).
 */
+#[allow(unused_imports)]
 #[cfg(feature = "defmt")]
 use defmt::{debug, error};
 
@@ -24,10 +25,13 @@ use flock_ranging::{
 extern crate vl53l5cx_uld as uld;
 use uld::{
     Platform,
+    PowerMode,
     RangingConfig,
     VL53L5CX_InAction,
     VL53L5CX
 };
+
+type Result<X,const N: usize> = core::result::Result<X,FlockError<N>>;
 
 pub struct Flock<P: Platform + 'static, const N: usize> {
     vls: [VL53L5CX<P>;N],
@@ -57,7 +61,7 @@ impl<P: Platform + 'static, const N: usize> Flock<P,N> {
         //      pinged all boards for existance (i.e. to check their basic wiring). Init takes ~3s
         //      per board; this shows mistakes early on (and it matches 'VL53L5CX' behaviour).
         //
-        let tmp = g.with_each(|| {
+        let tmp = g.with_each(&[();N], |_| {
             let pp = pez.dispense();
             VL53L5CX::new_maybe(pp)
         });
@@ -66,8 +70,15 @@ impl<P: Platform + 'static, const N: usize> Flock<P,N> {
         Self { vls, g }
     }
 
-    pub fn init(self) -> Result<Flock_InAction> {
+    pub fn init(self) -> Result<Flock_InAction<N>,N> {
         unimplemented!()
+    }
+
+    fn with_each<X,F>(&mut self, f: F) -> Result<X,N>
+        where F: Fn(&mut VL53L5CX_InAction) -> uld::Result<X>
+    {
+        let tmp = self.g.with_each(&self.vls, f);
+        join_results(tmp)
     }
 }
 
@@ -81,19 +92,29 @@ impl<const N: usize> Flock_InAction<N>{
     /**
     * @brief Start 'FlockRanging', using all the sensors given.
     */
-    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<FlockRanging<DIM>> {
-        unimplemented!();
+    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<FlockRanging<DIM>,N> {
+        self.with_each(|vl| {
+            vl.start_ranging(cfg)
+        })
     }
 
     //---
     // Maintenance; special use
     //
-    pub fn get_power_mode(&mut self) -> Result<PowerMode> {
-        // Take the first sensor's power mode.
-        unimplemented!();
+    pub fn get_power_mode(&mut self) -> Result<PowerMode,N> {
+        // It's just easier to read them all; though reading just the first would use less bus time.
+        let res= self.g.with_each(|vl| {
+            vl.get_power_mode()
+        });
+        res.map(|modes| {
+            assert!(modes[1..].all(modes[0]));
+            modes[0]
+        })
     }
-    pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        unimplemented!();
+    pub fn set_power_mode(&mut self, v: PowerMode) -> Result<(),N> {
+        self.with_each(|vl| {
+            vl.set_power_mode(v)
+        })
     }
 }
 
@@ -119,21 +140,39 @@ impl<const N: usize> Gate<N> {
     /*
     * Do something on all the sensors.
     */
-    fn with_each<F: Fn() -> Result<()>>(&mut self, f: F) {
-        self.0.iter_mut().for_each(|p| {
+    fn with_each<X,I, F: Fn() -> uld::Result<X>>(&mut self, f: F) -> I<uld::Result<X>>
+        where I: Iterator
+    {
+        let xs = self.0.iter_mut().map(|p| {
             let x;
             p.set_high();
             {
                 x = f();
             }
             p.set_low();
-            let _= x;   // tbd. handling the return values?
-            ()
-        })
+            x
+        });
+        xs
     }
 }
 
-type Result<X,const N: usize> = core::result::Result<X,FlockError<N>>;
+/*
+* Turn 'N' ULD level errors into a 'FlockError', if _any_ of them is a fail.
+*/
+fn join_results<'a, X, const N: usize>(rs: [uld::Result<X>;N]) -> Result<[X;N],N> {
+
+    // Rust note: By checking first, whether there is an error or not, we allow 'rs' to be moved
+    //      individually, within the branches (simplifies coding).
+    //
+    if rs.iter().any(|r| r.is_err()) {
+        let rcs = rs.map(|r| match r { Err(rc) => rc, Ok(_) => 0 });
+        Err(FlockError::new(rcs))
+    } else {
+        // Collect the known-good values, and return.
+        let xs = rs.map(|r| r.unwrap() );
+        Ok(xs)
+    }
+}
 
 #[derive(core::fmt::Debug)]
 pub struct FlockError<const N: usize> {     // tbd. report which sensor(s) misbehaved
@@ -157,20 +196,3 @@ impl<const N: usize> core::fmt::Display for FlockError<N> {
     }
 }
 
-/*
-* Turn 'N' ULD level errors into a 'FlockError', if _any_ of them is a fail.
-*/
-fn join_results<'a, X, const N: usize>(rs: [uld::Result<X>;N]) -> Result<[X;N],N> {
-
-    // Rust note: By checking first, whether there is an error or not, we allow 'rs' to be moved
-    //      individually, within the branches (simplifies coding).
-    //
-    if rs.iter().any(|r| r.is_err()) {
-        let rcs = rs.map(|r| match r { Err(rc) => rc, Ok(_) => 0 });
-        Err(FlockError::new(rcs))
-    } else {
-        // Collect the known-good values, and return.
-        let xs = rs.map(|r| r.unwrap() );
-        Ok(xs)
-    }
-}

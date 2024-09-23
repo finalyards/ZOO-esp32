@@ -31,7 +31,6 @@ use uld_raw::{
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
     vl53l5cx_get_power_mode,
     vl53l5cx_set_power_mode,
-    PowerMode,
     ST_OK, ST_ERROR,
 
     /*** tbd. if needed, bring under features
@@ -45,6 +44,8 @@ use uld_raw::{
     *vl53l5cx_set_VHV_repeat_count,
     */
 };
+pub use uld_raw::PowerMode;
+pub use results_data::ResultsData;
 
 pub type Result<T> = core::result::Result<T,u8>;
 

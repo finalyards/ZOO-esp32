@@ -161,13 +161,13 @@ EXP_x: src/uld_raw.rs
 	@echo ""
 	@echo "Yay!"
 
-# 'build.rs' writes 'tmp/config.h.next' _on every build_. If the _source_ of it (Cargo.toml, and other files affecting
-# the build) is later than 'tmp/config.h' use the new one. Otherwise, they should be the same.
+# 'build.rs' writes 'tmp/config.h.next' on every build.
+# If the contents differ, update 'tmp/config.h'.
 #
-# tbd. We could also compare the two files' contents, do the copy if they are different. Would be tidier...
-#
-tmp/config.h: Cargo.toml build.rs | tmp/config.h.next
-	@cp $| $@
+tmp/config.h: tmp/config.h.next
+	@cmp -s tmp/config.h tmp/config.h.next || \
+	  cp $< $@
+	@rm $<
 
 tmp/config.h.next: Cargo.toml
 	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)

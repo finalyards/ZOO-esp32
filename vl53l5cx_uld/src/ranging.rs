@@ -31,7 +31,7 @@ pub use crate::uld_raw::{   // pass-throughs
 use crate::{
     Result,
     results_data::ResultsData,
-    units::{Ms, Hz}
+    units::{Ms, Hz, TempC}
 };
 
 /* Documentation on 'ResultsData' (aka 'VL53L5CX_ResultsData'):
@@ -77,7 +77,6 @@ pub enum Mode {
     AUTONOMOUS(Ms,Hz)    // (integration time, ranging frequency)
 }
 use Mode::{CONTINUOUS, AUTONOMOUS};
-use crate::results_data::SiliconTempC;
 
 impl Mode {
     fn as_uld(&self) -> RangingMode_R {
@@ -221,7 +220,6 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
 
 pub struct Ranging<'a, const DIM: usize> {    // DIM: 4|8
     vl: &'a mut VL53L5CX_Configuration,
-    buf: VL53L5CX_ResultsData,  // results of the latest '.get_data()' call; overwritten for each scan
     rbuf: ResultsData<DIM>      // Rust-side results store
 }
 
@@ -229,16 +227,10 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
     pub(crate) fn new_maybe(vl: &'b mut VL53L5CX_Configuration, cfg: &RangingConfig<DIM>) -> Result<Self> {
         cfg.apply(vl)?;
 
-        // This causes a little bit copying, but is otherwise clean.
-        let buf = unsafe {
-            MaybeUninit::<VL53L5CX_ResultsData>::zeroed().assume_init()
-        };
-
         match unsafe { vl53l5cx_start_ranging(vl) } {
             ST_OK => {
                 let x = Self{
                     vl,
-                    buf,
                     rbuf: ResultsData::empty()
                 };
                 Ok(x)
@@ -247,7 +239,7 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
         }
     }
 
-    // tbd. Consider (#later), whether this should _alwways_ be called (within 'get_data()');
+    // tbd. Consider (#later), whether this should _always_ be called (within 'get_data()');
     //      there are very few cases (or one: single board with interrupt telling data is available)
     //      where the application could skip the 'is_ready()' call.
     //
@@ -259,6 +251,7 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
         }
     }
 
+    // tbd. consider adding 'time_stamp' as in the Flock
     /*
     * Collect results from the last successful scan. You can call this either after
     *   a) checking for valid results using 'is_ready()', or..
@@ -273,11 +266,17 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
     *       should take (?) care that all reads to these are dropped, before a new round is read.
     *       App level does not need to care.
     */
-    pub fn get_data(&mut self) -> Result<(&ResultsData<DIM>, SiliconTempC)> {
+    pub fn get_data(&mut self) -> Result<(&ResultsData<DIM>, TempC)> {
+        let mut buf = unsafe {
+            // << integers must be initialized (in this struct field): silicon_temp_degc: i8
+            //MaybeUninit::<VL53L5CX_ResultsData>::uninit().assume_init()
 
-        match unsafe { vl53l5cx_get_ranging_data(self.vl, &mut self.buf) } {
+            MaybeUninit::<VL53L5CX_ResultsData>::zeroed().assume_init()
+        };
+
+        match unsafe { vl53l5cx_get_ranging_data(self.vl, &mut buf) } {
             ST_OK => {
-                let temp_c = self.rbuf.feed(&self.buf);
+                let temp_c = self.rbuf.feed(&buf);
                 Ok((&self.rbuf, temp_c))
             },
             e => Err(e)

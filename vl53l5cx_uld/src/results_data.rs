@@ -14,10 +14,10 @@ use core::convert::identity;
 #[cfg(feature = "defmt")]
 #[allow(unused_imports)]
 use defmt::{warn,debug,trace,assert, Format, write};
-use defmt::Formatter;
 use crate::uld_raw::{
     VL53L5CX_ResultsData,
 };
+use crate::units::TempC;
 
 // Note: We could also take in 'TARGETS_PER_ZONE' from the ULD C API wrapper.
 const TARGETS: usize =
@@ -59,16 +59,6 @@ pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     pub signal_per_spad: [[[u32; DIM]; DIM]; TARGETS],
 }
 
-pub struct SiliconTempC(i8);            // "internal sensor silicon temperature"
-                                        // i8: presumably can operate in sub-0°C temperature
-
-#[cfg(feature = "defmt")]
-impl Format for SiliconTempC {
-    fn format(&self, fmt: Formatter) {
-        write!(fmt, "{=i8}°C", self.0);
-    }
-}
-
 impl<const DIM: usize> ResultsData<DIM> {
     /*
     * Provide an empty buffer-like struct; owned usually by the application and fed via 'feed()'.
@@ -98,7 +88,7 @@ impl<const DIM: usize> ResultsData<DIM> {
         }
     }
 
-    pub(crate) fn feed(&mut self, raw_results: &VL53L5CX_ResultsData) -> SiliconTempC {
+    pub(crate) fn feed(&mut self, raw_results: &VL53L5CX_ResultsData) -> TempC {
 
         // helpers
         //
@@ -172,7 +162,7 @@ impl<const DIM: usize> ResultsData<DIM> {
             into_matrix_o(&raw_results.signal_per_spad, i, &mut self.signal_per_spad[i]);
         }
 
-        SiliconTempC(raw_results.silicon_temp_degc)
+        TempC(raw_results.silicon_temp_degc)
     }
 }
 
