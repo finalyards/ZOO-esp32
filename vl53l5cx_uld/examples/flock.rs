@@ -1,5 +1,7 @@
 /*
 * Working with multiple boards
+*
+* We do this by using a 'flock' variant of the drivers.
 */
 #![no_std]
 #![no_main]
@@ -19,13 +21,17 @@ use esp_hal::{
 
 const D_PROVIDER: Delay = Delay::new();
 
-extern crate vl53l5cx_uld as uld;
+//extern crate vl53l5cx_flock as flock;
+mod flock_lib;
+use flock_lib as flock;
+
 mod common;
 
 include!("./pins.in");  // pins!
 
-use common::MyPlatform;
+use common::MyPlatform;     // same as for single sensors ('uld')
 
+extern crate vl53l5cx_uld as uld;
 use uld::{
     Result,
     VL53L5CX,
@@ -38,6 +44,10 @@ use uld::{
     API_REVISION,
 };
 
+use flock::{
+    Flock
+};
+
 #[entry]
 fn main() -> ! {
     init_defmt();
@@ -48,7 +58,7 @@ fn main() -> ! {
         },
 
         Ok(()) => {
-            info!("End of ULD demo");
+            info!("End of FLOCK demo");
             semihosting::process::exit(0);      // back to developer's command line
         }
     }
@@ -59,7 +69,7 @@ fn main2() -> Result<()> {
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, _) = pins!(io);
+    let (SDA, SCL, PWR_EN, LPns) = pins!(io);
 
     let pl = {
         let i2c_bus = I2C::new(
@@ -78,12 +88,12 @@ fn main2() -> Result<()> {
         pin.set_low();
         delay_ms(20);      // tbd. how long is suitable, by the specs?
         pin.set_high();
-        info!("Target powered off and on again.");
+        info!("Targets powered off and on again.");
     }
 
-    let mut vl = VL53L5CX::new_maybe(pl)?.init()?;
+    let mut vls = Flock::new_maybe(pl, LPns)?.init()?;
 
-    info!("Init succeeded, driver version {}", API_REVISION);
+    info!("Init succeeded, {} sensors, driver '{}'", LPns.len(), API_REVISION);
 
     //--- ranging loop
     //
@@ -91,18 +101,18 @@ fn main2() -> Result<()> {
         .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
         .with_target_order(CLOSEST);
 
-    let mut ring = vl.start_ranging(&c)
+    let mut ring = vls.start_ranging(&c)
         .expect("Failed to start ranging");
 
-    for round in 0..10 {
+    for _round in 0..10 {
         while !ring.is_ready().unwrap() {   // poll; 'async' will allow sleep
             delay_ms(5);
         }
 
-        let (res, temp_degc) = ring.get_data()
+        let (res, sensor_id, time_stamp, temp_c) = ring.get_data()
             .expect("Failed to get data");
 
-        info!("Data #{} ({})", round, temp_degc);
+        info!("Data: #{}; {}; stamp={} ms", sensor_id, temp_c, time_stamp);
 
         #[cfg(feature = "target_status")]
         info!(".target_status:    {}", res.target_status);

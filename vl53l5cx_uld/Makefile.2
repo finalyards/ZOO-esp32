@@ -31,8 +31,8 @@ m3:
 	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
 	  $(REMAKE) --no-print-directory _build _run
 
-z multiboard:
-	EXAMPLE=multiboard \
+flock z:
+	EXAMPLE=flock \
 	  FEATURES=distance_mm \
 	  $(REMAKE) --no-print-directory _build _run
 

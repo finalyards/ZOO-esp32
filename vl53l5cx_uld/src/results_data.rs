@@ -13,8 +13,8 @@ use core::convert::identity;
 
 #[cfg(feature = "defmt")]
 #[allow(unused_imports)]
-use defmt::{warn,debug,trace,assert};
-
+use defmt::{warn,debug,trace,assert, Format, write};
+use defmt::Formatter;
 use crate::uld_raw::{
     VL53L5CX_ResultsData,
 };
@@ -26,10 +26,15 @@ const TARGETS: usize =
     else if cfg!(feature = "targets_per_zone_2") { 2 }
     else { 1 };
 
+/*
+* Results data, in matrix format.
+*
+* Note: Scalar metadata ('silicon_temp_degc') that ULD C API treats as a result is being delivered
+*       separately. This is mainly a matter of taste: many of the matrix "results" are actually
+*       also metadata. Only '.distance_mm' and (likely) '.reflectance_percent' can be seen as
+*       actual results. It doesn't really matter.
+*/
 pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
-    // Scalar metadata
-    pub silicon_temp_degc: i8,                  // "internal sensor silicon temperature"
-
     // Metadata: DIMxDIM matrix, regardless of 'TARGETS'
     //
     #[cfg(feature = "ambient_per_spad")]
@@ -52,6 +57,16 @@ pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     pub reflectance: [[[u8; DIM]; DIM]; TARGETS],
     #[cfg(feature = "signal_per_spad")]
     pub signal_per_spad: [[[u32; DIM]; DIM]; TARGETS],
+}
+
+pub struct SiliconTempC(i8);            // "internal sensor silicon temperature"
+                                        // i8: presumably can operate in sub-0°C temperature
+
+#[cfg(feature = "defmt")]
+impl Format for SiliconTempC {
+    fn format(&self, fmt: Formatter) {
+        write!(fmt, "{=i8}°C", self.0);
+    }
 }
 
 impl<const DIM: usize> ResultsData<DIM> {
@@ -80,12 +95,10 @@ impl<const DIM: usize> ResultsData<DIM> {
             signal_per_spad: [[[0;DIM];DIM];TARGETS],
             #[cfg(feature = "reflectance_percent")]
             reflectance: [[[0;DIM];DIM];TARGETS],
-
-            silicon_temp_degc: 0
         }
     }
 
-    pub(crate) fn feed(&mut self, raw_results: &VL53L5CX_ResultsData) {
+    pub(crate) fn feed(&mut self, raw_results: &VL53L5CX_ResultsData) -> SiliconTempC {
 
         // helpers
         //
@@ -159,9 +172,7 @@ impl<const DIM: usize> ResultsData<DIM> {
             into_matrix_o(&raw_results.signal_per_spad, i, &mut self.signal_per_spad[i]);
         }
 
-        // Scalar metadata
-        //
-        self.silicon_temp_degc = raw_results.silicon_temp_degc;     // i8: presumably can operate sub-0°C temperature ❄️❄️
+        SiliconTempC(raw_results.silicon_temp_degc)
     }
 }
 
@@ -204,3 +215,4 @@ impl TargetStatus {
         }
     }
 }
+

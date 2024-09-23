@@ -97,3 +97,7 @@ default = ["target_status", "nb_targets_detected"]
 [[example]]
 name = "m3"
 required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
+
+[[example]]
+name = "flock"
+required-features = ["defmt", "distance_mm"]

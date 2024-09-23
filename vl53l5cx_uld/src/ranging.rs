@@ -77,6 +77,7 @@ pub enum Mode {
     AUTONOMOUS(Ms,Hz)    // (integration time, ranging frequency)
 }
 use Mode::{CONTINUOUS, AUTONOMOUS};
+use crate::results_data::SiliconTempC;
 
 impl Mode {
     fn as_uld(&self) -> RangingMode_R {
@@ -272,12 +273,12 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
     *       should take (?) care that all reads to these are dropped, before a new round is read.
     *       App level does not need to care.
     */
-    pub fn get_data(&mut self) -> Result<&ResultsData<DIM>> {
+    pub fn get_data(&mut self) -> Result<(&ResultsData<DIM>, SiliconTempC)> {
 
         match unsafe { vl53l5cx_get_ranging_data(self.vl, &mut self.buf) } {
             ST_OK => {
-                self.rbuf.feed(&self.buf);
-                Ok(&self.rbuf)
+                let temp_c = self.rbuf.feed(&self.buf);
+                Ok((&self.rbuf, temp_c))
             },
             e => Err(e)
         }
