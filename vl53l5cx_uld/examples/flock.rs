@@ -23,7 +23,6 @@ use esp_hal::{
 
 const D_PROVIDER: Delay = Delay::new();
 
-//extern crate vl53l5cx_flock as flock;
 mod flock_lib;
 
 mod common;
@@ -104,12 +103,14 @@ fn main2() -> anyhow::Result<()> {
         .expect("Failed to start ranging");
 
     for _round in 0..10 {
-        while !ring.is_ready().unwrap() {   // poll; 'async' will allow sleep
-            delay_ms(5);
-        }
+        debug!("Round #{}", _round);
 
-        let (res, sensor_id, time_stamp, temp_c) = ring.get_data()
-            .expect("Failed to get data");
+        let (res, sensor_id, time_stamp, temp_c) = {
+            match ring.get_data()? {
+                None => { delay_ms(5); continue; },     // no increment of '_round'? tbd.
+                Some(t) => t
+            }
+        };
 
         info!("Data: #{}; {}; stamp={} ms", sensor_id, temp_c, time_stamp);
 

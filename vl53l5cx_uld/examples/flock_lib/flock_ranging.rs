@@ -25,7 +25,7 @@ pub struct FlockRanging<'a, const DIM: usize, const N: usize> {
     rings: [uld::Ranging<'a, DIM>;N]
 }
 
-impl<const DIM: usize, const N: usize> FlockRanging<DIM,N> {
+impl<const DIM: usize, const N: usize> FlockRanging<'_, DIM,N> {
 
     /*
     * Return data from all the sensors. 'None' if a sensor's data is not available.

@@ -29,6 +29,7 @@ pub use crate::uld_raw::{   // pass-throughs
     TargetOrder,
 };
 use crate::{
+    Error,
     Result,
     results_data::ResultsData,
     units::{Ms, Hz, TempC}
@@ -172,33 +173,33 @@ impl<const DIM: usize> RangingConfig<DIM> {
 
         match unsafe { vl53l5cx_set_resolution(vl, ULD_RESO as u8) } {  // reso value: 16 (4x4); 64 (8x8)
             ST_OK => Ok(()),
-            e => Err(e)
+            e => Err(Error(e))
         }?;
 
         if let AUTONOMOUS(Ms(ms), Hz(freq)) = self.mode {
             match unsafe { vl53l5cx_set_integration_time_ms(vl, ms as u32) } {
                 ST_OK => Ok(()),
-                e => Err(e)
+                e => Err(Error(e))
             }?;
             match unsafe { vl53l5cx_set_ranging_frequency_hz(vl, freq) } {
                 ST_OK => Ok(()),
-                e => Err(e)
+                e => Err(Error(e))
             }?;
         }
 
         match unsafe { vl53l5cx_set_ranging_mode(vl, self.mode.as_uld() as _) } {
             ST_OK => Ok(()),
-            e => Err(e)
+            e => Err(Error(e))
         }?;
 
         match unsafe { vl53l5cx_set_sharpener_percent(vl, self.sharpener_prc.unwrap_or(0)) } {
             ST_OK => Ok(()),
-            e => Err(e)
+            e => Err(Error(e))
         }?;
 
         match unsafe { vl53l5cx_set_target_order(vl, self.target_order as _) } {
             ST_OK => Ok(()),
-            e => Err(e)
+            e => Err(Error(e))
         }?;
 
         Ok(())
@@ -235,7 +236,7 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
                 };
                 Ok(x)
             },
-            e => Err(e)
+            e => Err(Error(e))
         }
     }
 
@@ -247,7 +248,7 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
         let mut tmp: u8 = 0;
         match unsafe { vl53l5cx_check_data_ready(self.vl, &mut tmp) } {
             ST_OK => Ok(tmp != 0),
-            e => Err(e)
+            e => Err(Error(e))
         }
     }
 
@@ -279,7 +280,7 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
                 let temp_c = self.rbuf.feed(&buf);
                 Ok((&self.rbuf, temp_c))
             },
-            e => Err(e)
+            e => Err(Error(e))
         }
     }
 }

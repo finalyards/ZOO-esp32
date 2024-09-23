@@ -17,6 +17,7 @@ use core::{
     ptr::addr_of_mut,
     result::Result as CoreResult,
 };
+use core::fmt::{Display, Formatter};
 pub use ranging::{
     RangingConfig,
     Ranging,
@@ -47,7 +48,18 @@ use uld_raw::{
 pub use uld_raw::PowerMode;
 pub use results_data::ResultsData;
 
-pub type Result<T> = core::result::Result<T,u8>;
+pub type Result<T> = core::result::Result<T,Error>;
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(core::fmt::Debug)]
+pub struct Error(pub u8);
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Driver or hardware level error ({})", self.0)
+    }
+}
+
 
 /**
 * @brief App provides, to talk to the I2C and do blocking delays.
@@ -176,7 +188,7 @@ impl VL53L5CX_Configuration {
             //
             match vl53l5cx_init(up) {
                 0 => Ok(uninit.assume_init()),  // we guarantee it's now initialized
-                e => Err(e)
+                e => Err(Error(e))
             }
         };
         ret
@@ -196,7 +208,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     * a suitable sensor out there. ((Not idiomatic Rust; let's see how it feels in practice.))
     */
     pub fn new_maybe(/*move*/ mut p: P) -> Result<Self> {
-        Self::ping(&mut p).map_err(|_| ST_ERROR)?;
+        Self::ping(&mut p).map_err(|_| Error(ST_ERROR))?;
 
         Ok(Self {
             p
@@ -219,7 +231,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
             t => {
                 #[cfg(feature="defmt")]
                 error!("Unexpected '(device id, rev id)': {:#04x}", t);
-                Err(())?
+                return Err(());
             }
         }
         Ok(())
@@ -262,13 +274,13 @@ impl VL53L5CX_InAction {
         let mut tmp: u8 = 0;
         match unsafe { vl53l5cx_get_power_mode(&mut self.vl, &mut tmp) } {
             ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
-            e => Err(e)
+            e => Err(Error(e))
         }
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
         match unsafe { vl53l5cx_set_power_mode(&mut self.vl, v as u8) } {
             ST_OK => Ok(()),
-            e => Err(e)
+            e => Err(Error(e))
         }
     }
 

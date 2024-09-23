@@ -31,15 +31,48 @@ use uld::{
     VL53L5CX
 };
 
-type Result<X,const N: usize> = core::result::Result<X,FlockError<N>>;
+type Result<X> = core::result::Result<X,FlockError>;
 
-pub struct Flock<P: Platform + 'static, const N: usize> {
-    vls: [VL53L5CX<P>;N],
-    g: Gate<N>
+#[derive(core::fmt::Debug)]
+struct FlockError{ sensor_id: u8, e: u8 }
+
+/*
+* Helper that wraps both 'uld::VL54L5CX' (initially) and 'uld::VL54L5CX_InAction' (later). We
+* just pair those with the gate-keeper 'LPn' signals for each sensor.
+*/
+struct GatedPairs<T, const N: usize> {
+    pairs: [(T, Output<'static>);N]
 }
 
-impl<P: Platform + 'static, const N: usize> Flock<P,N> {
+impl<T,X, const N: usize> GatedPairs<T,N> {
+    /*
+    * Run given function on all the 'uld' instances; raise each board's 'LPn' gate before (lower after),
+    * to select them.
+    *
+    * If there is an error, can either cancel immediately or gather all the possible results (in either
+    * case, gathered results will be lost).
+    */
+    fn with_each<F>(&mut self, f: F) -> Result<X>
+        where F: Fn(T) -> uld::Result<X>
+    {
+        let xs = self.pairs.iter_mut().map(|(v,LPn)| {
+            let x;
+            LPn.set_high();
+            {
+                x = f();
+            }
+            LPn.set_low();
+            x
+        });
+        join_results(xs.as_slice())
+    }
+}
 
+pub type Flock<P: Platform + 'static, const N: usize> = GatedPairs<VL53L5CX<P>,N>;
+
+pub type FlockInAction<const N: usize> = GatedPairs<VL53L5CX_InAction,N>;
+
+impl<P: Platform + 'static, const N: usize> Flock<P,N> {
     /*
     * Provided a 'Platform' (for accessing I2C) and a number of chip-select pins (for picking the
     * particular sensor):
@@ -50,49 +83,62 @@ impl<P: Platform + 'static, const N: usize> Flock<P,N> {
     * extends them to all the sensors.
     */
     #[allow(non_snake_case)]
-    pub fn new_maybe(/*move*/ mut p: P, LPns: [Output<'static>;N]) -> Result<Self,N> {
-        let mut g = Gate::new(LPns).init();
+    pub fn new_maybe(/*move*/ mut p: P, LPns: [Output<'static>;N]) -> Result<Self> {
+        //R let mut g = Gate::new(LPns).init();
 
         let mut pez = Dispenser::new(p);
+        let dispense = || pez.dispense();
 
         // Create (and ping) each of the boards.
         //
         // Note: It's important we don't proceed to initialization (firmware upload) before having
-        //      pinged all boards for existance (i.e. to check their basic wiring). Init takes ~3s
-        //      per board; this shows mistakes early on (and it matches 'VL53L5CX' behaviour).
+        //      pinged all boards for existence (i.e. to check their basic wiring). This approach
+        //      shows (wiring?) mistakes early on - and it matches 'VL53L5CX::new_maybe()' behaviour.
         //
-        let tmp = g.with_each(&[();N], |_| {
-            let pp = pez.dispense();
+
+        // Rust note: If there was '.try_map()' (similar to '.try_for_each' but collecting the success values),
+        //      this would be doable in one loop.
+        //
+        let tmp = LPns.iter().enumerate().map( move |(i,LPn)| {
+            let pp = dispense();
             VL53L5CX::new_maybe(pp)
+                .map( |vl| (vl,LPn) )
         });
-        let vls= join_results(tmp)?;
 
-        Self { vls, g }
+        if tmp.iter().any(|x| x.is_err()) {
+            let (i,Err(e)) = tmp.enumerate().find(|(i,x)| x.is_err());
+            Err(FlockError{sensor_id: i as u8,e})
+        } else {
+            let pairs = tmp.map(|x| x.unwrap());
+            Ok( Self{ pairs } )
+        }
     }
 
-    pub fn init(self) -> Result<Flock_InAction<N>,N> {
-        unimplemented!()
-    }
+    pub fn init(mut self) -> Result<Flock_InAction<N>> {
+        let mut buf: [Option<(VL53L5CX_InAction,Output<'static>)>;N] = [None;N];
 
-    fn with_each<X,F>(&mut self, f: F) -> Result<X,N>
-        where F: Fn(&mut VL53L5CX_InAction) -> uld::Result<X>
-    {
-        let tmp = self.g.with_each(&self.vls, f);
-        join_results(tmp)
+        let tmp = self.with_each(|vl| {
+            vl.init()
+        })?;
+
+        for (i,((_,LPn),x)) in self.pairs.iter().zip(tmp).enumerate() {
+            buf[i] = Some((x,LPn))
+        }
+
+        buf.map( Option::unwrap )
     }
 }
 
 #[allow(non_camel_case_types)]
 pub struct Flock_InAction<const N: usize> {
-    vls: [VL53L5CX_InAction;N],
-    g: Gate<N>
+    pairs: [(VL53L5CX_InAction,Output<'static>);N],
 }
 
 impl<const N: usize> Flock_InAction<N>{
     /**
     * @brief Start 'FlockRanging', using all the sensors given.
     */
-    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<FlockRanging<DIM>,N> {
+    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<FlockRanging<DIM,N>> {
         self.with_each(|vl| {
             vl.start_ranging(cfg)
         })
@@ -101,7 +147,7 @@ impl<const N: usize> Flock_InAction<N>{
     //---
     // Maintenance; special use
     //
-    pub fn get_power_mode(&mut self) -> Result<PowerMode,N> {
+    pub fn get_power_mode(&mut self) -> Result<PowerMode> {
         // It's just easier to read them all; though reading just the first would use less bus time.
         let res= self.g.with_each(|vl| {
             vl.get_power_mode()
@@ -111,7 +157,7 @@ impl<const N: usize> Flock_InAction<N>{
             modes[0]
         })
     }
-    pub fn set_power_mode(&mut self, v: PowerMode) -> Result<(),N> {
+    pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
         self.with_each(|vl| {
             vl.set_power_mode(v)
         })
@@ -120,42 +166,24 @@ impl<const N: usize> Flock_InAction<N>{
 
 
 /*
-* Wrap of the pins that are used for enabling just a single VL53L5CX, at a time.
+* Turn 'N' ULD level results into a single Flock 'Result'.
 */
-struct Gate<const N: usize>(
-    [Output<'static>;N]
-);
+fn join_results<'a, X, const N: usize>(rs: [uld::Result<X>;N]) -> Result<[X;N]> {
 
-impl<const N: usize> Gate<N> {
-    #[allow(non_snake_case)]
-    fn new(LPns: [Output<'static>;N]) -> Self {
-        Self(LPns)
-    }
-
-    fn init(mut self) -> Self {
-        self.0.iter_mut().for_each(|p| p.set_low());  // disable all sensors
-        self
-    }
-
-    /*
-    * Do something on all the sensors.
-    */
-    fn with_each<X,I, F: Fn() -> uld::Result<X>>(&mut self, f: F) -> I<uld::Result<X>>
-        where I: Iterator
-    {
-        let xs = self.0.iter_mut().map(|p| {
-            let x;
-            p.set_high();
-            {
-                x = f();
-            }
-            p.set_low();
-            x
-        });
-        xs
+    // Rust note: By checking first, whether there is an error or not, we allow 'rs' to be moved
+    //      individually, within the branches (simplifies coding).
+    //
+    if rs.iter().any(|r| r.is_err()) {
+        let (i,e) = rs.enumerate().find(|(_,r)| r.is_err());
+        FlockError{ sensor_id: i, e }
+    } else {
+        // all values are good
+        let xs: [X;N] = rs.map( Result::unwrap );
+        Ok(xs)
     }
 }
 
+/*** disabled; KEEP in case we want to report all failed accesses, not just first??
 /*
 * Turn 'N' ULD level errors into a 'FlockError', if _any_ of them is a fail.
 */
@@ -195,4 +223,4 @@ impl<const N: usize> core::fmt::Display for FlockError<N> {
         write!(f, "Error on sensor(s): {}", self.failed_sensors())
     }
 }
-
+***/

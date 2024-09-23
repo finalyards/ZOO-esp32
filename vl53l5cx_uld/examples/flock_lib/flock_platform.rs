@@ -21,18 +21,20 @@ use uld::{
 * Sharing the one 'Platform' to multiple (sequential) users.
 */
 pub struct Dispenser<P: Platform + 'static> {
-    p: P
+    rc_p: RefCell<P>
 }
 
 pub struct Cover<P: Platform + 'static>(RefCell<P>);    // needed for implementing 'Platform' on the spread type
 
 impl<P: Platform + 'static> Dispenser<P> {
     pub fn new(p: P) -> Self {
+
         Self{p}
     }
+
     pub fn dispense(&mut self) -> Cover<P> {
         Cover(
-            RefCell::new(&self.p)
+            RefCell::new(self.p)
         )
     }
 }
