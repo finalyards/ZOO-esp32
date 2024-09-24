@@ -1,7 +1,7 @@
 /*
 * 'Flock-platform' uses interior mutability [1] to share a single, application side 'Platform'
-* with multiple sensors access. The access to said sensors is serialized - our code handles only
-* one at a time, so the Rust guarantees on (mutable) references are fulfilled.
+* with multiple sensors access. Access to the sensors is serialized, so the Rust guarantees on
+* references are fulfilled.
 *
 * References:
 *   - The Rust Programming Language > RefCell<T> and the Interior Mutability Pattern
@@ -13,15 +13,13 @@ use core::{
 };
 
 extern crate vl53l5cx_uld as uld;
-use uld::{
-    Platform,
-};
+use uld::Platform;
 
 /*
 * Sharing the one 'Platform' to multiple (sequential) users.
 */
 pub struct Dispenser<P: Platform + 'static> {
-    rc_p: RefCell<P>
+    cell: RefCell<P>
 }
 
 pub struct Cover<P: Platform + 'static>(RefCell<P>);    // needed for implementing 'Platform' on the spread type
@@ -29,12 +27,12 @@ pub struct Cover<P: Platform + 'static>(RefCell<P>);    // needed for implementi
 impl<P: Platform + 'static> Dispenser<P> {
     pub fn new(p: P) -> Self {
 
-        Self{p}
+        Self{rc_p}
     }
 
     pub fn dispense(&mut self) -> Cover<P> {
         Cover(
-            RefCell::new(self.p)
+            RefCell::new(self.rc_p)
         )
     }
 }

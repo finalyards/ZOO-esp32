@@ -49,6 +49,10 @@ _CLANG:=clang
 all:
 	@false
 
+# The targets that 'build.rs' normally builds (for debugging, in case make fails)
+manual: tmp/libvendor_uld.a src/uld_raw.rs
+	@echo "\nManual build succeeded."
+
 #---
 # Build the static library
 #
@@ -123,7 +127,13 @@ endif
 #
 #	NOTE: Pretty vital to raise logging level (for non-internals) to 'WARN'. Can be done!!
 #
-src/uld_raw.rs: wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) $(_MAKEFILE_INNER) tmp/config.h
+#	NOTE: 'build.rs' will rebuild the file on each run. This is important since the feature set may change (and we have
+#		no way of knowing it in here; think a user running 'cargo build --example' separately, with different features.
+#
+#		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
+#			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
+#
+src/uld_raw.rs: wrap.h | $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
@@ -164,10 +174,12 @@ EXP_x: src/uld_raw.rs
 # 'build.rs' writes 'tmp/config.h.next' on every build.
 # If the contents differ, update 'tmp/config.h'.
 #
+# Note: Keep the 'tmp/config.h.next' around - if we were to remove it, running 'make manual' repeatedly (for debugging?)
+#		would fail.
+#
 tmp/config.h: tmp/config.h.next
 	@cmp -s tmp/config.h tmp/config.h.next || \
 	  cp $< $@
-	@rm $<
 
 tmp/config.h.next: Cargo.toml
 	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)
@@ -175,8 +187,7 @@ tmp/config.h.next: Cargo.toml
 #---
 _clean:
 	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
-		tmp/config.h tmp/config.h.* \
-		examples/pins.in	# not created by the Makefile (yet)
+		tmp/config.h tmp/config.h.*
 
 _klean: _clean
 	cargo clean
@@ -186,3 +197,7 @@ echo:
 
 #--
 .PHONY: all _clean _klean echo
+
+# #hack For some reason, giving '-B' from 'build.rs' didn't work. By declaring the file '.PHONY' we make sure it's
+#	always recreated
+.PHONY: src/uld_raw.rs

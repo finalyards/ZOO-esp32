@@ -168,13 +168,16 @@ fn main() -> Result<()> {
     // make stuff
     //
     let st = Command::new("make")
+        //.arg("-B")
         .arg("tmp/libvendor_uld.a")    // ULD C library
         .arg("src/uld_raw.rs")      // generate the ULD Rust bindings
         .output()
-        .expect("could not spawn `make`")   // shown if 'make' not found on PATH
+        .expect("to be able to launch `make`")   // shown if 'make' not found on PATH
         .status;
 
-    assert!(st.success(), "[ERROR]: Running 'make' failed");    // shown if 'make' returns a non-zero
+    assert!(st.success(), "[ERROR!]: Running 'make' failed. \
+        SUGGESTION: run 'make manual' on the command line to see more error information. \
+    ");
 
     // Link arguments
     //
