@@ -59,7 +59,7 @@ fn main2() -> Result<()> {
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, _) = pins!(io);
+    let (SDA, SCL, PWR_EN) = pins!(io);
 
     let pl = {
         let i2c_bus = I2C::new(

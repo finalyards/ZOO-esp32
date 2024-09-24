@@ -1,6 +1,7 @@
 
 // tbd. find standard structs for 'Hz', 'ms'; are there such?
 
+#[cfg(feature = "defmt")]
 use defmt::{Format, Formatter};
 
 #[derive(Clone)]

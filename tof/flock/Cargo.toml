@@ -1,9 +1,9 @@
 [package]
-name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
+name = "flock"
 edition = "2021"
 rust-version = "1.80"
-    # 1.80: checks for validity of configuration names
-    # 1.77.0 provides `cargo::` syntax for build script output instructions
+    # 1.80 checks for validity of configuration names
+    # 1.77 provides `cargo::` syntax for build script output instructions
 publish = false
 
 # 'esp-hal' recommends only using 'release', so...
@@ -21,7 +21,7 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 defmt           = { version = "0.3.8", optional = true }
-strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
+vl53l5cx_uld    = { path = "../../vl53l5cx_uld", features = ["target_status"] }     # "defmt"
 
 [dev-dependencies]
 anyhow          = { version = "1.0.89", default-features = false }
@@ -29,8 +29,6 @@ defmt-rtt       = { version = "0.4.1" }
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 #esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c6"] }     # "async"
 esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }     # "async"; use "next-api" feature
-#esp-println     = { version = "0.11.0", default-features = false, features = ["uart", "esp32c6"] }
-# ^-- for stdout output #soon
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
 semihosting     = { version = "0.1.15" }     # "args"
@@ -41,46 +39,30 @@ itertools       = "0.13.0"
 serde           = { version = "1.0.210", features = ["derive"] }
 toml            = "0.8.19"
 
-# C compile-time features
+# ULD C compile-time features
 #
-# Note: The names reflect the C side #define's (except for being lower case)
-#
-# Features define what fields are available in the ranging output. They actually drive the C library compilation.
-# More fields means more I2C comms and more code size, so you will benefit from keeping the list tight.
-#
-# NOTE:
-#   Some features are connected to others. We check this in 'build.rs'.
+# These are reflected further to 'vl53l5cx_uld'
 #
 [features]
-ambient_per_spad=[]     # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
-nb_spads_enabled=[]     # VL53L5CX_DISABLE_NB_SPADS_ENABLED
-signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
-range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
-distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
-reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
+ambient_per_spad=   ["vl53l5cx_uld/ambient_per_spad"]
+nb_spads_enabled=   ["vl53l5cx_uld/nb_spads_enabled"]
+signal_per_spad=    ["vl53l5cx_uld/signal_per_spad"]
+range_sigma_mm=     ["vl53l5cx_uld/range_sigma_mm"]
+distance_mm=        ["vl53l5cx_uld/distance_mm"]
+reflectance_percent= ["vl53l5cx_uld/reflectance_percent"]
 
-# These are suggested to be always enabled, by the vendor
-target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
-nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
+# For more than 1 "target per zone":
+targets_per_zone_2= ["vl53l5cx_uld/targets_per_zone_2"]
+targets_per_zone_3= ["vl53l5cx_uld/targets_per_zone_2"]
+targets_per_zone_4= ["vl53l5cx_uld/targets_per_zone_2"]
 
-# The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
-# If you want to see more, enable these:
-targets_per_zone_2=[]
-targets_per_zone_3=[]
-targets_per_zone_4=[]
+defmt = ["dep:defmt", "vl53l5cx_uld/defmt"]
 
-defmt = ["dep:defmt"]
-
-# Was thought to be used with 'set-address', but since we don't set addresses.. not needed.
-#|# Enable to try 'semihosting' 'args' feature, which IS EXPERIMENTAL. It likely works, but probe-rs doesn't like it.
-#|# Without this, we do a work-around.
-#|semihosting_args = [ "semihosting/args" ]
-
-default = ["target_status", "nb_targets_detected"]
+default = []
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
 #
 [[example]]
-name = "m3"
-required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
+name = "flock"
+required-features = ["defmt", "distance_mm"]

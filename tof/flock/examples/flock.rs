@@ -23,16 +23,14 @@ use esp_hal::{
 
 const D_PROVIDER: Delay = Delay::new();
 
-mod flock_lib;
-
+extern crate flock;
 mod common;
 
 include!("./pins.in");  // pins!
 
 use common::MyPlatform;     // same as for single sensors ('uld')
 
-extern crate vl53l5cx_uld as uld;
-use uld::{
+use vl53l5cx_uld::{
     ranging::{
         RangingConfig,
         TargetOrder::CLOSEST,

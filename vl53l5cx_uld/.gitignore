@@ -12,7 +12,5 @@
 /VL53L5CX_ULD_driver_2.0.0
   # ^-- allows symbolic link
 
-/c-examples-TEMP/
-
 # TEMP
-/err*.log
+#/c-examples-TEMP/

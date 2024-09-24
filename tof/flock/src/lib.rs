@@ -1,10 +1,10 @@
-/*
-* tbd. THIS WILL LIKELY BECOME A CRATE OF ITS OWN, so the 'vl53l5cx_uld' is left for catering
-*       to single-board interfacing only.
-*
-* Flock is when you tie multiple sensors together, to gain a larger matrix (and/or orient it in
-* space).
-*/
+#![no_std]
+//#![allow(non_snake_case)]
+
+mod f_gated;
+mod f_platform;
+mod f_ranging;
+
 #[allow(unused_imports)]
 #[cfg(feature = "defmt")]
 use defmt::{debug, error};
@@ -13,17 +13,15 @@ use esp_hal::{
     gpio::Output
 };
 
-mod flock_platform;
-use flock_platform::{
+use f_platform::{
     Dispenser
 };
-mod flock_ranging;
-use flock_ranging::{
+use f_ranging::{
     FlockRanging
 };
+use f_gated::GateKeeper;
 
-extern crate vl53l5cx_uld as uld;
-use uld::{
+use vl53l5cx_uld::{
     Platform,
     PowerMode,
     RangingConfig,
@@ -36,41 +34,9 @@ type Result<X> = core::result::Result<X,FlockError>;
 #[derive(core::fmt::Debug)]
 struct FlockError{ sensor_id: u8, e: u8 }
 
-/*
-* Helper that wraps both 'uld::VL54L5CX' (initially) and 'uld::VL54L5CX_InAction' (later). We
-* just pair those with the gate-keeper 'LPn' signals for each sensor.
-*/
-struct GatedPairs<T, const N: usize> {
-    pairs: [(T, Output<'static>);N]
-}
+pub type Flock<P: Platform + 'static, const N: usize> = GateKeeper<VL53L5CX<P>,N>;
 
-impl<T,X, const N: usize> GatedPairs<T,N> {
-    /*
-    * Run given function on all the 'uld' instances; raise each board's 'LPn' gate before (lower after),
-    * to select them.
-    *
-    * If there is an error, can either cancel immediately or gather all the possible results (in either
-    * case, gathered results will be lost).
-    */
-    fn with_each<F>(&mut self, f: F) -> Result<X>
-        where F: Fn(T) -> uld::Result<X>
-    {
-        let xs = self.pairs.iter_mut().map(|(v,LPn)| {
-            let x;
-            LPn.set_high();
-            {
-                x = f();
-            }
-            LPn.set_low();
-            x
-        });
-        join_results(xs.as_slice())
-    }
-}
-
-pub type Flock<P: Platform + 'static, const N: usize> = GatedPairs<VL53L5CX<P>,N>;
-
-pub type FlockInAction<const N: usize> = GatedPairs<VL53L5CX_InAction,N>;
+pub type FlockInAction<const N: usize> = GateKeeper<VL53L5CX_InAction,N>;
 
 impl<P: Platform + 'static, const N: usize> Flock<P,N> {
     /*
@@ -129,19 +95,12 @@ impl<P: Platform + 'static, const N: usize> Flock<P,N> {
     }
 }
 
-#[allow(non_camel_case_types)]
-pub struct Flock_InAction<const N: usize> {
-    pairs: [(VL53L5CX_InAction,Output<'static>);N],
-}
-
-impl<const N: usize> Flock_InAction<N>{
+impl<const N: usize> FlockInAction<N>{
     /**
     * @brief Start 'FlockRanging', using all the sensors given.
     */
     pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<FlockRanging<DIM,N>> {
-        self.with_each(|vl| {
-            vl.start_ranging(cfg)
-        })
+        FlockRanging::new(cfg, &self)
     }
 
     //---

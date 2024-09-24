@@ -183,8 +183,7 @@ fn main() -> Result<()> {
     //
     // Note: Is it okay to do this in a lib crate?  We want it to affect at least the 'examples'.
     {
-        #[allow(unused_mut)]
-        let mut link_args: Vec<&str> = vec!(    // 'mut' in case we wish to conditionally add stuff
+        let /*mut*/ link_args: Vec<&str> = vec!(
             "-Tlinkall.x",
             "-Tdefmt.x"     // required by 'defmt'
         );
@@ -196,9 +195,6 @@ fn main() -> Result<()> {
 
     println!("cargo:rustc-link-search=tmp");
     println!("cargo:rustc-link-lib=static=vendor_uld");
-
-    // Allow using '#[cfg(disabled)]' for block-disabling code
-    println!("cargo::rustc-check-cfg=cfg(disabled)");
 
     Ok(())
 }

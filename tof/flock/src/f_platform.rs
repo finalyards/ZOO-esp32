@@ -12,32 +12,28 @@ use core::{
     result::Result as CoreResult
 };
 
-extern crate vl53l5cx_uld as uld;
-use uld::Platform;
+use vl53l5cx_uld::Platform;
 
 /*
 * Sharing the one 'Platform' to multiple (sequential) users.
 */
-pub struct Dispenser<P: Platform + 'static> {
-    cell: RefCell<P>
-}
-
-pub struct Cover<P: Platform + 'static>(RefCell<P>);    // needed for implementing 'Platform' on the spread type
+pub struct Dispenser<P: Platform + 'static>(
+    RefCell<P>
+);
 
 impl<P: Platform + 'static> Dispenser<P> {
     pub fn new(p: P) -> Self {
-
-        Self{rc_p}
-    }
-
-    pub fn dispense(&mut self) -> Cover<P> {
-        Cover(
-            RefCell::new(self.rc_p)
-        )
+        Self( RefCell::new(p) )
     }
 }
 
-impl<P: Platform + 'static> Platform for Cover<P> {
+/*
+* Rust note:
+*   It's _cool_ (and ...weird?) how Rust allows one to implement traits on _references_.
+*   But it's really handy. This means "if you have a (read-only; can be multiple) reference to
+*   'Dispenser', you can use it as a ULD 'Platform'. SO NEAT!
+*/
+impl<P: Platform + 'static> Platform for &Dispenser<P> {
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> CoreResult<(), ()> {
         self.0.get_mut().rd_bytes(index, buf)
     }
