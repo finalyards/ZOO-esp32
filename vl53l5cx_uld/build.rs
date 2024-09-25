@@ -37,20 +37,20 @@ fn main() -> Result<()> {
     // If IDE runs, terminate early.
     if IDE_RUN { return Ok(()) };
 
-    /***
     // DEBUG: Show what we know about the compilation.
     //
-    // Potentially useful env.vars.
+    // <<
     //   CARGO_CFG_TARGET_FEATURE=c,m
     //   CARGO_FEATURE_{..feature..}=1
     //   LD_LIBRARY_PATH=/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release/deps:/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib
     //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
     //   TARGET=riscv32imc-unknown-none-elf
-    //
+    // <<
+    #[cfg(not(all()))]
     {
-        env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); }); std::process::exit(1);
+        std::env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
+        std::process::exit(1);
     }
-    ***/
 
     // Pick the current MCU. To be used as board id for 'pins.toml'.
     //

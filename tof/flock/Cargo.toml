@@ -21,14 +21,14 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 defmt           = { version = "0.3.8", optional = true }
+#esp-hal         = { version = "0.20.1", features = ["esp32c6"] }     # "defmt", "async"
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c6"] }     # "defmt", "async"; use "next-api" feature
 vl53l5cx_uld    = { path = "../../vl53l5cx_uld", features = ["target_status"] }     # "defmt"
 
 [dev-dependencies]
 anyhow          = { version = "1.0.89", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
-#esp-hal         = { version = "0.20.1", features = ["defmt", "esp32c6"] }     # "async"
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }     # "async"; use "next-api" feature
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
 semihosting     = { version = "0.1.15" }     # "args"
@@ -56,7 +56,7 @@ targets_per_zone_2= ["vl53l5cx_uld/targets_per_zone_2"]
 targets_per_zone_3= ["vl53l5cx_uld/targets_per_zone_2"]
 targets_per_zone_4= ["vl53l5cx_uld/targets_per_zone_2"]
 
-defmt = ["dep:defmt", "vl53l5cx_uld/defmt"]
+defmt = ["dep:defmt", "vl53l5cx_uld/defmt", "esp-hal/defmt"]
 
 default = []
 

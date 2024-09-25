@@ -20,6 +20,17 @@ REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
+# Detect 'cargo' build cache
+#
+# 'cargo' stores output in a 'target' dir, but such is not necessary to keep in the project folder. [1]
+#
+#	[1]: Cargo Book > Build cache
+#		https://doc.rust-lang.org/stable/cargo/guide/build-cache.html
+#
+# tbd. The right approach is likely to let 'cargo' runners handle this.
+#
+CARGO_TARGET_DIR:=target	# tbd. proper detection
+
 all:
 	@false
 
@@ -33,12 +44,12 @@ flock z:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --timings --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 
 _run:
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/$(EXAMPLE)
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(CARGO_TARGET_DIR)/$(TARGET)/release/examples/$(EXAMPLE)
 
 echo:
-	@echo a
+	@echo $(CARGO_TARGET_DIR)
 
 .PHONY: all flock z _build _run echo

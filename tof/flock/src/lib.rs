@@ -1,9 +1,8 @@
 #![no_std]
-//#![allow(non_snake_case)]
 
-mod f_gated;
-mod f_platform;
-mod f_ranging;
+mod gatekeeper;
+mod platform;
+mod ranging;
 
 #[allow(unused_imports)]
 #[cfg(feature = "defmt")]
@@ -13,13 +12,13 @@ use esp_hal::{
     gpio::Output
 };
 
-use f_platform::{
+use platform::{
     Dispenser
 };
-use f_ranging::{
+use ranging::{
     FlockRanging
 };
-use f_gated::GateKeeper;
+pub(crate) use gatekeeper::GateKeeper;
 
 use vl53l5cx_uld::{
     Platform,
@@ -29,10 +28,10 @@ use vl53l5cx_uld::{
     VL53L5CX
 };
 
-type Result<X> = core::result::Result<X,FlockError>;
+type Result<X> = core::result::Result<X,self::Error>;
 
 #[derive(core::fmt::Debug)]
-struct FlockError{ sensor_id: u8, e: u8 }
+struct Error{ sensor_id: u8, e: u8 }
 
 pub type Flock<P: Platform + 'static, const N: usize> = GateKeeper<VL53L5CX<P>,N>;
 
@@ -50,10 +49,12 @@ impl<P: Platform + 'static, const N: usize> Flock<P,N> {
     */
     #[allow(non_snake_case)]
     pub fn new_maybe(/*move*/ mut p: P, LPns: [Output<'static>;N]) -> Result<Self> {
-        //R let mut g = Gate::new(LPns).init();
+        let mut shared_p = RefCell::new(p);
 
-        let mut pez = Dispenser::new(p);
-        let dispense = || pez.dispense();
+        // We start by having an "empty" GateKeeper, but turn the 'LPns' into its ownership already
+        // here. From this on, things proceed by mapping.
+        //
+        let g: GateKeeper<(),N> = GateKeeper::new([();N], LPns);
 
         // Create (and ping) each of the boards.
         //
@@ -61,45 +62,28 @@ impl<P: Platform + 'static, const N: usize> Flock<P,N> {
         //      pinged all boards for existence (i.e. to check their basic wiring). This approach
         //      shows (wiring?) mistakes early on - and it matches 'VL53L5CX::new_maybe()' behaviour.
         //
-
-        // Rust note: If there was '.try_map()' (similar to '.try_for_each' but collecting the success values),
-        //      this would be doable in one loop.
-        //
-        let tmp = LPns.iter().enumerate().map( move |(i,LPn)| {
-            let pp = dispense();
+        g.map(|_| {
+            let pp = shared_p.clone();     // get a new ULD-level 'Platform'
             VL53L5CX::new_maybe(pp)
-                .map( |vl| (vl,LPn) )
-        });
-
-        if tmp.iter().any(|x| x.is_err()) {
-            let (i,Err(e)) = tmp.enumerate().find(|(i,x)| x.is_err());
-            Err(FlockError{sensor_id: i as u8,e})
-        } else {
-            let pairs = tmp.map(|x| x.unwrap());
-            Ok( Self{ pairs } )
-        }
+        })
     }
 
-    pub fn init(mut self) -> Result<Flock_InAction<N>> {
-        let mut buf: [Option<(VL53L5CX_InAction,Output<'static>)>;N] = [None;N];
-
-        let tmp = self.with_each(|vl| {
+    pub fn init(mut self) -> Result<FlockInAction<N>> {
+        self.map(|vl| {
             vl.init()
-        })?;
-
-        for (i,((_,LPn),x)) in self.pairs.iter().zip(tmp).enumerate() {
-            buf[i] = Some((x,LPn))
-        }
-
-        buf.map( Option::unwrap )
+        })
     }
 }
 
 impl<const N: usize> FlockInAction<N>{
     /**
     * @brief Start 'FlockRanging', using all the sensors given.
+    *
+    * This will start the sensors "doing their thing". The caller can either observe an interrupt
+    * line, or busy-wait until some data becomes available. Note that the caller retains their
+    * ownership to the 'LPn' signals.
     */
-    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<FlockRanging<DIM,N>> {
+    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<ranging::FlockRanging<DIM,N>> {
         FlockRanging::new(cfg, &self)
     }
 
@@ -108,7 +92,7 @@ impl<const N: usize> FlockInAction<N>{
     //
     pub fn get_power_mode(&mut self) -> Result<PowerMode> {
         // It's just easier to read them all; though reading just the first would use less bus time.
-        let res= self.g.with_each(|vl| {
+        let res= self.g.with_each(|&mut vl| {
             vl.get_power_mode()
         });
         res.map(|modes| {
@@ -117,69 +101,8 @@ impl<const N: usize> FlockInAction<N>{
         })
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        self.with_each(|vl| {
+        self.with_each(|&mut vl| {
             vl.set_power_mode(v)
         })
     }
 }
-
-
-/*
-* Turn 'N' ULD level results into a single Flock 'Result'.
-*/
-fn join_results<'a, X, const N: usize>(rs: [uld::Result<X>;N]) -> Result<[X;N]> {
-
-    // Rust note: By checking first, whether there is an error or not, we allow 'rs' to be moved
-    //      individually, within the branches (simplifies coding).
-    //
-    if rs.iter().any(|r| r.is_err()) {
-        let (i,e) = rs.enumerate().find(|(_,r)| r.is_err());
-        FlockError{ sensor_id: i, e }
-    } else {
-        // all values are good
-        let xs: [X;N] = rs.map( Result::unwrap );
-        Ok(xs)
-    }
-}
-
-/*** disabled; KEEP in case we want to report all failed accesses, not just first??
-/*
-* Turn 'N' ULD level errors into a 'FlockError', if _any_ of them is a fail.
-*/
-fn join_results<'a, X, const N: usize>(rs: [uld::Result<X>;N]) -> Result<[X;N],N> {
-
-    // Rust note: By checking first, whether there is an error or not, we allow 'rs' to be moved
-    //      individually, within the branches (simplifies coding).
-    //
-    if rs.iter().any(|r| r.is_err()) {
-        let rcs = rs.map(|r| match r { Err(rc) => rc, Ok(_) => 0 });
-        Err(FlockError::new(rcs))
-    } else {
-        // Collect the known-good values, and return.
-        let xs = rs.map(|r| r.unwrap() );
-        Ok(xs)
-    }
-}
-
-#[derive(core::fmt::Debug)]
-pub struct FlockError<const N: usize> {     // tbd. report which sensor(s) misbehaved
-    rcs: [u8;N],
-}
-
-impl<const N: usize> FlockError<N> {
-    fn new(rcs: [u8;N]) -> Self {
-        Self{rcs}
-    }
-    fn failed_sensors<I: Iterator>(&self) -> I {
-        self.rcs.iter().enumerate()
-            .filter(|i,rc| rc != 0)
-            .map(|i,_| i)
-    }
-}
-
-impl<const N: usize> core::fmt::Display for FlockError<N> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Error on sensor(s): {}", self.failed_sensors())
-    }
-}
-***/

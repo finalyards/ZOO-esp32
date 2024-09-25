@@ -7,6 +7,7 @@ use esp_hal::{
 };
 
 use vl53l5cx_uld::{
+    self as uld,
     ranging::RangingConfig,
     TempC,
     VL53L5CX_InAction
@@ -24,18 +25,17 @@ impl TimeStamp {
     }
 }
 
-pub struct FlockRanging<'a, const DIM: usize, const N: usize> {
-    rings: [uld::Ranging<'a, DIM>;N],
-    g: &'a RefCell<GateKeeper<VL53L5CX_InAction>>
-}
+pub type FlockRanging</*'a,*/ const DIM: usize, const N: usize> =
+    GateKeeper<uld::Ranging</*'a,*/ DIM>,N>;
 
 impl<'a, const DIM: usize, const N: usize> FlockRanging<'_, DIM,N> {
-    fn new(cfg: &RangingConfig<DIM>, g: &'a RefCell<GateKeeper<VL53L5CX_InAction>>) -> Self {
+    pub(crate) fn new(cfg: &RangingConfig<DIM>, g: &'a RefCell<GateKeeper<VL53L5CX_InAction,N>>) -> Self {
 
-        let rings: [_;N] = g.get_mut().with_each(|vl| {
+        let gr = g.map(|&mut vl| {
             vl.start_ranging(cfg)
-        });
-        Self{ rings, g }
+        })?;
+
+        Self{ gr }
     }
 
     /*
@@ -64,21 +64,21 @@ impl<'a, const DIM: usize, const N: usize> FlockRanging<'_, DIM,N> {
         //
         // Closest time stamps _after_ measurement of each result.
         //
-        let tss: [Option<u64>;N] = self.g.get_mut().with_each(|vl| {
-            if vl.is_ready() {
+        let tss: [Option<u64>;N] = self.gr.get_mut().with_each(|&mut ring| {
+            if ring.is_ready() {
                 Some( now().duration_since_epoch().to_micros() )
             } else {
                 None
             }
         })?;
 
-        let tmp: [Option<_>;N] = self.g.get_mut().with_each_zip(tss, |(vl,ts_maybe)| {
+        let tmp: [Option<_>;N] = self.gr.get_mut().with_each_zip(tss, |(&mut ring,ts_maybe)| {
             // For those sensors we know to have data, fetch it. 'uld::Error' return values are
             // collected and converted by 'with_each_zip'.
             //
             match ts_maybe {
                 Some(ts) => {
-                    vls.get_data()
+                    ring.get_data()
                         .map(|t| (t.0,t.1,ts))  // (data, silicon temperature, time stamp)
                 },
                 None => Ok(None)

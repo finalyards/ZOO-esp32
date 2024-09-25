@@ -163,18 +163,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
         trace!("🔸 {}ms", ms);
         delay_ms(ms);
     }
-
-    /*
-    * Called when the application has changed the I2C address of a device. Further communication
-    * should be using this new address.
-    */
-    #[cfg(not(all()))]
-    fn addr_changed(&mut self, new_addr_8bit: u8) {
-        panic!("address change not implemented");
-
-        // was (but chose not to go this way):
-        //self.addr = I2C_Addr::from_8bit(new_addr_8bit)
-    }
 }
 
 fn slice_head(vs: &[u8],n_max: usize) -> &[u8] {

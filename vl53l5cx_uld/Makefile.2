@@ -20,6 +20,17 @@ REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
+# Cargo 'target' path can be overridden
+#
+# - '.cargo/config.toml' > 'build.target-dir' in _any_ of the parent folders (!!!)
+# - 'CARGO_BUILD_TARGET_DIR' and 'CARGO_TARGET_DIR' env.vars
+#
+# Overriding is EXTREMELY RECOMMENDED at least on Multipass VM (default is so in 'mp'). 13x SPEED IMPROVEMENT
+# over mapping the files to host.
+#
+CARGO_TARGET_DIR:=target
+	# tbd. detect the folder 'cargo' uses!!!
+
 all:
 	@false
 
@@ -36,7 +47,7 @@ _build:
 	$(LOG_ENV) cargo build --timings --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 
 _run:
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) target/$(TARGET)/release/examples/$(EXAMPLE)
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(CARGO_TARGET_DIR)/$(TARGET)/release/examples/$(EXAMPLE)
 
 echo:
 	@echo a

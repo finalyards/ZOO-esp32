@@ -1,5 +1,8 @@
 // THIS IS A COPY from '../../vl53l5cx_uld/examples/common.rs' (almost)
 
+// tbd. Since the 'flock' lib anyways has a dependency on 'esp-hal', consider making this part
+//      of the lib.
+
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, trace, panic};
 
@@ -163,18 +166,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     fn delay_ms(&mut self, ms: u32) {
         trace!("🔸 {}ms", ms);
         delay_ms(ms);
-    }
-
-    /*
-    * Called when the application has changed the I2C address of a device. Further communication
-    * should be using this new address.
-    */
-    #[cfg(not(all()))]
-    fn addr_changed(&mut self, new_addr_8bit: u8) {
-        panic!("address change not implemented");
-
-        // was (but chose not to go this way):
-        //self.addr = I2C_Addr::from_8bit(new_addr_8bit)
     }
 }
 
