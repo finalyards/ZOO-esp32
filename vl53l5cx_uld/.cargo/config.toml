@@ -34,7 +34,3 @@ runner = ["probe-rs", "run", "--log-format={{t:dimmed} [{L:bold}]} {s}  {{c} {ff
     #       '[...] --log-format {L} {s}'    # NBSP
     #
     # For syntax, see -> https://defmt.ferrous-systems.com/custom-log-output#metadata-specifiers
-
-# These only affect 'nightly'
-[unstable]
-gc = true

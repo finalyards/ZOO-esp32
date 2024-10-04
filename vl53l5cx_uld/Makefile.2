@@ -20,34 +20,30 @@ REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
-# Cargo 'target' path can be overridden
-#
-# - '.cargo/config.toml' > 'build.target-dir' in _any_ of the parent folders (!!!)
-# - 'CARGO_BUILD_TARGET_DIR' and 'CARGO_TARGET_DIR' env.vars
-#
-# Overriding is EXTREMELY RECOMMENDED at least on Multipass VM (default is so in 'mp'). 13x SPEED IMPROVEMENT
-# over mapping the files to host.
-#
-CARGO_TARGET_DIR:=target
-	# tbd. detect the folder 'cargo' uses!!!
-
 all:
 	@false
-
-# Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
-#		feature.
 
 m3:
 	EXAMPLE=m3 \
 	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-	  $(REMAKE) --no-print-directory _build _run
+	  $(REMAKE) --no-print-directory _build_run
 
 #---
-_build:
-	$(LOG_ENV) cargo build --timings --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
-
-_run:
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(CARGO_TARGET_DIR)/$(TARGET)/release/examples/$(EXAMPLE)
+# Because of how 'target' folder logic is **DEEPLY** embedded in 'cargo' (it can be defined by three ways):
+#	<<
+#		can set the 'CARGO_TARGET_DIR' environment variable, the 'build.target-dir' config value, or the '--target-dir'
+#		command-line flag.
+#	<<
+# ..it's safest to just play dead and let 'cargo' handle this via its 'runner' mechanism (i.e. we cannot have separate
+# '_build' and '_run' targets, and launch 'probe-rs' from here). Unfortunately (also?) we cannot separately ask
+# 'cargo run' to "only run". It always also builds.
+#
+# Note:
+#	There is a way to sniff the target folder, by simply having "echo" (or something similar) as the 'runner'.
+#	But that would be a hack.
+#
+_build_run:
+	$(LOG_ENV) cargo run --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 
 echo:
 	@echo a

@@ -38,6 +38,11 @@ $ sudo apt install llvm-dev libclang-dev clang
 $ cargo install bindgen-cli
 ```
 
+<!-- author's note:
+`bindgen` is available also via `apt`, but the version seems to lag behind (perhaps is special for the Linux kernel use; don't know). At the time, `cargo install` is 0.70.1 while `apt show bindgen` gives:
+>Version: 0.66.1-4
+-->
+
 >Note: Bindgen docs recommend using it as a library, but we prefer to use it as a command line tool.
 
 
@@ -45,16 +50,17 @@ $ cargo install bindgen-cli
 
 ### The vendor C libary
 
-The [VL53L5CX_ULD library](https://www.st.com/en/embedded-software/stsw-img023.html) is a separate download.
+The `VL53L5CX_ULD_API` (ULD C driver) is a separate download.
 
-1. Fetch it from ST (link above)
-2. Unzip and place it to `./VL53L5CX_ULD_driver_2.0.0`
+1. [Fetch it](https://www.st.com/en/embedded-software/stsw-img023.html) from ST
+2. Unzip it to a suitable location
+3. `export VL53L5CX_ULD_API={your-path}/VL53L5CX_ULD_API`
 
-	Note that while you need to `Agree` to the larger ST.com license, it has the clause: 
-	
-	>Open Source Software [...] is not subject to the terms of this PLLA to the extent [...]
-	
-	Overall, the ST.com licensing seems awkward to the author; that's why I'm leaving this part to you!  In practise, the above part is likely BSD 3-clause, but the process doesn't make it at all clear!!! **@ST.com: please, you can improve upon this.**
+	>Note: The way the vendor makes you "sign" an agreement, while downloading the driver package; yet presents it as:
+	>
+	>>*Open Source Software [...] is not subject to the terms of this PLLA to the extent [...]*
+	>
+	>..is *confusing* to say the least. If you agree, let the [vendor know](https://community.st.com/t5/imaging-sensors/bd-p/imaging-sensors-forum). They could simply place this work available online with the stated BSD 3-clause license; no commercial hoops required. **@ST.com: please, you can improve upon this.** 🙂
 
 
 ### Supported dev kits
@@ -63,11 +69,14 @@ The workflow has been tested on these MCUs:
 
 |||
 |---|---|
-|`esp32c3` (default)|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) dev kit, with JTAG/USB wiring added|
+|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) dev kit, with JTAG/USB wiring added|
 |`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
-|`esp32`|[Adafruit ESP32 Feather V2](https://www.adafruit.com/product/5400); use a separate branch `adafruit-feather-v2`|
 
-Between RISC V variants, the code allows you to change targets rather easily, back and forth. To do this, run `./set-target.sh` .
+<!-- tbd.
+|`esp32`|[Adafruit ESP32 Feather V2](https://www.adafruit.com/product/5400); use a separate branch `adafruit-feather-v2`|
+-->
+
+Between MCU variants, the code allows you to change targets rather easily, back and forth. To do this, run `./set-target.sh` .
 
 ### Wiring
 
@@ -75,7 +84,7 @@ See [WIRING](./WIRING.md) for how you are expected to wire a single SATEL board 
 
 ### Using multiple boards
 
-See [Working with multiple boards](./Working%20with%20multiple%20boards.md) if you intend to have multiple sensors. There are some hoops involved in that setup.
+See [`tof/flock/README`](../flock/README.md) if you intend to have multiple sensors. There are some hoops involved in that setup.
 
 
 ## Compiling 
@@ -86,11 +95,11 @@ $ cargo build --release --lib
 
 This compiles the library, and is a good place to start. 
 
->One thing to note about the library is that it's fully hardware agnostic; this is something we inherit from the approach of the vendor ULD C API. *Your code* (represented by `examples/` in this repo) brings in, for example, how to drive the I2C bus.
+>One thing to note about the library is that it's fully hardware agnostic; this is something we inherit from the approach of the vendor ULD C API. *Your code* (represented by `examples/` in this repo) brings in, for example, how to drive the I2C bus. This means only `examples` is MCU specific.
 
 <span />
 
->The command uses `Makefile` internally. If there are problems with the build, you may want to run the Makefile separately (see below).
+>The command uses `Makefile` internally. If there are problems with the build, you may want to run the Makefile separately:
 >
 >```
 >$ make src/uld_raw.rs tmp/libvendor_uld.a
@@ -109,7 +118,7 @@ The following debug probes were found:
 ```
 
 ```
-$ cargo run --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent,defmt --example m2
+$ cargo run --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent,defmt --example m3
 [...]
       Erasing ✔ [00:00:02] [######################] 256.00 KiB/256.00 KiB @ 98.28 KiB/s (eta 0s )
   Programming ✔ [00:00:47] [######################] 104.38 KiB/104.38 KiB @ 2.21 KiB/s (eta 0s )    
@@ -133,7 +142,7 @@ $ cargo run --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_en
 
 That's a bunch of features!!!
 
-You can steer the `m2` example's behaviour by the set of features you define. Equally, the `targets_per_zone_2` defines the "depth" of possibly separate targets, per zone, that the sensor will report.
+You can steer the `m3` example's behaviour by the set of features you define. Equally, the `targets_per_zone_2` defines the "depth" of possibly separate targets, per zone, that the sensor will report.
 
 >Playing with these will be more fun once we get graphical tools to show the data, instead of matrices.
 

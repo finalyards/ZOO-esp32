@@ -15,6 +15,9 @@
 #	- patch
 #	- clang
 #
+# Env.vars:
+#	- VL53L5CX_ULD_API={path}	Folder where the vendor C sources are placed
+#
 # Note: 'bindgen' docs show how that tool builds a static library, when used as a Rust library. We take a very similar
 #		approach, but use 'bindgen' CLI instead of the library.
 #
@@ -23,7 +26,7 @@
 #
 # Note: Unconditional (manual) make with 'make -B' MAY BE CURRENTLY BROKEN. Just run 'make _clean', instead. #tbd.
 #
-_VL53L5CX_ULD_API:=VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API
+VL53L5CX_ULD_API?=./VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API
 
 _TMP:=./tmp/
 _C_SRC:=tmp/c_src
@@ -69,15 +72,15 @@ tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffer
 # 	- places e.g. headers and C files in the same folder, for convenience
 #	- removes a nasty! reference to a field in a structure that's supposed to be customer-made and opaque
 #
-$(_C_SRC)/%.h: $(_VL53L5CX_ULD_API)/inc/%.h
+$(_C_SRC)/%.h: $(VL53L5CX_ULD_API)/inc/%.h
 	@cp $< $@
 
-$(_C_SRC)/vl53l5cx_api.c: $(_VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch
+$(_C_SRC)/vl53l5cx_api.c: $(VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch
 	patch $< ./patch -o $@
 
 # Error at root level, if vendor sources aren't there
-ifeq ("$(wildcard $(_VL53L5CX_ULD_API)/src/*)", "")
-$(error ST.com ULD driver not found; please download and place in the folder $(_VL53L5CX_ULD_API))
+ifeq ("$(wildcard $(VL53L5CX_ULD_API)/src/*)", "")
+$(error ST.com ULD driver not found; please download and place in the folder $(VL53L5CX_ULD_API))
 endif
 
 #---
@@ -133,7 +136,7 @@ endif
 #		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
 #			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
 #
-src/uld_raw.rs: wrap.h | $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h
+src/uld_raw.rs: wrap.h | $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h bindgen
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
@@ -184,6 +187,12 @@ tmp/config.h: tmp/config.h.next
 tmp/config.h.next: Cargo.toml
 	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)
 
+# Check that 'bindgen' CLI is installed
+bindgen:
+	@which bindgen >/dev/null || ( \
+	  echo >&2 "ERROR: 'bindgen' CLI not detected. Please install via 'cargo install bindgen-cli'."; false \
+	)
+
 #---
 _clean:
 	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
@@ -193,10 +202,10 @@ _klean: _clean
 	cargo clean
 
 echo:
-	@echo $(_CLANG)
+	@echo $(VL53L5CX_ULD_API)
 
 #--
-.PHONY: all _clean _klean echo
+.PHONY: all bindgen _clean _klean echo
 
 # #hack For some reason, giving '-B' from 'build.rs' didn't work. By declaring the file '.PHONY' we make sure it's
 #	always recreated
