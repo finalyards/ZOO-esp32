@@ -34,7 +34,7 @@ TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -
 _OUT_DIR:=.OUT_DIR
 
 # Note! Defined with '=' so that it gets re-evaluated on-site!
-OUT_DIR_EXAMPLES=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')
+_OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
 
 all:
 	@false
@@ -52,9 +52,9 @@ _build:
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(OUT_DIR_EXAMPLES)/$(EXAMPLE)
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
-	@echo $(OUT_DIR_EXAMPLES)
+	@echo $(_OUT_EXAMPLE)
 
 .PHONY: all abc _build _run echo

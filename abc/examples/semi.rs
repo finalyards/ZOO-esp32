@@ -14,12 +14,12 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;
 use esp_hal::{
+    delay::Delay,
     prelude::*,
     time::now
 };
 
 use semihosting::{
-    io::Read,
     println,
     process
 };
@@ -30,30 +30,69 @@ fn main() -> ! {
     init_heap();
 
     match main2() {
-        Err(e) => {
-            panic!("Failed with: {:?}", e);
-        },
-
-        Ok(()) => {
-            process::exit(0);      // back to developer's command line
-        }
+        Err(e) => panic!("Failed with: {:?}", e),
+        Ok(()) => process::exit(0)      // back to developer's command line
     }
 }
 
 fn main2() -> Result<()> {
-    println!("Hi from semihosting!");
+    println!("Hi from semihosting!");     // works, but gets smudged with 'defmt' output
 
-    let mut stdio = semihosting::io::stdin()?;
-    let mut buf = [0u8;1];
+    // Args
+    {
+        // tbd. tried before; didn't work
+    }
 
-    loop {
-        let n = stdio.read(&mut buf)?;
-        match n {
-            0 => {},
-            1 => break,
-            _ => {
-                debug!("{=u8:#04x}",&buf[0]);
+    // Time
+    //  >> WARN probe_rs::cmd::run::normal_run_mode: Target wanted to run semihosting operation 0x11 with parameter 0x0,but probe-rs does not support this operation yet. Continuing...
+    #[cfg(not(all()))]
+    {
+        use semihosting::experimental::time::SystemTime;
+
+        let x = SystemTime::now();
+        debug!("time is: {}", x.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+    }
+
+    // FS
+    // Reading a file
+    //  >> WARN probe_rs::cmd::run: Target wanted to open file foo, but probe-rs does not support this operation yet. Continuing...
+    #[cfg(not(all()))]
+    {
+        let mut f = semihosting::fs::File::open(c"foo.txt")?;
+        /***let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        assert_eq!(contents, "Hello, world!");
+        ***/
+    }
+
+    // FS
+    // Writing to a file
+    //  >> WARN probe_rs::cmd::run: Target wanted to open file a.txt, but probe-rs does not support this operation yet. Continuing...
+    //  >> WARN probe_rs::cmd::run::normal_run_mode: Target wanted to run semihosting operation 0x13 with parameter 0x0,but probe-rs does not support this operation yet. Continuing...
+    {
+        semihosting::fs::write(c"a.txt", "abc")?;
+    }
+
+    // STDIO
+    // Reading from the terminal (aiming at interactive control: LEFT, RIGHT, ENTER etc.!!!)
+    //
+    //WARN probe_rs::cmd::run: Target wanted to open file :tt with mode 114, but probe-rs does not support this operation yet. Continuing...
+    #[cfg(not(all()))]
+    {
+        let mut stdio = semihosting::io::stdin()?;
+        let mut buf = [0u8; 1];
+
+        loop {
+            let n = stdio.read(&mut buf)?;
+            debug!("{} read: {}", n, &buf[0]);
+            match n {
+                0 => {},
+                1 => break,
+                _ => {
+                    debug!("{=u8:#04x}",&buf[0]);
+                }
             }
+            delay_ms(500);
         }
     }
 
@@ -90,7 +129,7 @@ fn init_heap() {
     use esp_alloc as _;
     use core::mem::MaybeUninit;
 
-    const HEAP_SIZE: usize = 32 * 1024;
+    const HEAP_SIZE: usize = 8 * 1024;     // 'esp_alloc' docs aim at 32K
     static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
 
     unsafe {
@@ -100,4 +139,9 @@ fn init_heap() {
             esp_alloc::MemoryCapability::Internal.into(),
         ));
     }
+}
+
+const D_PROVIDER: Delay = Delay::new();
+fn delay_ms(ms: u32) {
+    D_PROVIDER.delay_millis(ms);
 }

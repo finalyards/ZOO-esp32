@@ -30,4 +30,6 @@ esp-hal         = { version = "0.21.0", features = ["esp32c3", "defmt"] }     # 
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
-semihosting     = { version = "0.1.16", features=["stdio"] } # "args" is not supported on ESP32 (RISC V); Oct'24
+semihosting     = { version = "0.1.16", features=["stdio", "fs", "time"] }
+                    # "stdio":  WARN probe_rs::cmd::run: Target wanted to open file :tt with mode 114, but probe-rs does not support this operation yet. Continuing...
+                    # "args" is not supported by 'probe-rs'; Oct'24
