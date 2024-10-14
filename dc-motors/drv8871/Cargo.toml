@@ -1,0 +1,51 @@
+[package]
+name = "drv8871"
+edition = "2021"
+rust-version = "1.80"
+    # 1.80 checks for validity of configuration names
+    # 1.77 provides `cargo::` syntax for build script output instructions
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+codegen-units = 16
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+panic       = "abort"
+lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dependencies]
+defmt           = { version = "0.3.8", optional = true }
+embedded-hal    = "1.0.0"
+#esp-hal         = { version = "0.20.1", features = ["esp32c3"] }     # "defmt", "async"
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3"] }     # "defmt", "async"
+
+[dev-dependencies]
+defmt-rtt       = { version = "0.4.1" }
+esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
+fugit           = { version = "0.3.7", features = ["defmt"] }
+    # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
+#nb              = { version = "1.1.0" }
+semihosting     = { version = "0.1.15" }     # "args"
+
+[build-dependencies]
+anyhow          = "1.0.89"
+serde           = { version = "1.0.210", features = ["derive"] }
+toml            = "0.8.19"
+
+[features]
+defmt = ["dep:defmt", "esp-hal/defmt"]
+
+default = []
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared.
+#
+[[example]]
+name = "abc"
+required-features = []

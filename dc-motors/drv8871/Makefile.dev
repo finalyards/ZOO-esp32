@@ -1,0 +1,36 @@
+#
+# This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
+#
+# Usage:
+#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=...] make -f Makefile.dev {abc|...}
+#
+DEFMT_LOG?=debug
+FEATURES?=
+
+LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
+
+DEFMT_FEATURES:=defmt
+
+REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
+
+# Read the 'TARGET' from './cargo/config.toml'
+#
+TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+	# riscv32imac-unknown-none-elf
+
+all:
+	@false
+
+abc:
+	EXAMPLE=abc \
+	  FEATURES= \
+	  $(REMAKE) --no-print-directory _build_run
+
+#---
+_build_run:
+	$(LOG_ENV) cargo run --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+
+echo:
+	@echo $(CARGO_TARGET_DIR)
+
+.PHONY: all abc _build_run echo
