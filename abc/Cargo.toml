@@ -1,0 +1,35 @@
+[package]
+name = "abc"
+edition = "2021"
+rust-version = "1.81"
+    # 1.81: anyhow: "With versions of Rust older than 1.81, 'no_std' mode may require..." i.e. we like some 1.81. :)
+    # 1.80 checks for validity of configuration names
+    # 1.77 provides `cargo::` syntax for build script output instructions
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+codegen-units = 16
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dev-dependencies]
+anyhow          = { version = "1.0.89", default-features = false }
+defmt           = { version = "0.3.8" }
+defmt-rtt       = { version = "0.4.1" }
+esp-alloc       = { version="0.5.0" }   # required for using 'anyhow' MCU-side
+esp-hal         = { version = "0.21.0", features = ["esp32c3", "defmt"] }     # "async"
+#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3", "defmt"] }     # "async"
+esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
+fugit           = { version = "0.3.7", features = ["defmt"] }
+    # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
+semihosting     = { version = "0.1.16", features=["stdio", "fs", "time"] }
+                    # "stdio":  WARN probe_rs::cmd::run: Target wanted to open file :tt with mode 114, but probe-rs does not support this operation yet. Continuing...
+                    # "args" is not supported by 'probe-rs'; Oct'24
