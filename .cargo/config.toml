@@ -1,0 +1,23 @@
+#
+# References:
+#   - Cargo Book > Configuration
+#       -> https://doc.rust-lang.org/cargo/reference/config.html
+#
+[build]
+# The bare minimums (from esp-template [1]) needed for RISC V. IF THERE WAS A WAY TO DECLARE THESE IN 'build.rs',
+# that's where they'd go!!!
+#
+#   [1]: https://github.com/esp-rs/esp-template/blob/main/.cargo/config.toml
+#
+rustflags = [
+    # "Required to obtain backtraces, however it may negatively impact the performance of your application."
+    #
+    # Note: Interesting discussion in:
+    #   - "`force-frame-pointers` flag isn't honored always unless std is recompiled as such"
+    #       -> https://github.com/rust-lang/rust/issues/103711 (GitHub Issues; [closed])
+    #
+    "-C", "force-frame-pointers",
+]
+
+[target.'cfg(all())']   # unconditional '[target]'
+runner = ["probe-rs", "run", "--log-format={{t:dimmed} [{L:bold}]} {s}  {{c} {ff}:{l:1}%dimmed}"]

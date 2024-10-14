@@ -72,15 +72,19 @@ fn main2() -> Result<(),u8> {
         let val: u16 = nb::block!(adc1.read_oneshot(&mut adc1_pin))
             .unwrap();
 
-        info!("ADC value: {}", val);
+        info!("ADC: {=f32}", convert(val));  // 'defmt' doesn't support a precision hint (e.g. ':.1'); would need to make our own
         delay_ms(10);
     }
 
     Ok(())
 }
 
-fn convert(raw: u16) -> u8 {
+/*
+* Convert the ADC raw value to voltage
+*/
+fn convert(raw: u16) -> f32 {   // tbd. would need to know the attenuation and what-not
 
+    raw as f32 * (5.5 / 4095.0)
 }
 
 /*
