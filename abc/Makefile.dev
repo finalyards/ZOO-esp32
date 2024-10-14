@@ -1,0 +1,60 @@
+#
+# This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
+#
+# Usage:
+#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=...] make -f Makefile.dev {abc|...}
+#		# builds and runs a certain sample
+#
+DEFMT_LOG?=debug
+FEATURES?=
+
+LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
+
+DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
+
+REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
+
+# Read the 'TARGET' from './cargo/config.toml'
+#
+TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+	# riscv32imac-unknown-none-elf
+
+# Detect 'cargo' build cache
+#
+# NOTE: This is not very easy. Cargo only exposes the path (which can be defined in THREE different ways!) within
+#		its own build system (as 'OUT_DIR' env.var.); there is no CLI way to ask for it.. Which is fine.
+#
+#		We have 'build.rs' write the path to '.OUT_DIR', from where we can pick it up, for running.
+#
+# YES: The author knows one can use Cargo runners. But this feels more free.
+#
+#	[1]: Cargo Book > Build cache
+#		https://doc.rust-lang.org/stable/cargo/guide/build-cache.html
+#
+_OUT_DIR:=.OUT_DIR
+
+# Note! Defined with '=' so that it gets re-evaluated on-site!
+_OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
+
+all:
+	@false
+
+# Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
+#		feature.
+
+abc:
+	EXAMPLE=semi \
+	  $(REMAKE) --no-print-directory _build _run
+
+#---
+_build:
+	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
+	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
+
+_run:
+	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
+
+echo:
+	@echo $(_OUT_EXAMPLE)
+
+.PHONY: all abc _build _run echo
