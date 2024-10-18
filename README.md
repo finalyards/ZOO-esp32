@@ -1,27 +1,31 @@
-# Sensors with Rust and Embassy
+# Embedded Zoo - Sensors and Actuators 
+
+## ..with [Rust](https://www.rust-lang.org) and [Embassy](https://embassy.dev)
 
 <!-- tbd. Zoo picture & styling -->
 
-## Aim of the repo
+It's quite elaborate to take in new sensors to a project. It's about:
 
-It's quite elaborate to take in new sensors to a project. It's about
-
+- selecting the right part(s)
+   - considering sourcability, price, features
 - reading the documentation
 - ensuring drivers fit
 - learning the quirks that are not necessarily documented, anywhere
 
-This repo plans to cover various sensors, interesting to the author, and provide reliable, maintained Rust (Embassy) bindings to them.
+This repo plans to cover various sensors (things that measure stuff) and actuators (things that make other things move), interesting to its author, and provide reliable, maintained Rust (Embassy) bindings to them.
 
-It does not aim to be a cover-it-all. You may suggest sensors to bring in, but likely it's better to start a similar repo for the sensors you feel strongly about - and are willing to maintain.
+If there are sensors you'd like to be covered, perhaps start your own Zoo? The selection is restricted to ones the author can (and will) actively test and maintain; the ones he is interested in.
 
 
 ## Menu
 
 ||folder|what is it?|stability|comments|
 |---|---|---|---|---|
-|**Time of flight** distance sensors|
-|![](.images/about/vl53l5cx_uld.png)|[`vl53l5cx_uld`](vl53l5cx_uld/README.md)|Time-of-flight distance sensor; 4x4 (60Hz) or 8x8 (15Hz), up to 400cm|usable; beta||
+|**DC motors & controllers** (brushed)|
+|![](.images/about/drv8871.png)|[`dc-motors/drv8871`](dc-motors/drv8871/README.md)|Controller for brushed (simple) DC motors - 6.5..45V, 3.6A max|WIP||
+|**Time of flight** = distance sensors|
 ||[`tof/flock`](tof/flock/README.md)|Combinging multiple Time-of-flight sensors (initially, of `vl53l5cx_uld` type) to a single set of eyeballs|early||
+|![](.images/about/vl53l5cx_uld.png)|[`tof/vl53l5cx_uld`](tof/vl53l5cx_uld/README.md)|Time-of-flight distance sensor; 4x4 (60Hz) or 8x8 (15Hz), up to 400cm|usable; beta||
 
 
 ### MCU coverage

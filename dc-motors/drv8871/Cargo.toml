@@ -22,9 +22,8 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 defmt           = { version = "0.3.8", optional = true }
-embedded-hal    = "1.0.0"
-#esp-hal         = { version = "0.20.1", features = ["esp32c3"] }     # "defmt", "async"
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3"] }     # "defmt", "async"
+esp-hal         = { version = "0.21.0", features = ["esp32c3"] }     # "defmt", "async"
+#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3"] }     # "defmt", "async"
 
 [dev-dependencies]
 defmt-rtt       = { version = "0.4.1" }
@@ -48,4 +47,4 @@ default = []
 #
 [[example]]
 name = "abc"
-required-features = []
+required-features = ["defmt"]
