@@ -1,5 +1,5 @@
 /*
-* Steering a motor via a potentiometer
+* Steering a DC motor's speed (no feedback)
 */
 #![no_std]
 #![no_main]
@@ -14,77 +14,73 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;
 use esp_hal::{
-    analog::adc::{Adc, AdcConfig, Attenuation},
     delay::Delay,
     gpio::Io,
     prelude::*,
     time::now
 };
-
-const D_PROVIDER: Delay = Delay::new();
+#[cfg(feature="mcpwm")]
+use esp_hal::{
+    mcpwm::{
+        operator::PwmPinConfig,
+        timer::PwmWorkingMode,
+        McPwm,
+        PeripheralClockConfig
+    },
+};
 
 include!("./pins-gen.in");  // pins!
 
 #[entry]
 fn main() -> ! {
     init_defmt();
+    main2()
+        .map_err(|e| panic!("Failed with: {}", e))
+        .unwrap();
 
-    match main2() {
-        Err(e) => {
-            panic!("Failed with: {}", e);
-        },
-
-        Ok(()) => {
-            info!("End of demo");
-            semihosting::process::exit(0);      // back to developer's command line
-        }
-    }
+    info!("End of demo");
+    semihosting::process::exit(0);      // back to developer's command line
 }
 
-// To begin with, let's print values from the potentiometer
-//
+/*
+* ESP32-C3 does not have a dedicated Motor Control PWM. We use a 'LEDC', instead.
+*
+* Based on:
+*   - "ESP32 Embedded Rust at the HAL: PWM Buzzer"
+*       -> https://dev.to/theembeddedrustacean/esp32-embedded-rust-at-the-hal-pwm-buzzer-5b2i
+*/
+#[cfg(not(feature="mcpwm"))]    // esp32c3
 fn main2() -> Result<(),u8> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     #[allow(non_snake_case)]
-    let (POT, _, _) = pins!(io);
+    let (IN1, IN2, _BTN) = pins!(io);
 
-    let delay_ms = |ms| D_PROVIDER.delay_millis(ms);
+    let mut buzzer = LEDC::new(
+        peripherals.LEDC,
+        &clocks,
+        &mut system.peripheral_clock_control,
+    );
 
-    let mut cfg = AdcConfig::new();
-    let mut adc1_pin = cfg.enable_pin(POT, Attenuation::Attenuation11dB);
-    let mut adc1 = Adc::new(peripherals.ADC1, cfg);
+    buzzer.set_global_slow_clock(LSGlobalClkSource::APBClk);
+    
+    let pwm = Pwm::new(peripherals.TIM2, IN1, IN2);
 
-    #[cfg(not(all()))]  // or? tbd.
-    let (mut adc1, mut adc1_pin) = {
-        let mut c = AdcConfig::new();
-        let pin = c.enable_pin(POT, Attenuation::Attenuation11dB);
-        let adc1 = Adc::new(peripherals.ADC1, c);
-        (adc1, pin)
-    };
-    info!("ADC init succeeded");
-
-
-    //--- loop
+    //First, let's run the motor with 10% PWM
     //
-    for _round in 0..100_000 {
-        let val: u16 = nb::block!(adc1.read_oneshot(&mut adc1_pin))
-            .unwrap();
+    info!("Running in 10%");
 
-        info!("ADC: {=f32}", convert(val));  // 'defmt' doesn't support a precision hint (e.g. ':.1'); would need to make our own
-        delay_ms(10);
-    }
+    pwm.run(10);
+    delay_ms(1000);
+    pwm.stop();
 
     Ok(())
 }
 
-/*
-* Convert the ADC raw value to voltage
-*/
-fn convert(raw: u16) -> f32 {   // tbd. would need to know the attenuation and what-not
-
-    raw as f32 * (5.5 / 4095.0)
+#[cfg(feature="mcpwm")]    // esp32c6
+fn main2() -> Result<(),u8> {
+    unimplemented!()
 }
 
 /*
@@ -102,3 +98,78 @@ fn init_defmt() {
         now().duration_since_epoch().to_micros()
     });
 }
+
+const D_PROVIDER: Delay = Delay::new();
+fn delay_ms(ms: u32) {
+    D_PROVIDER.delay_millis(ms);
+}
+
+
+/*
+* Provide control to the drv8871 speeds; forward or backward.
+*
+* Based on the 'esp-hal' 'examples/mcpwm.rs'.
+*/
+//R Uses 'timer0' and 'operator0' of the MCPWM0 peripheral to output a 50% duty signal at 20 kHz.
+struct PWM {
+
+}
+
+impl PWM {
+    fn new() -> Self {
+
+    }
+
+    fn run(prc: i8) {
+
+    }
+
+    fn stop(&mut self) { self.run(0); }
+}
+
+impl Drop for PWM {
+    fn drop(&mut self) { self.stop(); }
+}
+
+/***    Sample for "mcpwm":
+
+#[entry]
+fn main() -> ! {
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let pin = io.pins.gpio0;
+
+    // initialize peripheral
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "esp32h2")] {
+            let freq = 40.MHz();
+        } else {
+            let freq = 32.MHz();
+        }
+    }
+
+    let clock_cfg = PeripheralClockConfig::with_frequency(freq).unwrap();
+
+    let mut mcpwm = McPwm::new(peripherals.MCPWM0, clock_cfg);
+
+    // connect operator0 to timer0
+    mcpwm.operator0.set_timer(&mcpwm.timer0);
+    // connect operator0 to pin
+    let mut pwm_pin = mcpwm
+        .operator0
+        .with_pin_a(pin, PwmPinConfig::UP_ACTIVE_HIGH);
+
+    // start timer with timestamp values in the range of 0..=99 and a frequency of
+    // 20 kHz
+    let timer_clock_cfg = clock_cfg
+        .timer_clock_with_frequency(99, PwmWorkingMode::Increase, 20.kHz())
+        .unwrap();
+    mcpwm.timer0.start(timer_clock_cfg);
+
+    // pin will be high 50% of the time
+    pwm_pin.set_timestamp(50);
+
+    loop {}
+}
+***/

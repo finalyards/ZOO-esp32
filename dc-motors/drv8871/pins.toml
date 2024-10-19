@@ -6,11 +6,10 @@
 generate = "examples/pins-gen.in"
 
 [boards.esp32c3]
-POT = 2     # GPIO2 used by esp-hal ADC sample
 IN1 = 6
 IN2 = 7
+BTN = 3
 
 #[boards.esp32c6]
-#POT = 2
 #IN1 = 6
 #IN2 = 7

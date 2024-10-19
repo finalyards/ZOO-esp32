@@ -9,14 +9,21 @@ FEATURES?=
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
-DEFMT_FEATURES:=defmt
-
 REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 
-# Read the 'TARGET' from './cargo/config.toml'
+# Read the 'TARGET' from (nearest) '.cargo/config.toml'
 #
-TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
+
+# Detect the active MCU.
+MCU:=$(shell cat Cargo.toml | grep -Eo -m 1 "esp32c[36]")
+	# "esp32c3"|"esp32c6"
+
+# ESP32-C3 needs PWM to be done using 'LEDC'; it has no dedicated Motor Control PWM (like the ESP32-C6 does).
+ifneq ("esp32c3", "$(MCU)")
+  FEATURES:=$(FEATURES),mcpwm
+endif
 
 all:
 	@false
@@ -28,9 +35,9 @@ abc:
 
 #---
 _build_run:
-	$(LOG_ENV) cargo run --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	$(LOG_ENV) cargo run --release --features=$(FEATURES) --example $(EXAMPLE)
 
 echo:
-	@echo $(CARGO_TARGET_DIR)
+	@echo $(MCU)
 
 .PHONY: all abc _build_run echo
