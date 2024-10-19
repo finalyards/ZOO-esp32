@@ -20,14 +20,12 @@ panic       = "abort"
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
-[dependencies]
-defmt           = { version = "0.3.8", optional = true }
-esp-hal         = { version = "0.21.0", features = ["esp32c3"] }     # "defmt", "async"
-#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3"] }     # "defmt", "async"
-
 [dev-dependencies]
+defmt           = { version = "0.3.8" }
 defmt-rtt       = { version = "0.4.1" }
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
+esp-hal         = { version = "0.21.0", features = ["esp32c3", "defmt"] }     # "async"
+#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3", "defmt"] }     # "async"
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
 #nb              = { version = "1.1.0" }
@@ -39,12 +37,11 @@ serde           = { version = "1.0.210", features = ["derive"] }
 toml            = "0.8.19"
 
 [features]
-defmt = ["dep:defmt", "esp-hal/defmt"]
-
+mcpwm = []     # defined for 'esp32c6' (that has a dedicated Motor Control PWM)
 default = []
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #
 [[example]]
 name = "abc"
-required-features = ["defmt"]
+required-features = []
