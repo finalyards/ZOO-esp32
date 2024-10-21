@@ -1,5 +1,5 @@
 [package]
-name = "abc"
+name = "basics"
 edition = "2021"
 rust-version = "1.81"
     # 1.81: anyhow: "With versions of Rust older than 1.81, 'no_std' mode may require..."
@@ -20,16 +20,35 @@ panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing s
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
+# Note: Though it doesn't matter for us (examples only), dependencies that would be needed in 'lib' code
+#   are kept within '[dependencies]' section.
+#
+[dependencies]
+defmt           = { version = "0.3.8" }
+
 [dev-dependencies]
 anyhow          = { version = "1.0.89", default-features = false }
-defmt           = { version = "0.3.8" }
 defmt-rtt       = { version = "0.4.1" }
-esp-alloc       = { version="0.5.0" }   # required for using 'anyhow' MCU-side
-esp-hal         = { version = "0.21.0", features = ["esp32c3", "defmt"] }     # "async"
+embassy-executor    = { version = "0.6.0", features = ["task-arena-size-12288"] }
+    # tbd. who is the 'task-arena-size-12288' needed for? ('esp-hal' examples has it unconditionally)
+embassy-sync        = "0.6.0"
+embedded-io-async   = "0.6.1"
+
+esp-alloc       = { version = "0.5.0" }   # required for using 'anyhow' MCU-side
+esp-hal         = { version = "0.21.1", features = ["esp32c3", "defmt"] }     # "async"
 #esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3", "defmt"] }     # "async"
+esp-hal-embassy     = { version = "0.4.0", features = ["esp32c3", "defmt", "integrated-timers"] }
+embedded-hal-async  = "1.0.0"
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
-semihosting     = { version = "0.1.16", features=["stdio", "fs", "time"] }
+heapless            = "0.8.0"
+
+#semihosting     = { version = "0.1.16", optional = true }
+                    # for testing: features=["stdio", "fs", "time"]
                     # "stdio":  WARN probe_rs::cmd::run: Target wanted to open file :tt with mode 114, but probe-rs does not support this operation yet. Continuing...
                     # "args" is not supported by 'probe-rs'; Oct'24
+
+static_cell         = { version = "2.1.0" } #, features = ["nightly"]
+    # tbd. does the 'nightly' feature matter (wont' go nightly!)
+

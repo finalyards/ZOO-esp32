@@ -46,6 +46,10 @@ abc:
 	EXAMPLE=abc \
 	  $(REMAKE) --no-print-directory _build _run
 
+p prompt:
+	EXAMPLE=prompt-emb \
+	  $(REMAKE) --no-print-directory _build _run
+
 #semi:
 #	EXAMPLE=semi \
 #	  $(REMAKE) --no-print-directory _build _run
