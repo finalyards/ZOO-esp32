@@ -173,7 +173,7 @@ See [../README](../README.md) for instructions on how to install commit `6fee4b6
 ### [ESP32-C3] No `defmt` output
 
 ```
-$ probe-rs run --speed=200 --log-format '{t:dimmed} [{L:bold}] {s}' target/riscv32imc-unknown-none-elf/release/examples/multiboard
+$ probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' target/riscv32imc-unknown-none-elf/release/examples/multiboard
       Erasing ✔ [00:00:02] [################################] 256.00 KiB/256.00 KiB @ 112.53 KiB/s (eta 0s )
   Programming ✔ [00:00:33] [################################] 105.54 KiB/105.54 KiB @ 3.13 KiB/s (eta 0s )
     Finished in 33.767773s

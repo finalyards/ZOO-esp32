@@ -47,7 +47,7 @@ _build:
 	$(LOG_ENV) cargo build --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
 
 _run:
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(CARGO_TARGET_DIR)/$(TARGET)/release/examples/$(EXAMPLE)
+	probe-rs run --log-format $(DEFMT_HOST_FMT) $(CARGO_TARGET_DIR)/$(TARGET)/release/examples/$(EXAMPLE)
 
 echo:
 	@echo $(CARGO_TARGET_DIR)

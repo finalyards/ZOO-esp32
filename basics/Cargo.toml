@@ -25,10 +25,11 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 #
 [dependencies]
 defmt           = { version = "0.3.8" }
+#rtt-target = { version = "0.6", features = ["defmt"] }     # v6 not published, yet // 21-Oct-24
+rtt-target      = { git = "https://github.com/probe-rs/rtt-target.git", features = ["defmt"] }
 
 [dev-dependencies]
 anyhow          = { version = "1.0.89", default-features = false }
-defmt-rtt       = { version = "0.4.1" }
 embassy-executor    = { version = "0.6.0", features = ["task-arena-size-12288"] }
     # tbd. who is the 'task-arena-size-12288' needed for? ('esp-hal' examples has it unconditionally)
 embassy-sync        = "0.6.0"
@@ -44,7 +45,7 @@ fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
 heapless            = "0.8.0"
 
-#semihosting     = { version = "0.1.16", optional = true }
+semihosting     = { version = "0.1.16" }
                     # for testing: features=["stdio", "fs", "time"]
                     # "stdio":  WARN probe_rs::cmd::run: Target wanted to open file :tt with mode 114, but probe-rs does not support this operation yet. Continuing...
                     # "args" is not supported by 'probe-rs'; Oct'24

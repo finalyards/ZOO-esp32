@@ -56,7 +56,7 @@ _build:
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:
-	probe-rs run --speed=200 --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
+	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
 	@echo $(_OUT_EXAMPLE)

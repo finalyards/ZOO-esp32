@@ -1,6 +1,9 @@
 /*
 * 'defmt' logging together with interactive host/MCU comms.
 *
+* THIS DOES NOT WORK!  Compared to the 'esp-hal' example, the behaviour on the input key presses
+*   is different. They are echoed locally but do not reach the MCU side.
+*
 * Based on:
 *   - esp-hal: examples/[...]/embassy_usb_serial_jtag.rs
 *
@@ -13,7 +16,6 @@
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
-use defmt_rtt as _;
 
 use embassy_executor::Spawner;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
@@ -33,6 +35,9 @@ const MAX_BUFFER_SIZE: usize = 512;
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
+    let channels = rtt_target::rtt_init_default!();    // 1024 bytes for out ("Terminal"); 16 bytes for in
+    rtt_target::set_defmt_channel(channels.up.0);
+
     init_defmt();
     info!("Init!");     // see that 'defmt' output works
 
@@ -52,7 +57,7 @@ async fn main(spawner: Spawner) {
 }
 
 /*
-* Tell 'defmt' how to support '{t}' (timestamp) in logging.
+* Tell 'defmt' how to support '{t}' (timestamp) in logging. Also
 *
 * Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
 *       read operation". Out 'esp_hal::time::now' isn't, but sure seems to work.
@@ -109,3 +114,22 @@ async fn reader(
         }
     }
 }
+
+
+/***
+//! ```
+//! use rtt_target::{rtt_init_default, rprintln};
+//!
+//! fn main() -> ! {
+//!     let mode = loop {
+//!         read = channels.down.0.read(&mut read_buf);
+//!         for i in 0..read {
+//!             match read_buf[i] as char {
+//!                 '0' => break 0,
+//!                 '1' => break 1,
+//!                 _ => {}
+//!             }
+//!         }
+//!     };
+//! }
+***/
