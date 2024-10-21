@@ -43,8 +43,12 @@ all:
 #		feature.
 
 abc:
-	EXAMPLE=semi \
+	EXAMPLE=abc \
 	  $(REMAKE) --no-print-directory _build _run
+
+#semi:
+#	EXAMPLE=semi \
+#	  $(REMAKE) --no-print-directory _build _run
 
 #---
 _build:
@@ -57,4 +61,4 @@ _run:
 echo:
 	@echo $(_OUT_EXAMPLE)
 
-.PHONY: all abc _build _run echo
+.PHONY: all semi _build _run echo

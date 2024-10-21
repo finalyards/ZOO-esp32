@@ -153,9 +153,8 @@ Ways to circumvent this:
 Developed on:
 
 ```
-macOS 14.6
-Multipass 1.14.0
+macOS 15.0
+Multipass 1.14.1
 ESP32-C3-Devkit-C02 (revision 0.4) and ESP32-C6-DevKitM-1 
-VL53L5CX-SATEL (marking "PCB4109A")
-bindgen 0.70.1
+ESP32-C6-DevKitM-1
 ```

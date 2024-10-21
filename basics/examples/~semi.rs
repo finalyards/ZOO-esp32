@@ -1,7 +1,4 @@
 /*
-* Working with multiple boards
-*
-* We do this by using a 'flock' variant of the drivers.
 */
 #![no_std]
 #![no_main]
