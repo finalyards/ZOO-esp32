@@ -11,7 +11,7 @@
 /examples/pins.in
 
 # C sources (placed by you)
-#/VL53L5CX_ULD_driver_2.0.0/
+/VL53L5CX_ULD_API/
 
 # TEMP
 #/c-examples-TEMP/

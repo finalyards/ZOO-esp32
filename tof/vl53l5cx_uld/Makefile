@@ -26,7 +26,7 @@
 #
 # Note: Unconditional (manual) make with 'make -B' MAY BE CURRENTLY BROKEN. Just run 'make _clean', instead. #tbd.
 #
-VL53L5CX_ULD_API?=./VL53L5CX_ULD_driver_2.0.0/VL53L5CX_ULD_API
+VL53L5CX_ULD_API?=./VL53L5CX_ULD_API
 
 _TMP:=./tmp/
 _C_SRC:=tmp/c_src
@@ -47,7 +47,7 @@ else
 endif
 
 # in anticipation for Xtensa, #later (needs us to use a custom 'clang')
-_CLANG:=clang
+#_CLANG:=clang
 
 all:
 	@false
@@ -62,7 +62,8 @@ manual: tmp/libvendor_uld.a src/uld_raw.rs
 tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
 	ar rcs $@ $<
 
-tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h
+tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h \
+	| clang
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
@@ -80,7 +81,7 @@ $(_C_SRC)/vl53l5cx_api.c: $(VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch
 
 # Error at root level, if vendor sources aren't there
 ifeq ("$(wildcard $(VL53L5CX_ULD_API)/src/*)", "")
-$(error ST.com ULD driver not found; please download and place in the folder $(VL53L5CX_ULD_API))
+$(error Vendor''s ULD driver not found; please download and place in the folder $(VL53L5CX_ULD_API))
 endif
 
 #---
@@ -136,7 +137,8 @@ endif
 #		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
 #			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
 #
-src/uld_raw.rs: wrap.h | $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h bindgen
+src/uld_raw.rs: wrap.h \
+	| $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h bindgen
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
@@ -187,10 +189,15 @@ tmp/config.h: tmp/config.h.next
 tmp/config.h.next: Cargo.toml
 	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)
 
-# Check that 'bindgen' CLI is installed
+# Check that required tools are installed
 bindgen:
 	@which bindgen >/dev/null || ( \
 	  echo >&2 "ERROR: 'bindgen' CLI not detected. Please install via 'cargo install bindgen-cli'."; false \
+	)
+
+clang:
+	@which clang >/dev/null || ( \
+	  echo >&2 "ERROR: 'clang' CLI not detected. Please install via 'sudo apt install llvm-dev libclang-dev clang'."; false \
 	)
 
 #---
@@ -205,7 +212,7 @@ echo:
 	@echo $(VL53L5CX_ULD_API)
 
 #--
-.PHONY: all bindgen _clean _klean echo
+.PHONY: all bindgen clang _clean _klean echo
 
 # #hack For some reason, giving '-B' from 'build.rs' didn't work. By declaring the file '.PHONY' we make sure it's
 #	always recreated
