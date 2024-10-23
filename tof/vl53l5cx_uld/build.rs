@@ -15,7 +15,7 @@ use std::{
 
 // Snippets need to be read in here (cannot do in "statement position")
 //
-include!("snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
+include!("snippets/pins.in");
 
 const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 
@@ -181,9 +181,8 @@ fn main() -> Result<()> {
 
     // Link arguments
     //
-    // Note: Is it okay to do this in a lib crate?  We want it to affect at least the 'examples'.
     {
-        let /*mut*/ link_args: Vec<&str> = vec!(
+        let link_args: Vec<&str> = vec!(
             "-Tlinkall.x",
             "-Tdefmt.x"     // required by 'defmt'
         );

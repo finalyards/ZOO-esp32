@@ -37,8 +37,8 @@ fn process_pins(toml: &str, board_id: &str) -> Result<()> {
         || format!("No section '[boards.{}]' found in 'pins.toml'", board_id)
     )?;
 
-    let fn_ = &c.generate;
-    assert!(fn_.len() > 0);
+    let filename = &c.generate;
+    assert!(filename.len() > 0);
 
     // unpack, because "field access not supported [...] in a format string"
     let (SDA, SCL, PWR_EN) = (board.SDA, board.SCL, board.PWR_EN);
@@ -60,8 +60,8 @@ macro_rules! pins {{
 }}
 "#);
 
-    fs::write(fn_, contents).with_context(
-        || format!("Unable to write {fn_}")
+    fs::write(filename, contents).with_context(
+        || format!("Unable to write {filename}")
     )?;
 
     Ok(())

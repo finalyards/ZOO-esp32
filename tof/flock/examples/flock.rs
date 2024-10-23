@@ -54,7 +54,7 @@ fn main() -> ! {
         },
 
         Ok(()) => {
-            info!("End of FLOCK demo");
+            info!("End of demo");
             semihosting::process::exit(0);      // back to developer's command line
         }
     }

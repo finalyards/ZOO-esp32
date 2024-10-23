@@ -88,10 +88,10 @@ fn main() -> Result<()> {
         process_pins(toml, &board_id)?;
     }
 
+    /***??? needed?
     // Link arguments
     //
     // Note: Is it okay to do this in a lib crate?  We want it to affect at least the 'examples'.
-    #[cfg(not(all()))]  // let's see what happens TEMP
     {
         let /*mut*/ link_args: Vec<&str> = vec!(
             "-Tlinkall.x",
@@ -101,7 +101,7 @@ fn main() -> Result<()> {
         link_args.iter().for_each(|s| {
             println!("cargo::rustc-link-arg={}", s);
         });
-    }
+    }***/
 
     Ok(())
 }

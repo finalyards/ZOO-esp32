@@ -10,9 +10,6 @@ FEATURES?=
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
-DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
-DEFMT_FEATURES:=defmt
-
 REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 
 # Read the 'TARGET' from './cargo/config.toml'
@@ -43,9 +40,9 @@ m3:
 #	But that would be a hack.
 #
 _build_run:
-	$(LOG_ENV) cargo run --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo run --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 
 echo:
 	@echo a
 
-.PHONY: all m3 _build _run echo
+.PHONY: all m3 _build_run echo

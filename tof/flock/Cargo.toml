@@ -22,7 +22,7 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 [dependencies]
 defmt           = { version = "0.3.8", optional = true }
 #esp-hal         = { version = "0.20.1", features = ["esp32c6"] }     # "defmt", "async"
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c6"] }     # "defmt", "async"; use "next-api" feature
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c6"] }     # "defmt", "async"
 vl53l5cx_uld    = { path = "../../vl53l5cx_uld", features = ["target_status"] }     # "defmt"
 
 [dev-dependencies]

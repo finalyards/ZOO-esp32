@@ -34,9 +34,6 @@ CARGO_TARGET_DIR:=target	# tbd. proper detection
 all:
 	@false
 
-# Note: Though trying in multiple ways, did not find a way to make 'cargo run --example' itself apply the 'defmt'
-#		feature.
-
 flock z:
 	EXAMPLE=flock \
 	  FEATURES=distance_mm \
