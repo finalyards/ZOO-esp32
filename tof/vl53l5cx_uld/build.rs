@@ -9,6 +9,7 @@ use anyhow::*;
 use itertools::Itertools;
 
 use std::{
+    env,
     fs,
     process::Command
 };
@@ -86,6 +87,17 @@ fn main() -> Result<()> {
         // "range_sigma_mm" relates to "distance_mm"
         #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
         println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
+    }
+
+    // Expose 'OUT_DIR' to an external (Makefile) build system
+    {
+        const TMP: &str = ".OUT_DIR";
+
+        let out_dir = env::var("OUT_DIR")
+            .expect("OUT_DIR to have a value");
+
+        fs::write(TMP, out_dir)
+            .expect(format!("Unable to write {TMP}").as_str());
     }
 
     //---
@@ -170,7 +182,7 @@ fn main() -> Result<()> {
     let st = Command::new("make")
         //.arg("-B")
         .arg("tmp/libvendor_uld.a")    // ULD C library
-        .arg("src/uld_raw.rs")      // generate the ULD Rust bindings
+        .arg("tmp/uld_raw.rs")      // generate the ULD Rust bindings
         .output()
         .expect("to be able to launch `make`")   // shown if 'make' not found on PATH
         .status;

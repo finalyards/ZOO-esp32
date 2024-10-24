@@ -53,7 +53,7 @@ all:
 	@false
 
 # The targets that 'build.rs' normally builds (for debugging, in case make fails)
-manual: tmp/libvendor_uld.a src/uld_raw.rs
+manual: tmp/libvendor_uld.a tmp/uld_raw.rs
 	@echo "\nManual build succeeded."
 
 #---
@@ -87,7 +87,7 @@ endif
 #---
 # Generate Rust
 #
-# Generate ’src/uld_raw.rs’. MANUAL CHANGES TO IT WILL BE LOST; modify this instead.
+# Generate ’tmp/uld_raw.rs’. MANUAL CHANGES TO IT WILL BE LOST; modify this instead.
 #
 # About 'bindgen' (v.0.69.4):
 #	- prints errors to stdout, which is .... a bit unkind.
@@ -137,8 +137,8 @@ endif
 #		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
 #			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
 #
-src/uld_raw.rs: wrap.h \
-	| $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h bindgen
+tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) \
+	| $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h bindgen
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
 	    --allowlist-type 'VL53L5CX_.+' \
@@ -163,7 +163,7 @@ src/uld_raw.rs: wrap.h \
 	# Note: 'sed' removes 'Debug' from the derived behaviours. This is intentional; 'defmt' uses 'Format'.
 
 # Test for the above (for manual development, only); CAN BE LET GO
-EXP_x: src/uld_raw.rs
+EXP_x: tmp/uld_raw.rs
 	grep -q API_REVISION $<
 	grep -q 'pub enum PowerMode' $<
 	grep -q vl53l5cx_init $<
@@ -202,7 +202,7 @@ clang:
 
 #---
 _clean:
-	-rm src/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
+	-rm tmp/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
 		tmp/config.h tmp/config.h.*
 
 _klean: _clean
@@ -216,4 +216,4 @@ echo:
 
 # #hack For some reason, giving '-B' from 'build.rs' didn't work. By declaring the file '.PHONY' we make sure it's
 #	always recreated
-.PHONY: src/uld_raw.rs
+#.PHONY: tmp/uld_raw.rs

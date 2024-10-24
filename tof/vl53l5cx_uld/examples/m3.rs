@@ -12,7 +12,7 @@ use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
     gpio::Io,
-    i2c::I2C,
+    i2c::I2c,
     prelude::*,
     time::now
 };
@@ -62,7 +62,7 @@ fn main2() -> Result<()> {
     let (SDA, SCL, PWR_EN) = pins!(io);
 
     let pl = {
-        let i2c_bus = I2C::new(
+        let i2c_bus = I2c::new(
             peripherals.I2C0,
             SDA,
             SCL,
