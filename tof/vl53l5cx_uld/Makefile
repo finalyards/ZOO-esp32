@@ -22,7 +22,7 @@
 #		approach, but use 'bindgen' CLI instead of the library.
 #
 # Note: 'clang' only recognizes the 'riscv32-unknown-elf' target, not the chip specific ones seen e.g. in
-#		'.cargo/config.toml'. This seems normal - and works, so..
+#		'../.cargo/config.toml'. This seems normal - and works, so..
 #
 # Note: Unconditional (manual) make with 'make -B' MAY BE CURRENTLY BROKEN. Just run 'make _clean', instead. #tbd.
 #
@@ -35,7 +35,7 @@ _OBJ_PATH:=$(_TMP)/$(TARGET)
 
 _OTHER_INCS:=platform.h fake/*.h
 
-_T:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+_T:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 	# riscv32imc-unknown-none-elf
 

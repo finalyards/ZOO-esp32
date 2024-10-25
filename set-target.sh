@@ -64,7 +64,9 @@ echo "'${MCU}' selected."
 echo ""
 echo "Going to edit:"
 echo "- ${CONFIG_TOML}"
-echo "- ${CARGO_TOMLS}"
+for TOML in ${CARGO_TOMLS}; do  # Bash note: keep the list without quotes!
+  echo "- ${TOML}"
+done
 echo ""
 echo "The edit is safe. You can see the changes made by 'git diff' (and revert by 'git restore --staged ${CONFIG_TOML} ${CARGO_TOMLS}')."
 echo ""
@@ -96,7 +98,7 @@ cp ${CONFIG_TOML} tmp-1
 cat tmp-1 | sed -E "s/^(target[[:space:]]*=[[:space:]]*\")riscv32im[a]?c\-unknown\-none\-elf(\".+)$/\1${TARGET}\2/g" \
   > ${CONFIG_TOML}
 
-for TOML in "${CARGO_TOMLS}"
+for TOML in ${CARGO_TOMLS}  # Bash note: keep the list without quotes!
 do
   cp ${TOML} tmp-2
   cat tmp-2 | sed -E "s/(\")esp32c[36](\")/\1${MCU}\2/g" \
@@ -105,7 +107,16 @@ done
 
 rm tmp-[12]
 
-echo "Files '${CONFIG_TOML}' and '${CARGO_TOMLS}' now using:"
+#FILES_Q=""
+#for TOML in ${CARGO_TOMLS}  # Bash note: keep the list without quotes!
+#do
+#  if [ -z $FILES_Q ]
+#    then FILES_Q="'$TOML'"
+#    else FILES_Q="$FILES_Q, '$TOML'"
+#  fi
+#done
+
+echo "Now using:"
 echo ""
 echo "   MCU:    ${MCU}"
 echo "   TARGET: ${TARGET}"

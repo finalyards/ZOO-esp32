@@ -22,7 +22,7 @@ const D_PROVIDER: Delay = Delay::new();
 extern crate vl53l5cx_uld as uld;
 mod common;
 
-include!("./pins.in");  // pins!
+include!("./pins_gen.in");  // pins!
 
 use common::MyPlatform;
 
