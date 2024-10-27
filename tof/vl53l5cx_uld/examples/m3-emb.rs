@@ -1,33 +1,38 @@
 /*
-* Reading a single board, polling.
+* Reading a single board, using Embassy to prepare for multitasking.
 */
 #![no_std]
 #![no_main]
 
+#![allow(for_loops_over_fallibles)]
+
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
-use defmt_rtt as _;
+use {defmt_rtt as _, esp_backtrace as _};
 
-use esp_backtrace as _;
+use embassy_executor::Spawner;
+use embassy_time::{Duration as EmbDuration, Timer};
+
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Level},
+    gpio::{Io, Input},
     i2c::I2c,
     prelude::*,
-    time::now
+    time::{now, Instant, Duration},
+    timer::timg::TimerGroup,
 };
-
-const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
 mod common;
+
+//|mod option_x;
+//|use option_x::OptionExt;
 
 include!("./pins_gen.in");  // pins!
 
 use common::MyPlatform;
 
 use uld::{
-    Result,
     VL53L5CX,
     ranging::{
         RangingConfig,
@@ -36,27 +41,18 @@ use uld::{
     },
     units::*,
     API_REVISION,
+    VL53L5CX_InAction
 };
 
-#[entry]
-fn main() -> ! {
+#[esp_hal_embassy::main]
+async fn main(spawner: Spawner) {
     init_defmt();
 
-    match main2() {
-        Err(e) => {
-            panic!("Failed with ULD error code: {}", e);
-        },
-
-        Ok(()) => {
-            info!("End of ULD demo");
-            semihosting::process::exit(0);      // back to developer's command line
-        }
-    }
-}
-
-fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
     let (SDA, SCL, PWR_EN, INT) = pins!(io);
@@ -71,19 +67,42 @@ fn main2() -> Result<()> {
         MyPlatform::new(i2c_bus)
     };
 
-    let delay_ms = |ms| D_PROVIDER.delay_millis(ms);
+    // #wish Would like to have something like so:
+    //|// If 'PWR_EN' configured, reset VL53L5CX by pulling down their power for a moment
+    //|PWR_EN.for_each(|mut pin| {
+    //|    pin.set_low();
+    //|    delay_ms(20);      // tbd. how long is suitable, by the specs?
+    //|    pin.set_high();
+    //|    info!("Target powered off and on again.");
+    //|});
 
-    // Reset VL53L5CX by pulling down their power for a moment
-    if let Some(mut pin) = PWR_EN {
+    // If 'PWR_EN' configured, reset VL53L5CX by pulling down their power for a moment
+    for mut pin in PWR_EN {
         pin.set_low();
-        delay_ms(20);      // tbd. how long is suitable, by the specs?
+        sync_delay_ms(20);      // tbd. how long is suitable, by the specs?
         pin.set_high();
         info!("Target powered off and on again.");
     }
 
-    let mut vl = VL53L5CX::new_maybe(pl)?.init()?;
+    let vl = VL53L5CX::new_maybe(pl).unwrap()
+        .init().unwrap();
 
     info!("Init succeeded, driver version {}", API_REVISION);
+
+    spawner.spawn(ranging(vl)).unwrap();
+
+    for int_pin in INT {
+        spawner.spawn(track_INT(int_pin)).unwrap();
+    }
+}
+
+
+// Initially, have two tasks:
+//  1. runs the TOF sensor
+//  2. sees whether the 'INT' pin gets high->low edges, and logs them
+
+#[embassy_executor::task]
+async fn ranging(/*move*/ mut vl: VL53L5CX_InAction) {
 
     //--- ranging loop
     //
@@ -94,49 +113,19 @@ fn main2() -> Result<()> {
     let mut ring = vl.start_ranging(&c)
         .expect("Failed to start ranging");
 
-    /*** #Rust; does not compile: 'expected `dyn Fn`, found closure'
-    let wait_till_ready: dyn Fn() -> () = match INT {
-        None => || {    // poll
-            while !ring.is_ready().unwrap() {
-                delay_ms(5);
-            }
-        },
-        Some(INT_PIN) => || {   // wait for 'INT' to go down
-            loop {
-                let v= INT_PIN.get_level();
-                debug!("INT: {}", v);
-                if v == Level::Low { break; }
-                delay_ms(1);
-            }
-        }
-    };***/
+    let mut last_t1: Option<Instant> = None;
 
     for round in 0..10 {
-        let t0= now();
-
-        //wait_till_ready(&mut ring);
-        match INT {
-            None => {    // poll
-                while !ring.is_ready().unwrap() {
-                    delay_ms(5);
-                }
-                debug!("Data after: {}ms", (now()-t0).to_micros() as f32 / 1000.0);
-            },
-            Some(ref INT_PIN) => {   // wait for 'INT' to go down
-                loop {
-                    let v= INT_PIN.get_level();
-                    //debug!("INT: {}", v);
-                    if v == Level::Low {
-                        debug!("INT after: {}ms", (now()-t0).to_micros() as f32 / 1000.0);
-                        break;
-                    }
-                    delay_ms(1);
-                }
-            }
-        };
+        let t0 = now();
+        while !ring.is_ready().unwrap() {
+            Timer::after(EmbDuration::from_millis(1)).await;
+        }
+        let t1 = now();
 
         let (res, temp_degc) = ring.get_data()
             .expect("Failed to get data");
+
+        let t2 = now();
 
         info!("Data #{} ({})", round, temp_degc);
 
@@ -157,10 +146,33 @@ fn main2() -> Result<()> {
         info!(".distance_mm:      {}", res.distance_mm);
         #[cfg(feature = "reflectance_percent")]
         info!(".reflectance:      {}", res.reflectance);
+
+        let t3 = now();
+
+        debug!("Timing [ms] (total {=f32}): poll {}, read {}, output {}", ms(t3-t0), ms(t1-t0), ms(t2-t1), ms(t3-t2));
+        for last_t1 in last_t1 {
+            debug!("Ranging cycle [ms]: {}", ms(t1-last_t1));  // ready-to-ready
+        }
+        last_t1 = Some(t1);
     }
 
     // Rust automatically stops the ranging in the ULD C driver, when 'Ranging' is dropped.
-    Ok(())
+}
+
+// Note: 'Duration' doesn't allow passing by reference, unless we scramble it like 'ms(&(t3-t0))' in the call. We're fine, gulp.
+//
+fn ms(dur: /*&*/Duration) -> f32 {
+    dur.to_micros() as f32 / 1000.0
+}
+
+#[embassy_executor::task]
+#[allow(non_snake_case)]
+async fn track_INT(mut pin: Input<'static>) {
+
+    loop {
+        pin.wait_for_rising_edge().await;
+        debug!("INT detected");
+    }
 }
 
 /*
@@ -177,4 +189,11 @@ fn init_defmt() {
     defmt::timestamp!("{=u64:us}", {
         now().duration_since_epoch().to_micros()
     });
+}
+
+// DO NOT use within the async portion!!!
+const D_PROVIDER: Delay = Delay::new();
+
+fn sync_delay_ms(ms: u32) {
+    D_PROVIDER.delay_millis(ms);
 }

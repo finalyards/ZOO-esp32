@@ -26,9 +26,13 @@ strum           = { version = "0.26.3", default-features = false, features = ["d
 [dev-dependencies]
 anyhow          = { version = "1.0.91", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
+embassy-executor    = { version = "0.6.1", features = ["task-arena-size-12288"] }
+    # Note: "When the nightly Cargo feature is not enabled, 'embassy-executor' allocates tasks out of an arena (a very
+    #       simple bump allocator)."; i.e. the purpose of the above feature.
+embassy-time    = {  version = "0.3.2" }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }     # "async"
-#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }     # "async"
+esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
 semihosting     = { version = "0.1.16" }
