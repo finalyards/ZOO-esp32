@@ -28,7 +28,7 @@ struct PinsToml {
 struct Board {
     SDA: u32,
     SCL: u32,
-    PWR_EN: u32,
+    INT: u32,   // same interrupt pin for all the boards
     LPn: Vec<u32>
 }
 
@@ -44,7 +44,7 @@ fn process_pins(toml: &str, board_id: &str) -> Result<()> {
     assert!(fn_.len() > 0);
 
     // unpack, because "field access not supported [...] in a format string"
-    let (SDA, SCL, PWR_EN, LPns) = (board.SDA, board.SCL, board.PWR_EN, &board.LPn);
+    let (SDA, SCL, INT, LPns) = (board.SDA, board.SCL, board.INT, &board.LPn);
 
     let LPns_len = LPns.len();
     let LPns_fill: String = LPns.iter().map(|s| { format!("O::new($io.pins.gpio{s}, L::Low)") })
@@ -55,12 +55,12 @@ fn process_pins(toml: &str, board_id: &str) -> Result<()> {
 //
 macro_rules! pins {{
     ($io:ident) => {{{{
-        use esp_hal::{{ gpio::{{Output as O, Level as L}} }};
+        use esp_hal::{{ gpio::{{Output as O, Input as I, Level as L, Pull}} }};
 
-        let x: (_, _, Option<O>,[O;{LPns_len}]) = (  // {board_id}
+        let x: (_, _, I,[O;{LPns_len}]) = (  // {board_id}
             $io.pins.gpio{SDA},
             $io.pins.gpio{SCL},
-            Some(O::new($io.pins.gpio{PWR_EN}, L::Low)),
+            I::new($io.pins.gpio{INT}, Pull::None),
             [{LPns_fill}]
         );
         x

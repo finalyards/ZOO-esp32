@@ -12,7 +12,7 @@ use core::{
 };
 use esp_hal::{
     delay::Delay,
-    i2c::{I2C, Instance},
+    i2c::{I2c, Instance},
     Blocking
 };
 
@@ -34,7 +34,7 @@ const I2C_ADDR: u8 = DEFAULT_I2C_ADDR >> 1;
 /*
 */
 pub struct MyPlatform<'a, T: Instance> {
-    i2c: I2C<'a, T, Blocking>,
+    i2c: I2c<'a, T, Blocking>,
 }
 
 // Rust note: for the lifetime explanation, see:
@@ -43,7 +43,7 @@ pub struct MyPlatform<'a, T: Instance> {
 //
 impl<'a,T> MyPlatform<'a,T> where T: Instance {
     #[allow(non_snake_case)]
-    pub fn new(i2c: I2C<'a,T,Blocking>) -> Self {
+    pub fn new(i2c: I2c<'a,T,Blocking>) -> Self {
         Self{
             i2c,
         }

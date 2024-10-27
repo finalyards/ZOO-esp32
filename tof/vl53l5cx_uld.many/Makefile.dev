@@ -2,7 +2,7 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=...] make -f Makefile.dev {flock|...}
+#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=...] make -f Makefile.dev {emb|...}
 #		# builds and runs a certain sample
 #
 DEFMT_LOG?=debug
@@ -11,7 +11,6 @@ FEATURES?=
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
-DEFMT_FEATURES:=defmt
 
 REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 
@@ -22,31 +21,33 @@ TARGET:=$(shell cat .cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -
 
 # Detect 'cargo' build cache
 #
-# 'cargo' stores output in a 'target' dir, but such is not necessary to keep in the project folder. [1]
+# 'cargo' stores output in a 'target' dir. We get its path via ’build.rs’ to ’.OUT_DIR’. [1]
 #
 #	[1]: Cargo Book > Build cache
 #		https://doc.rust-lang.org/stable/cargo/guide/build-cache.html
 #
-# tbd. The right approach is likely to let 'cargo' runners handle this.
-#
-CARGO_TARGET_DIR:=target	# tbd. proper detection
+_OUT_DIR:=.OUT_DIR
+
+# Note! Defined with '=' so that it gets re-evaluated on-site!
+_OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
 
 all:
 	@false
 
-flock z:
-	EXAMPLE=flock \
+emb:
+	EXAMPLE=emb \
 	  FEATURES=distance_mm \
 	  $(REMAKE) --no-print-directory _build _run
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES),$(DEFMT_FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:
-	probe-rs run --log-format $(DEFMT_HOST_FMT) $(CARGO_TARGET_DIR)/$(TARGET)/release/examples/$(EXAMPLE)
+	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
-	@echo $(CARGO_TARGET_DIR)
+	@echo $(_OUT_DIR)
 
-.PHONY: all flock z _build _run echo
+.PHONY: all emb _build _run echo

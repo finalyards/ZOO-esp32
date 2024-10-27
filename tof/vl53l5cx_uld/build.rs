@@ -101,7 +101,7 @@ fn main() -> Result<()> {
     }
 
     //---
-    // Turn 'pins.toml' -> 'src/pins_volatile.in’ (named within the TOML itself)
+    // Turn 'pins.toml' -> 'src/pins_gen.in’ (named within the TOML itself)
     {
         let toml = include_str!("./pins.toml");
         process_pins(toml, &board_id)?;

@@ -8,6 +8,7 @@
 use anyhow::*;
 
 use std::{
+    env,
     fs,
     process::Command
 };
@@ -76,32 +77,39 @@ fn main() -> Result<()> {
     //---
     // Config sanity checks
     {
-        // "range_sigma_mm" relates to "distance_mm"
-        #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
-        println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
+        // let 'vl53l5cx_uld' check its features (no double check)
+    }
+
+    // Expose 'OUT_DIR' to an external (Makefile) build system
+    {
+        const TMP: &str = ".OUT_DIR";
+
+        let out_dir = env::var("OUT_DIR")
+            .expect("OUT_DIR to have a value");
+
+        fs::write(TMP, out_dir)
+            .expect(format!("Unable to write {TMP}").as_str());
     }
 
     //---
-    // Turn 'pins.toml' -> 'src/pins_volatile.in’ (named within the TOML itself)
+    // Turn 'pins.toml' -> 'src/pins_gen.in’ (named within the TOML itself)
     {
         let toml = include_str!("./pins.toml");
         process_pins(toml, &board_id)?;
     }
 
-    /***??? needed?
     // Link arguments
     //
-    // Note: Is it okay to do this in a lib crate?  We want it to affect at least the 'examples'.
     {
-        let /*mut*/ link_args: Vec<&str> = vec!(
+        let link_args: Vec<&str> = vec!(
             "-Tlinkall.x",
-            //"-Tdefmt.x"     // required by 'defmt'    // tbd. let's see if this flies without; likely not..
+            "-Tdefmt.x"     // required by 'defmt'
         );
 
         link_args.iter().for_each(|s| {
             println!("cargo::rustc-link-arg={}", s);
         });
-    }***/
+    }
 
     Ok(())
 }

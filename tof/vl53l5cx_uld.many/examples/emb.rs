@@ -1,5 +1,5 @@
 /*
-* Reading a single board, using Embassy for multitasking.
+* Reading two (or more) boards, using Embassy for multitasking.
 */
 #![no_std]
 #![no_main]
@@ -14,7 +14,6 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration as EmbDuration, Timer};
 
 use esp_hal::{
-    delay::Delay,
     gpio::{Io, Input},
     i2c::I2c,
     prelude::*,
@@ -24,9 +23,6 @@ use esp_hal::{
 
 extern crate vl53l5cx_uld as uld;
 mod common;
-
-//|mod option_x;
-//|use option_x::OptionExt;
 
 include!("./pins_gen.in");  // pins!
 
@@ -55,7 +51,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, INT) = pins!(io);
+    let (SDA, SCL, INT, mut LPns) = pins!(io);
 
     let pl = {
         let i2c_bus = I2c::new(
@@ -67,22 +63,8 @@ async fn main(spawner: Spawner) {
         MyPlatform::new(i2c_bus)
     };
 
-    // #wish Would like to have something like so:
-    //|// If 'PWR_EN' configured, reset VL53L5CX by pulling down their power for a moment
-    //|PWR_EN.for_each(|mut pin| {
-    //|    pin.set_low();
-    //|    delay_ms(20);      // tbd. how long is suitable, by the specs?
-    //|    pin.set_high();
-    //|    info!("Target powered off and on again.");
-    //|});
-
-    // If 'PWR_EN' configured, reset VL53L5CX by pulling down their power for a moment
-    for mut pin in PWR_EN {
-        pin.set_low();
-        sync_delay_ms(20);      // tbd. how long is suitable, by the specs?
-        pin.set_high();
-        info!("Target powered off and on again.");
-    }
+    // Initially, enable just one of the boards; leave others disabled ('snippets/pins.in' defaults them to Low)
+    LPns[0].set_high();
 
     let vl = VL53L5CX::new_maybe(pl).unwrap()
         .init().unwrap();
@@ -90,10 +72,7 @@ async fn main(spawner: Spawner) {
     info!("Init succeeded, driver version {}", API_REVISION);
 
     spawner.spawn(ranging(vl)).unwrap();
-
-    for int_pin in INT {
-        spawner.spawn(track_INT(int_pin)).unwrap();
-    }
+    spawner.spawn(track_INT(INT)).unwrap();
 }
 
 
@@ -129,9 +108,7 @@ async fn ranging(/*move*/ mut vl: VL53L5CX_InAction) {
 
         info!("Data #{} ({})", round, temp_degc);
 
-        #[cfg(feature = "target_status")]
         info!(".target_status:    {}", res.target_status);
-        #[cfg(feature = "nb_targets_detected")]
         info!(".targets_detected: {}", res.targets_detected);
 
         #[cfg(feature = "ambient_per_spad")]
@@ -189,11 +166,4 @@ fn init_defmt() {
     defmt::timestamp!("{=u64:us}", {
         now().duration_since_epoch().to_micros()
     });
-}
-
-// DO NOT use within the async portion!!!
-const D_PROVIDER: Delay = Delay::new();
-
-fn sync_delay_ms(ms: u32) {
-    D_PROVIDER.delay_millis(ms);
 }
