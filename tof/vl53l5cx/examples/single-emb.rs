@@ -1,5 +1,5 @@
 /*
-* Reading two (or more) boards, using Embassy for multitasking.
+* Reading a single board, using Embassy.
 */
 #![no_std]
 #![no_main]
@@ -56,7 +56,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, INT, mut LPns) = pins!(io);
+    let (SDA, SCL, PWR_EN, INT, mut LPns) = pins!(io);
 
     let i2c_bus = I2c::new(
         peripherals.I2C0,
@@ -67,31 +67,39 @@ async fn main(spawner: Spawner) {
 
     let i2c_shared = RefCell::new(i2c_bus);
 
-    #[allow(non_snake_case)]
-    let vls = LPns.enumerate().map(|LPn,i| {
-        let i2c_addr = DEFAULT_I2C_ADDR_8BIT + i*2;
-        VL::new_and_setup(LPn, i2c_shared, I2cAddr::from(i2c_addr))
-    });
+    // Reset VL53L5CX by pulling down their power for a moment
+    if let Some(mut pin) = PWR_EN {
+        pin.set_low();
+        delay_ms(2);      // tbd. how long is suitable? This is the time the chip itself is with low power. #measure
+        pin.set_high();
+        info!("Target powered off and on again.");
+    }
+
+    // Enable one of the wired boards. Ensures that the others (if any) won't jump on the I2C bus.
+    for (i,pin) in LPns.zip() {
+        if i==0 {
+            pin.set_high();
+        } else {
+            pin.set_low();
+        }
+    }
+
+    let vl = VL53L5CX::new(i2c_shared);
 
     info!("Init succeeded, driver version {}", API_REVISION);
 
-    spawner.spawn(ranging(vls)).unwrap();
-    //R spawner.spawn(track_INT(INT)).unwrap();
+    spawner.spawn(ranging(vl)).unwrap();
 }
 
 
-// Initially, have two tasks:
-//  1. runs the TOF sensor
-//  2. sees whether the 'INT' pin gets high->low edges, and logs them
-
 #[embassy_executor::task]
-async fn ranging(/*move*/ mut vls: &[VL53L5CX_InAction]) {
+async fn ranging(/*move*/ mut vl: VL) {
 
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
+        .with_mode(AUTONOMOUS(Ms(5),Hz(10)))    // tbd. '5.ms()', '10.Hz()'
         .with_target_order(CLOSEST);
 
-    let mut ring = vl::start_ranging(vls, &c);
+    let mut ring = vl.start_ranging(&c);
 
     let t = Timings::new();
 
@@ -126,17 +134,6 @@ async fn ranging(/*move*/ mut vls: &[VL53L5CX_InAction]) {
         t.report();
     }
 }
-
-/***R
-#[embassy_executor::task]
-#[allow(non_snake_case)]
-async fn track_INT(mut pin: Input<'static>) {
-
-    loop {
-        pin.wait_for_rising_edge().await;
-        debug!("INT detected");
-    }
-}***/
 
 /*
 * Tell 'defmt' how to support '{t}' (timestamp) in logging.
@@ -187,4 +184,11 @@ impl Timings {
 
         debug!("Timing [ms] (total {=f32}): wait+read {}, passing {}", ms(dt_total), ms(dt1), ms(dt2));
     }
+}
+
+// DO NOT use within the async portion!!!
+const D_PROVIDER: Delay = Delay::new();
+
+fn blocking_delay_ms(ms: u32) {
+    D_PROVIDER.delay_millis(ms);
 }

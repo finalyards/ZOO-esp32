@@ -76,7 +76,7 @@ async fn main(spawner: Spawner) {
     // If 'PWR_EN' configured, reset VL53L5CX by pulling down their power for a moment
     for mut pin in PWR_EN {
         pin.set_low();
-        pending_delay_ms(20);   // Note: this is SATEL area (not chip); specs don't mention suitable time
+        blocking_delay_ms(2);   // #measure that the power really goes all the way down
         pin.set_high();
         info!("Target powered off and on again.");
     }
@@ -191,6 +191,6 @@ fn init_defmt() {
 // DO NOT use within the async portion!!!
 const D_PROVIDER: Delay = Delay::new();
 
-fn pending_delay_ms(ms: u32) {
+fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }

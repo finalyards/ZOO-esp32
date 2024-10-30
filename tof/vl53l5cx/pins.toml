@@ -8,13 +8,13 @@ generate = "examples/pins_gen.in"
 #|[boards.esp32c3]
 #|SDA = 4
 #|SCL = 5
-#|#PWR_EN = 0      # { type=Output, pin=0, optional=true }
-#|INT = 0
+#|PWR_EN = 0      # { type=Output, pin=0, optional=true }
+#|INT = xxx
 #|LPn = [2,3]     # [{type=Output, pin=2}, {type=Output, pin=3}]      or [{ type=Output, pin=2}, 3 ]
 
 [boards.esp32c6]
 SDA = 18
 SCL = 19
-#PWR_EN = 20
-INT = 21
-LPn = [22,23]
+PWR_EN = 22
+INT = 23
+LPn = [20,21]

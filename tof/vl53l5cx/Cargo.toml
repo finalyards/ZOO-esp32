@@ -65,5 +65,9 @@ default = []
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
 #
 [[example]]
-name = "emb"
+name = "single-emb"
+required-features = ["defmt", "distance_mm"]
+
+[[example]]
+name = "many-emb"
 required-features = ["defmt", "distance_mm"]

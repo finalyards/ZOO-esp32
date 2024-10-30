@@ -14,5 +14,5 @@ INT=0
 [boards.esp32c6]
 SDA = 18
 SCL = 19
-#PWR_EN = 20
-INT=20
+PWR_EN = 20
+INT=21

@@ -34,8 +34,13 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-emb:
-	EXAMPLE=emb \
+single s:
+	EXAMPLE=single-emb \
+	  FEATURES=distance_mm \
+	  $(REMAKE) --no-print-directory _build _run
+
+many m:
+	EXAMPLE=many-emb \
 	  FEATURES=distance_mm \
 	  $(REMAKE) --no-print-directory _build _run
 
@@ -50,4 +55,4 @@ _run:
 echo:
 	@echo $(_OUT_DIR)
 
-.PHONY: all emb _build _run echo
+.PHONY: all single many _build _run echo
