@@ -1,12 +1,15 @@
-// THIS IS A COPY from '../../vl53l5cx_uld/examples/common.rs' (almost)
-
-// tbd. Since the 'flock' lib anyways has a dependency on 'esp-hal', consider making this part
-//      of the lib.
-
+/*
+* 'Platform' implementation for the VL53L5CX ULD interface.
+*
+* For access to the I2C bus, a 'RefCell' is used. The intended use is Embassy tasks, where
+* borrows of the bus happen between 'async' boundaries.
+*/
+#[cfg(feature = "defmt")]
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, trace, panic};
 
 use core::{
+    cell::RefCell,
     mem::MaybeUninit,
     iter::zip
 };
@@ -16,10 +19,9 @@ use esp_hal::{
     Blocking
 };
 
-use vl53l5cx_uld::{     // <-- differs here from 'vl53l5cx_uld/examples'
-    Platform,
-    DEFAULT_I2C_ADDR
-};
+use vl53l5cx_uld::{Platform, DEFAULT_I2C_ADDR_8BIT};
+
+use crate::I2cAddr;
 
 // Maximum sizes for I2C writes and reads, via 'esp-hal'. Unfortunately, it does not expose these
 // as values we could read (the values are burnt-in).
@@ -29,28 +31,27 @@ const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err
 
 const D_PROVIDER: Delay = Delay::new();
 
-const I2C_ADDR: u8 = DEFAULT_I2C_ADDR >> 1;
-
 /*
 */
-pub struct MyPlatform<'a, T: Instance> {
-    i2c: I2c<'a, T, Blocking>,
+pub(crate) struct Pl<'a, T: Instance> {
+    i2c_shared: &'a RefCell<I2c<'a, T, Blocking>>,
+    i2c_addr: I2cAddr
 }
 
 // Rust note: for the lifetime explanation, see:
 //  - "Lost in lifetimes" (answer)
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
-impl<'a,T> MyPlatform<'a,T> where T: Instance {
-    #[allow(non_snake_case)]
-    pub fn new(i2c: I2c<'a,T,Blocking>) -> Self {
+impl<'a,T> Pl<'a,T> where T: Instance {
+    pub fn new(i2c_shared: &'a RefCell<I2c<'a, T,Blocking>>) -> Self {
         Self{
-            i2c,
+            i2c_shared,
+            i2c_addr: I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT)
         }
     }
 }
 
-impl<T> Platform for MyPlatform<'_,T> where T: Instance
+impl<T> Platform for Pl<'_,T> where T: Instance
 {
     /*
     * Reads can be in sizes of 492 bytes (or more). The 'esp-hal' requires these to be handled
@@ -66,9 +67,11 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
         // Chunks we get are *views* to the 'buf' backing them. Thus, reading to the chunk automatically
         // fills it.
         //
-        for (round,chunk) in zip(1.., chunks) {
+        let mut i2c = self.i2c_shared.borrow_mut();
+        let addr: u8 = self.i2c_addr.as_7bit();
 
-            match self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), chunk) {
+        for (round,chunk) in zip(1.., chunks) {
+            match i2c.write_read(addr, &index.to_be_bytes(), chunk) {
                 Err(e) => {
                     // If we get an error, let's stop right away.
                     panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, buf.len(), round, rounds, e);
@@ -84,10 +87,13 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
 
         // Whole 'buf' should now have been read in.
         //
-        if buf.len() <= 20 {
-            trace!("I2C read: {:#06x} -> {:#04x}", index_orig, buf);
-        } else {
-            trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index_orig, slice_head(buf,20), buf.len());
+        #[cfg(feature = "defmt")]
+        {
+            if buf.len() <= 20 {
+                trace!("I2C read: {:#06x} -> {:#04x}", index_orig, buf);
+            } else {
+                trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index_orig, slice_head(buf,20), buf.len());
+            }
         }
 
         Ok(())
@@ -121,6 +127,9 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
 
         // Note: We can just chunk everything (if + recursion being the alternative).
         //
+        let mut i2c = self.i2c_shared.borrow_mut();
+        let addr: u8 = self.i2c_addr.as_7bit();
+
         for (_round,chunk) in zip(1.., chunks) {
             let n: usize = chunk.len();
 
@@ -142,16 +151,19 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
                 &buf[..2+n]
             };
 
-            self.i2c.write(I2C_ADDR, &out).unwrap_or_else(|e| {
+            i2c.write(addr, &out).unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
                 panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
             });
 
             // Give the "written" log here, separately for each chunk (clearer to follow log).
-            if n <= 20 {
-                trace!("I2C written: {:#06x} <- {:#04x}", index, chunk);
-            } else {
-                trace!("I2C written: {:#06x} <- {:#04x}... ({=usize} bytes)", index, slice_head(chunk,20), n);
+            #[cfg(feature = "defmt")]
+            {
+                if n <= 20 {
+                    trace!("I2C written: {:#06x} <- {:#04x}", index, chunk);
+                } else {
+                    trace!("I2C written: {:#06x} <- {:#04x}... ({=usize} bytes)", index, slice_head(chunk,20), n);
+                }
             }
 
             index = index + n as u16;
@@ -164,8 +176,13 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     }
 
     fn delay_ms(&mut self, ms: u32) {
+        #[cfg(feature = "defmt")]
         trace!("🔸 {}ms", ms);
         delay_ms(ms);
+    }
+
+    fn addr_changed(&mut self, new_addr_8bit: u8) {
+        self.i2c_addr = I2cAddr::from_8bit(new_addr_8bit);
     }
 }
 

@@ -25,9 +25,6 @@ use esp_hal::{
 extern crate vl53l5cx_uld as uld;
 mod common;
 
-//|mod option_x;
-//|use option_x::OptionExt;
-
 include!("./pins_gen.in");  // pins!
 
 use common::MyPlatform;
@@ -79,7 +76,7 @@ async fn main(spawner: Spawner) {
     // If 'PWR_EN' configured, reset VL53L5CX by pulling down their power for a moment
     for mut pin in PWR_EN {
         pin.set_low();
-        sync_delay_ms(20);      // tbd. how long is suitable, by the specs?
+        pending_delay_ms(20);   // Note: this is SATEL area (not chip); specs don't mention suitable time
         pin.set_high();
         info!("Target powered off and on again.");
     }
@@ -179,7 +176,7 @@ async fn track_INT(mut pin: Input<'static>) {
 * Tell 'defmt' how to support '{t}' (timestamp) in logging.
 *
 * Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
-*       read operation". Out 'esp_hal::time::now' isn't, but sure seems to work.
+*       read operation". Our 'esp_hal::time::now' isn't, but sure seems to work.
 *
 * Reference:
 *   - defmt book > ... > Hardware timestamp
@@ -194,6 +191,6 @@ fn init_defmt() {
 // DO NOT use within the async portion!!!
 const D_PROVIDER: Delay = Delay::new();
 
-fn sync_delay_ms(ms: u32) {
+fn pending_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }

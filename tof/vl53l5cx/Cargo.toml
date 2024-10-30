@@ -1,5 +1,5 @@
 [package]
-name = "vl53l5cx_uld_many"
+name = "vl53l5cx_many"
 edition = "2021"
 rust-version = "1.80"
 publish = false
@@ -19,7 +19,7 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 defmt           = { version = "0.3.8", optional = true }
-esp-hal         = { version = "0.21.1", features = ["esp32c6"] }     # "defmt", "async"
+esp-hal         = { version = "0.21.1", features = ["esp32c6"] }     # "defmt"
 vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = ["target_status"] }     # "defmt"
 
 [dev-dependencies]
@@ -33,12 +33,11 @@ esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
 fugit           = { version = "0.3.7", features = ["defmt"] }
     # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
-#Rsemihosting     = { version = "0.1.15" }     # "args"
 
 [build-dependencies]
-anyhow          = "1.0.89"
+anyhow          = "1.0.91"
 itertools       = "0.13.0"
-serde           = { version = "1.0.210", features = ["derive"] }
+serde           = { version = "1.0.214", features = ["derive"] }
 toml            = "0.8.19"
 
 # ULD C compile-time features

@@ -14,7 +14,7 @@ use esp_hal::{
 extern crate vl53l5cx_uld as uld;
 use uld::{
     Platform,
-    DEFAULT_I2C_ADDR
+    DEFAULT_I2C_ADDR_8BIT
 };
 
 // Maximum sizes for I2C writes and reads, via 'esp-hal'. Unfortunately, it does not expose these
@@ -25,7 +25,7 @@ const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err
 
 const D_PROVIDER: Delay = Delay::new();
 
-const I2C_ADDR: u8 = DEFAULT_I2C_ADDR >> 1;
+const I2C_ADDR: u8 = DEFAULT_I2C_ADDR_8BIT >> 1;
 
 /*
 */

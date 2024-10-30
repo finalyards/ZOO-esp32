@@ -87,12 +87,11 @@ pub trait Platform {
     // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
     // address the device identifies with, inform the 'Platform' struct about it.
     //
-    #[cfg(not(all()))]  // de-activated
     fn addr_changed(&mut self, new_addr_8bit: u8);
 }
 
-// Note: vendor uses "8 bit" format (7-bit address, shifted one left to expose the read/write bit as 0).
-pub const DEFAULT_I2C_ADDR: u8 = 0x52;    // vendor default
+// Note: vendor uses "8 bit" format (7-bit address, shifted one left).
+pub const DEFAULT_I2C_ADDR_8BIT: u8 = 0x52;    // vendor default
 
 // After LOTS of variations, here's a way to expose a 'CStr' string as a '&str' const (as long as
 // we avoid '.unwrap*()' of any kind, it's const). Why it matters (does it tho?):
@@ -290,8 +289,7 @@ impl VL53L5CX_InAction {
     * Unlike other functions, we don't refer to the ULD C API because the changing of the address
     * mechanism is... not well designed. Instead, we do the full bytewise comms here.
     */
-    #[cfg(not(all()))]  // disabled
-    pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
+    pub fn set_i2c_address_CAREFUL(&mut self, addr: u8) -> Result<()> {
 
         // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
 
