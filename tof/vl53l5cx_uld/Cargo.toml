@@ -40,7 +40,7 @@ semihosting     = { version = "0.1.16" }
 [build-dependencies]
 anyhow          = "1.0.91"
 itertools       = "0.13.0"
-serde           = { version = "1.0.213", features = ["derive"] }
+serde           = { version = "1.0.214", features = ["derive"] }
 toml            = "0.8.19"
 
 # C compile-time features

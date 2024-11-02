@@ -46,7 +46,7 @@ else
   $(error Unexpected TARGET: ${_T})
 endif
 
-# in anticipation for Xtensa, #later (needs us to use a custom 'clang')
+# in anticipation for Xtensa (needs us to use a custom 'clang')
 #_CLANG:=clang
 
 all:
@@ -62,7 +62,7 @@ manual: tmp/libvendor_uld.a tmp/uld_raw.rs
 tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
 	ar rcs $@ $<
 
-tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h \
+tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h Makefile \
 	| clang
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
@@ -137,7 +137,7 @@ endif
 #		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
 #			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
 #
-tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) \
+tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) Makefile \
 	| $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h bindgen
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
 	    --allowlist-file wrap.h \
@@ -155,9 +155,13 @@ tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) \
 	    --raw-line '#![allow(non_camel_case_types)]' \
 	    --raw-line '#![allow(non_snake_case)]' \
 		--raw-line 'use strum::FromRepr;' \
+		--no-copy 'VL53L5CX_(?:(Configuration)|(Platform))' \
 	    -- -I. -I$(_C_SRC) \
-	  | sed -e 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
-	  | sed -e 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \
+	  | sed 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
+	  | sed 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \
+	  | sed 's/these field, except for the sensor address."/these fields."/' \
+	  | sed -E 's/^(pub enum PowerMode)/#[allow(dead_code)]\n\1/' \
+	  | sed -E 's/(vl53l5cx_set_power_mode)/_\1/' \
 	  > $@
 
 	# Note: 'sed' removes 'Debug' from the derived behaviours. This is intentional; 'defmt' uses 'Format'.
@@ -165,16 +169,18 @@ tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) \
 # Test for the above (for manual development, only); CAN BE LET GO
 EXP_x: tmp/uld_raw.rs
 	grep -q API_REVISION $<
-	grep -q 'pub enum PowerMode' $<
 	grep -q vl53l5cx_init $<
 	grep -q vl53l5cx_get_ranging_data $<
 	! grep -q 'static VL53L5CX_FIRMWARE' $<
 	! grep -q vl53l5cx_is_alive $<
 	! grep -q vl53l5cx_get_resolution $<
 	! grep -q VL53L5CX_RdByte $<
+	! grep -q 'these field, except ' $<
 	@#
 	@echo ""
 	@echo "Yay!"
+
+	#grep -q 'pub enum PowerMode' $<
 
 # 'build.rs' writes 'tmp/config.h.next' on every build.
 # If the contents differ, update 'tmp/config.h'.

@@ -1,54 +1,39 @@
 /*
-* Ranging: actually getting measurements from the sensor.
+* state_ranging.rs:
+*
+*   'RangingConfig':  how the ranging should be done
+*   'State_Ranging':  handle to the sensor once ranging is ongoing
 */
-use core::mem::MaybeUninit;
-
 #[cfg(feature = "defmt")]
-use defmt::{assert, panic};
+use defmt::{assert, panic, trace};
 
-#[allow(unused_imports)]
-use crate::uld_raw::{
-    VL53L5CX_Configuration,
-    VL53L5CX_ResultsData,
-        //
-    vl53l5cx_start_ranging,
-    vl53l5cx_check_data_ready,
-    vl53l5cx_get_ranging_data,
-    vl53l5cx_set_resolution,
-    vl53l5cx_set_ranging_frequency_hz,
-    vl53l5cx_set_ranging_mode,
-    vl53l5cx_set_integration_time_ms,
-    vl53l5cx_set_sharpener_percent,
-    vl53l5cx_set_target_order,
-    vl53l5cx_stop_ranging,
-    ST_OK,
-    RangingMode as RangingMode_R,
-    Resolution as Resolution_R
+use crate::uld_raw::{VL53L5CX_Configuration, vl53l5cx_start_ranging, vl53l5cx_check_data_ready, vl53l5cx_get_ranging_data, vl53l5cx_set_resolution, vl53l5cx_set_ranging_frequency_hz, vl53l5cx_set_ranging_mode, vl53l5cx_set_integration_time_ms, vl53l5cx_set_sharpener_percent, vl53l5cx_set_target_order, vl53l5cx_stop_ranging, ST_OK, RangingMode as RangingMode_R, Resolution as Resolution_R, VL53L5CX_ResultsData};
+
+// Enums from 'uld_raw.rs' that are exposed in the public API
+pub use crate::uld_raw::{
+    TargetOrder
 };
-pub use crate::uld_raw::{   // pass-throughs
-    TargetOrder,
-};
+
 use crate::{
+    results_data::ResultsData,
+    units::{MsU16, HzU8, TempC, ExtU32 as _},
     Error,
     Result,
-    results_data::ResultsData,
-    units::{Ms, Hz, TempC}
 };
 
-/* Documentation on 'ResultsData' (aka 'VL53L5CX_ResultsData'):
-*
+/* Documentation on vendor ULD C API:
 pub struct VL53L5CX_ResultsData {
     pub silicon_temp_degc: i8,                  // temperature within the sensor [°C]
     pub nb_target_detected: [u8; 64usize],      // values in range [1..'targets_per_zone_{1..4}'] (inclusive); max steered by feature
-    pub distance_mm: [i16; 64usize],            // on 'feature='distance_mm'; tbd. (sample?)
+    pub distance_mm: [i16; 64usize],            // note that values could be negative (but never are)
     pub target_status: [u8; 64usize],           // values: 5,6,10,255   // doc: 5,9 are proper; rest imply unreliable results in that zone
 }
     The buffers are to be read as:
     - 4x4 reso: tbd.
     - 8x8 reso: tbd.
 */
-// tbd. We likely end up copying values, so that the Rust side can get 'ResultsData_4x4' or 'ResultsData_8x8' classes.
 
+// tbd. #review
 /*
 * The 'Resolution' trait became an implementation detail, and a plain function, expressing the
 * dimensions in app level being by the 'DIM' const generic.
@@ -56,14 +41,11 @@ pub struct VL53L5CX_ResultsData {
 * This defines which resolutions the system is able to play with; if there are new ones (for similar
 * sensors, in the future), adding the details here will open them up for the larger 'Ranging' and
 * other such structs.
-*
-* tbd. There's a feel this could be done more type-oriented; how to implement something just for
-*       DIM=4 and DIM=8? #rust
 */
-fn get_reso_details<const DIM: usize>() -> (Resolution_R, u8, u8) {
+fn get_reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*integration time*/, HzU8 /*max freq*/) {
     match DIM {
-        4 => { (Resolution_R::_4X4, 1, 15) },
-        8 => { (Resolution_R::_8X8, 4, 60) },
+        4 => { (Resolution_R::_4X4, 1, 15.Hz()) },
+        8 => { (Resolution_R::_8X8, 4, 60.Hz()) },
         _ => unreachable!()
     }
 }
@@ -71,13 +53,14 @@ fn get_reso_details<const DIM: usize>() -> (Resolution_R, u8, u8) {
 // Adding to the C API by joining integration time with the ranging mode - since integration time
 // only applies to one of the modes.
 //
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Mode {
     CONTINUOUS,
-    AUTONOMOUS(Ms,Hz)    // (integration time, ranging frequency)
+    AUTONOMOUS(MsU16,HzU8)    // (integration time, ranging frequency)
 }
 use Mode::{CONTINUOUS, AUTONOMOUS};
+use crate::state_hp_idle::State_HP_Idle;
 
 impl Mode {
     fn as_uld(&self) -> RangingMode_R {
@@ -103,6 +86,7 @@ impl Mode {
 *   - Integration time range is (for all resolutions): [2ms..1000ms]; inclusive
 *   - Sharpener range is [0..99]; inclusive; (0 = disabled)
 */
+#[derive(Clone)]
 pub struct RangingConfig<const DIM: usize = 4> {
     mode: Mode,      // also carries ranging frequency and integration time for 'AUTONOMOUS'
     sharpener_prc: Option<u8>,      // 'None' | 'Some(1..=99)'
@@ -128,10 +112,10 @@ impl<const DIM: usize> RangingConfig<DIM> {
     }
 
     fn validate(&self) {
-        let (_,R_INTEGRATION_TIMES_N, R_FREQ_RANGE_MAX): (_,u8,u8) = get_reso_details::<DIM>();
+        let (_,R_INTEGRATION_TIMES_N, R_FREQ_RANGE_MAX): (_,u8,HzU8) = get_reso_details::<DIM>();
 
         match self.mode {
-            AUTONOMOUS(Ms(integration_time_ms), Hz(freq)) => {
+            AUTONOMOUS(MsU16(integration_time_ms), HzU8(freq)) => {
                 assert!((2..=1000).contains(&integration_time_ms), "Integration time out of range");
 
                 // "The sum of all integration times + 1 ms overhead must be lower than the measurement
@@ -145,11 +129,11 @@ impl<const DIM: usize> RangingConfig<DIM> {
                 // Note: The test itself is calculated so that inaccuracies don't occur (multiplication instead of division).
                 //      The error message parameter is let go more loosely; not a problem.
                 //
-                assert!((integration_time_ms+1)*(n as u16)*(freq as u16) < 1000,
+                assert!((integration_time_ms as u16+1)*(n as u16)*(freq as u16) < 1000,
                     "Integration time exceeds the available window ({}ms)", (1000_u16/(n as u16 * freq as u16))-1
                 );
 
-                let freq_range = 1..R_FREQ_RANGE_MAX;    // 1..15 (4x4); 1..60 (8x8)
+                let freq_range = 1..(R_FREQ_RANGE_MAX.0 as u8);    // 1..15 (4x4); 1..60 (8x8)
                 assert!(freq_range.contains(&freq), "Frequency out of range");
             },
             _ => {}
@@ -176,12 +160,12 @@ impl<const DIM: usize> RangingConfig<DIM> {
             e => Err(Error(e))
         }?;
 
-        if let AUTONOMOUS(Ms(ms), Hz(freq)) = self.mode {
+        if let AUTONOMOUS(MsU16(ms), HzU8(freq)) = self.mode {
             match unsafe { vl53l5cx_set_integration_time_ms(vl, ms as u32) } {
                 ST_OK => Ok(()),
                 e => Err(Error(e))
             }?;
-            match unsafe { vl53l5cx_set_ranging_frequency_hz(vl, freq) } {
+            match unsafe { vl53l5cx_set_ranging_frequency_hz(vl, freq as u8) } {
                 ST_OK => Ok(()),
                 e => Err(Error(e))
             }?;
@@ -214,24 +198,28 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
         Self {
             sharpener_prc: None,
             target_order: TargetOrder::STRONGEST,
-            mode: AUTONOMOUS(Ms(5),Hz(1)),
+            mode: AUTONOMOUS(5.ms(),1.Hz()),
         }
     }
 }
 
-pub struct Ranging<'a, const DIM: usize> {    // DIM: 4|8
-    vl: &'a mut VL53L5CX_Configuration,
+#[allow(non_camel_case_types)]
+pub struct State_Ranging<const DIM: usize> {    // DIM: 4|8
+    // Access to 'VL53L5CX_Configuration'.
+    // The 'Option' is needed to have both explicit '.stop()' and an implicit 'Drop'.
+    outer_state: Option<State_HP_Idle>,
     rbuf: ResultsData<DIM>      // Rust-side results store
 }
 
-impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
-    pub(crate) fn new_maybe(vl: &'b mut VL53L5CX_Configuration, cfg: &RangingConfig<DIM>) -> Result<Self> {
+impl<'b: 'c,'c,const DIM: usize> State_Ranging<DIM> {
+    pub(crate) fn transition_from(/*move*/ mut st: State_HP_Idle, cfg: &RangingConfig<DIM>) -> Result<Self> {
+        let vl: &mut VL53L5CX_Configuration = st.borrow_uld_mut();
         cfg.apply(vl)?;
 
         match unsafe { vl53l5cx_start_ranging(vl) } {
             ST_OK => {
                 let x = Self{
-                    vl,
+                    outer_state: Some(st),
                     rbuf: ResultsData::empty()
                 };
                 Ok(x)
@@ -240,13 +228,13 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
         }
     }
 
-    // tbd. Consider (#later), whether this should _always_ be called (within 'get_data()');
-    //      there are very few cases (or one: single board with interrupt telling data is available)
-    //      where the application could skip the 'is_ready()' call.
-    //
+    /*
+    * Used by the app-level, together with interrupts (and/or timer) and '.await', to see which
+    * board(s) have fresh data.
+    */
     pub fn is_ready(&mut self) -> Result<bool> {
         let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_check_data_ready(self.vl, &mut tmp) } {
+        match unsafe { vl53l5cx_check_data_ready(self.borrow_uld_mut(), &mut tmp) } {
             ST_OK => Ok(tmp != 0),
             e => Err(Error(e))
         }
@@ -254,28 +242,31 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
 
     // tbd. consider adding 'time_stamp' as in the Flock
     /*
-    * Collect results from the last successful scan. You can call this either after
-    *   a) checking for valid results using 'is_ready()', or..
-    *   b) having gotten a hardware signal showing a scan is complete.
+    * Collect results from the last successful scan.
     *
-    * Note: If you have multiple boards sharing an interrupt, you will likely cycle all of them
-    *       through on each interrupt, and will thus end up calling 'is_ready()' anyways, per board.
+    //tbd. Try and describe what happens, if you call here before a scan is ready.  tbd. Make a test/example
     *
-    //tbd. Try and describe what happens, if you call here before a scan is ready.
-    *
-    * Note: The data is valid until the next '.get_data' call. However, Rust reference management
-    *       should take (?) care that all reads to these are dropped, before a new round is read.
-    *       App level does not need to care.
+    * Note: The data is valid until the next '.get_data()' call. Rust reference management takes
+    *       care that all reads to them are dropped, before a new round is replacing them. #rust
     */
     pub fn get_data(&mut self) -> Result<(&ResultsData<DIM>, TempC)> {
-        let mut buf = unsafe {
-            // << integers must be initialized (in this struct field): silicon_temp_degc: i8
-            //MaybeUninit::<VL53L5CX_ResultsData>::uninit().assume_init()
+        use core::mem::MaybeUninit;
+        use core::ptr::addr_of_mut;
 
-            MaybeUninit::<VL53L5CX_ResultsData>::zeroed().assume_init()
+        // The 'i8' field within the struct needs explicit initialization.
+        // See -> https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-a-struct-field-by-field
+        //
+        let mut buf: VL53L5CX_ResultsData = {
+            let mut un = MaybeUninit::<VL53L5CX_ResultsData>::uninit();
+            let up = un.as_mut_ptr();
+            unsafe {
+                addr_of_mut!((*up).silicon_temp_degc).write(0);
+                un.assume_init()
+            }
         };
+        //unsafe { MaybeUninit::zeroed().assume_init() }        // the easy way :)
 
-        match unsafe { vl53l5cx_get_ranging_data(self.vl, &mut buf) } {
+        match unsafe { vl53l5cx_get_ranging_data(self.borrow_uld_mut(), &mut buf) } {
             ST_OK => {
                 let temp_c = self.rbuf.feed(&buf);
                 Ok((&self.rbuf, temp_c))
@@ -283,13 +274,53 @@ impl<'b: 'c,'c,const DIM: usize> Ranging<'c,DIM> {
             e => Err(Error(e))
         }
     }
+
+    /*
+    * Stop the ranging; provides access back to the 'HP Idle' state of the sensor.
+    */
+    pub fn stop(mut self) -> Result<State_HP_Idle> {
+        match Self::_stop(self.outer_state.as_mut().unwrap()) {
+            Ok(()) => {
+                Ok( self.outer_state.take().unwrap() )  // leave 'None' for the 'Drop' handler
+            },
+            Err(e) => Err(e)
+        }
+    }
+
+    /*
+    * Lower level "stop", usable by both the explicit '.stop()' and 'Drop' handler.
+    *
+    * Takes '&mut Self': 'Drop' handler cannot call the normal '.stop()' that consumes the struct.
+    */
+    fn _stop(outer: &mut State_HP_Idle) -> Result<()> {
+        match unsafe { vl53l5cx_stop_ranging(outer.borrow_uld_mut()) } {
+            ST_OK => Ok(()),
+            e => Err(Error(e))
+        }
+    }
+
+    fn borrow_uld_mut(&mut self) -> &mut VL53L5CX_Configuration {
+        self.outer_state.as_mut().unwrap().borrow_uld_mut()
+    }
 }
 
-impl<const DIM: usize> Drop for Ranging<'_,DIM> {
+/*
+* A Drop handler, so the ranging will seize (on the sensor) if the application simply drops the
+* state (instead of turning it back to 'HP Idle').
+*/
+impl<const DIM: usize> Drop for State_Ranging<DIM> {
     fn drop(&mut self) {
-        match unsafe { vl53l5cx_stop_ranging(self.vl) } {
-            ST_OK => (),
-            e => panic!("Stop ranging failed; st={}", e)
+        #[cfg(feature = "defmt")]
+        trace!("Drop handler called");
+
+        match self.outer_state {
+            None => (),
+            Some(ref mut outer) => {
+                match Self::_stop(outer) {
+                    Ok(_) => {},
+                    Err(Error(e)) => { panic!("Stop ranging failed; st={}", e) }
+                }
+            }
         }
     }
 }

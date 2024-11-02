@@ -1,37 +1,38 @@
 #![no_std]
 #![allow(non_snake_case)]
 
-pub mod ranging;    // TEMP: for now, exposing also as 'ranging::{Resolution, ...}'; let's see
 mod platform;
-mod uld_raw;
+mod state_hp_idle;
+mod state_ranging;
 mod results_data;
+mod uld_raw;
 pub mod units;
 
-#[allow(unused_imports)]
 #[cfg(feature = "defmt")]
 use defmt::{debug, warn, trace, error};
 
 use core::{
     ffi::CStr,
+    fmt::{Display, Formatter},
     mem::MaybeUninit,
     ptr::addr_of_mut,
     result::Result as CoreResult,
 };
-use core::fmt::{Display, Formatter};
-pub use ranging::{
-    RangingConfig,
-    Ranging,
-    *   // Resolution, TargetOrder, ...
-};
-pub use units::*;   // Hz, Ms
 
-#[allow(unused_imports)]    // remove warnings on 'as _'
-use uld_raw::{
+use state_hp_idle::State_HP_Idle;
+
+pub use state_ranging::{
+    RangingConfig,
+    State_Ranging,
+    TargetOrder
+};
+
+pub use results_data::ResultsData;
+
+use crate::uld_raw::{
     VL53L5CX_Configuration,
     vl53l5cx_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
-    vl53l5cx_get_power_mode,
-    vl53l5cx_set_power_mode,
     ST_OK, ST_ERROR,
 
     /*** tbd. if needed, bring under features
@@ -45,8 +46,6 @@ use uld_raw::{
     *vl53l5cx_set_VHV_repeat_count,
     */
 };
-pub use uld_raw::PowerMode;
-pub use results_data::ResultsData;
 
 pub type Result<T> = core::result::Result<T,Error>;
 
@@ -56,13 +55,13 @@ pub struct Error(pub u8);
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Driver or hardware level error ({})", self.0)
+        write!(f, "ULD driver or hardware error ({})", self.0)
     }
 }
 
-
 /**
-* @brief App provides, to talk to the I2C and do blocking delays.
+* @brief App provides, to talk to the I2C and do blocking delays; provides a mechanism to inform
+*       the platform about an I2C address change.
 */
 pub trait Platform {
     // provided by the app
@@ -90,7 +89,6 @@ pub trait Platform {
     fn addr_changed(&mut self, new_addr_8bit: u8);
 }
 
-// Note: vendor uses "8 bit" format (7-bit address, shifted one left).
 pub const DEFAULT_I2C_ADDR_8BIT: u8 = 0x52;    // vendor default
 
 // After LOTS of variations, here's a way to expose a 'CStr' string as a '&str' const (as long as
@@ -101,47 +99,47 @@ pub const DEFAULT_I2C_ADDR_8BIT: u8 = 0x52;    // vendor default
 pub const API_REVISION: &str = {
     match unsafe{ CStr::from_bytes_with_nul_unchecked(API_REVISION_r) }.to_str() {
         Ok(s) => s,
-        _ => ""
+        _ => unreachable!()     // use "" if this doesn't pass the compiler tbd.
     }
 };
 
 /*
-* This adds a method to the ULD C API struct.
+* Adds a method to the ULD C API struct.
 *
 * Note: Since the C-side struct has quite a lot of internal "bookkeeping" fields, we don't expose
-*       this directly to Rust customers, but wrap it (later). We *could* also consider making
+*       this directly to Rust customers, but wrap it. We *could* also consider making
 *       those fields non-pub in the 'bindgen' phase, and be able to pass this struct, directly. #design
 */
 impl VL53L5CX_Configuration {
     /** @brief Returns a default 'VL53L5CX_Configuration' struct, spiced with the application
-    * provided 'Platform'-derived state (opaque to us, except for its size).
-    *
-    * Initialized state is (as per ULD C code):
-    *   <<
-    *       .platform: dyn Platform     = anything the app keeps there
-    *       .streamcount: u8            = 0 (undefined by ULD C code)
-    *       .data_read_size: u32        = 0 (undefined by ULD C code)
-    *       .default_configuration: *mut u8 = VL53L5CX_DEFAULT_CONFIGURATION (a const table)
-    *       .default_xtalk: *mut u8     = VL53L5CX_DEFAULT_XTALK (a const table)
-    *       .offset_data: [u8; 488]     = data read from the sensor
-    *       .xtalk_data: [u8; 776]      = copy of 'VL53L5CX_DEFAULT_XTALK'
-    *       .temp_buffer: [u8; 1452]    = { being used for multiple things }
-    *       .is_auto_stop_enabled: u8   = 0
-    *   <<
-    *
-    * Side effects:
-    *   - the sensor is reset, and firmware uploaded to it
-    *   - NVM (non-volatile?) data is read from the sensor to the driver
-    *   - default Xtalk data programmed to the sensor
-    *   - default configuration ('.default_cconfiguration') written to the sensor
-    *   - four bytes written to sensor's DCI memory at '0xDB80U' ('VL53L5CX_DCI_PIPE_CONTROL'):
-    *       {VL53L5CX_NB_TARGET_PER_ZONE, 0x00, 0x01, 0x00}
-    *   - if 'NB_TARGET_PER_ZONE' != 1, 1 byte updated at '0x5478+0xc0' ('VL53L5CX_DCI_FW_NB_TARGET'+0xc0)  // if I got that right!?!
-    *       {VL53L5CX_NB_TARGET_PER_ZONE}
-    *   - one byte written to sensor's DCI memory at '0xD964' ('VL53L5CX_DCI_SINGLE_RANGE'):
-    *       {0x01}
-    *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
-    *       {0x01, 0x01}
+       * provided 'Platform'-derived state (opaque to us, except for its size).
+       *
+       * Initialized state is (as per ULD C code):
+       *   <<
+       *       .platform: dyn Platform     = anything the app keeps there
+       *       .streamcount: u8            = 0 (undefined by ULD C code)
+       *       .data_read_size: u32        = 0 (undefined by ULD C code)
+       *       .default_configuration: *mut u8 = VL53L5CX_DEFAULT_CONFIGURATION (a const table)
+       *       .default_xtalk: *mut u8     = VL53L5CX_DEFAULT_XTALK (a const table)
+       *       .offset_data: [u8; 488]     = data read from the sensor
+       *       .xtalk_data: [u8; 776]      = copy of 'VL53L5CX_DEFAULT_XTALK'
+       *       .temp_buffer: [u8; 1452]    = { being used for multiple things }
+       *       .is_auto_stop_enabled: u8   = 0
+       *   <<
+       *
+       * Side effects:
+       *   - the sensor is reset, and firmware uploaded to it
+       *   - NVM (non-volatile?) data is read from the sensor to the driver
+       *   - default Xtalk data programmed to the sensor
+       *   - default configuration ('.default_configuration') written to the sensor
+       *   - four bytes written to sensor's DCI memory at '0xDB80U' ('VL53L5CX_DCI_PIPE_CONTROL'):
+       *       {VL53L5CX_NB_TARGET_PER_ZONE, 0x00, 0x01, 0x00}
+       *   - if 'NB_TARGET_PER_ZONE' != 1, 1 byte updated at '0x5478+0xc0' ('VL53L5CX_DCI_FW_NB_TARGET'+0xc0)  // if I got that right!?!
+       *       {VL53L5CX_NB_TARGET_PER_ZONE}
+       *   - one byte written to sensor's DCI memory at '0xD964' ('VL53L5CX_DCI_SINGLE_RANGE'):
+       *       {0x01}
+       *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
+       *       {0x01, 0x01}
     */
     fn init_with<P : Platform + 'static>(mut p: P) -> Result<Self> {
 
@@ -163,6 +161,9 @@ impl VL53L5CX_Configuration {
 
             // Make a bitwise copy of 'dd' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
             // and pass back to us (Rust) once platform calls (I2C/delays) are needed.
+            //
+            // This is what allows multiple VL boards to be utilized, at once; they each will get
+            // their own, opaque 'Platform'.
             {
                 let pp = addr_of_mut!((*up).platform);
 
@@ -204,20 +205,19 @@ pub struct VL53L5CX<P: Platform + 'static> {
 impl<P: Platform + 'static> VL53L5CX<P> {
     /*
     * Instead of just creating this structure, this already pings the bus to see, whether there's
-    * a suitable sensor out there. ((Not idiomatic Rust; let's see how it feels in practice.))
+    * a suitable sensor out there.
     */
-    pub fn new_maybe(/*move*/ mut p: P) -> Result<Self> {
-        Self::ping(&mut p).map_err(|_| Error(ST_ERROR))?;
-
-        Ok(Self {
-            p
-        })
+    pub fn ping_new(/*move*/ mut p: P) -> Result<Self> {    // old name was: 'new_maybe()'
+        match Self::ping(&mut p) {
+            Err(_) => Err(Error(ST_ERROR)),
+            Ok(()) => Ok(Self{ p })
+        }
     }
 
-    pub fn init(self) -> Result<VL53L5CX_InAction> {
-        let vl = VL53L5CX_Configuration::init_with(/*move*/ self.p)?;
+    pub fn init(self) -> Result<State_HP_Idle> {
+        let uld = VL53L5CX_Configuration::init_with(/*move*/ self.p)?;
 
-        Ok( VL53L5CX_InAction{ vl } )
+        Ok( State_HP_Idle::new(uld) )
     }
 
     fn ping(p: &mut P) -> CoreResult<(),()> {
@@ -235,96 +235,6 @@ impl<P: Platform + 'static> VL53L5CX<P> {
         }
         Ok(())
     }
-}
-
-/*
-* The structure of a working sensor; firmware has been downloaded.
-*/
-#[allow(non_camel_case_types)]
-pub struct VL53L5CX_InAction {
-    // The vendor ULD driver wants to have a "playing ground" (they call it 'Dev', presumably for
-    // "device"), in the form of the "configuration" struct. It's not really configuration;
-    // more of a driver working memory area where all the state and buffers exist.
-    //
-    // The good part of this arrangement is, we have separate state when handling multiple sensors. :)
-    //
-    // The "state" also carries our 'Platform' struct within it (at the very head). The ULD
-    // code uses it to reach back to the app level, for MCU hardware access: I2C and delays.
-    //
-    // The "state" can be read, but we "MUST not manually change these field[s]". In this Rust API,
-    // the whole "state" is kept private, to enforce such read-only nature.
-    //
-    vl: VL53L5CX_Configuration,
-}
-
-impl VL53L5CX_InAction {
-    //---
-    // Ranging (getting values)
-    //
-    pub fn start_ranging<const DIM: usize>(&mut self, cfg: &RangingConfig<DIM>) -> Result<Ranging<DIM>> {    // Rust note: 'impl Into<...>' would allow either '&T' or 'T' by the caller.
-        let r = Ranging::new_maybe(&mut self.vl, cfg)?;
-        Ok(r)
-    }
-
-    //---
-    // Maintenance; special use
-    //
-    pub fn get_power_mode(&mut self) -> Result<PowerMode> {
-        let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_get_power_mode(&mut self.vl, &mut tmp) } {
-            ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
-            e => Err(Error(e))
-        }
-    }
-    pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        match unsafe { vl53l5cx_set_power_mode(&mut self.vl, v as u8) } {
-            ST_OK => Ok(()),
-            e => Err(Error(e))
-        }
-    }
-
-    /*
-    * Change the I2C address on-the-fly and continue the session with the new I2C address.
-    *
-    * Unlike other functions, we don't refer to the ULD C API because the changing of the address
-    * mechanism is... not well designed. Instead, we do the full bytewise comms here.
-    */
-    pub fn set_i2c_address_CAREFUL(&mut self, addr: u8) -> Result<()> {
-
-        // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
-
-        platform::with(&mut self.vl.platform, |pl| {
-            // Note: Ignore the return codes. The '.wr_bytes' implementation might not even ever
-            //      return an error, but fail instantly. If there were an error, we'd find out anyways.
-            //
-            _= pl.wr_bytes(0x7fff, &[0]);
-            _= pl.wr_bytes(0x4, &[addr >> 1]);
-            pl.addr_changed(addr);
-
-            _= pl.wr_bytes(0x7fff, &[2]);  // now with the new I2C address
-        });
-
-        // Further comms will happen to the new address. Let's still make a small access with the
-        // new address, e.g. reading something.
-        //
-        self.get_power_mode().map_err(|e| {
-            error!("Device wasn't reached after its I2C address changed."); e
-        })?;
-
-        Ok(())
-    }
-
-    // tbd. if exposing these, make them into a "dci" feature
-    //pub fn dci_read_data(index: u16, buf: &mut [u8]) { unimplemented!() }
-    //pub fn dci_write_data(index: u16, buf: &[u8]) { unimplemented!() }
-
-    // 'dci_replace_data' doesn't seem useful; easily reproduced using the 'read' and 'write'. Skip.
-
-    // Remaining to be implemented:
-    //  vl53l5cx_enable_internal_cp()
-    //  vl53l5cx_disable_internal_cp
-    //  vl53l5cx_set_VHV_repeat_count
-    //  vl53l5cx_get_VHV_repeat_count
 }
 
 /**

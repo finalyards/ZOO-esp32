@@ -1,9 +1,13 @@
 /*
-* Rust side gets results as enums, matrices etc. This module takes care of converting the ULD C API
-* vector to those.
+* Convert data received from the ULD C API to more.. robust formats:
+*   - 1D vectors -> 2D matrices
+*   - integers -> enums or tuple structs
+*   - some squeezing of type safety, e.g. negative 'distance_mm's not accepted
 *
-* Note: Many of the individual data are steered by features. These go all the way to the C level;
-*       having an unneeded feature off means more slender driver code, less data to transfer.
+* Note: It is by design that these conversions happen already at the ULD level.
+*
+* Note: Many of the individual data are steered by features. These go all the way to the C level:
+*       disabling a feature means less driver code, less data to transfer.
 *
 * References:
 *   - vendor's UM2884 > Chapter 5 ("Ranging results"); Rev 5, Feb'24; PDF 18pp.
@@ -12,8 +16,8 @@
 use core::convert::identity;
 
 #[cfg(feature = "defmt")]
-#[allow(unused_imports)]
 use defmt::{warn,debug,trace,assert, Format, write};
+
 use crate::uld_raw::{
     VL53L5CX_ResultsData,
 };
@@ -92,11 +96,11 @@ impl<const DIM: usize> ResultsData<DIM> {
 
         // helpers
         //
-        // The ULD C API matrix layout is (for a fictional 2x2x2 matrix = only the corner zones,
-        // looking _out_ through the sensor of a SATEL mini-board so that the PCB text is
-        // horizontal and right-way-up)  <-- heh, complex :)
-        //
-        //  ^-- i.e. what the sensor "sees" (not how we look at the sensor)
+        // The ULD C API matrix layout is,
+        //  - looking _out_ through the sensor so that the SATEL mini-board's PCB text is horizontal
+        //    and right-way-up
+        //      ^-- i.e. what the sensor "sees" (not how we look at the sensor)
+        //  - for a fictional 2x2x2 matrix = only the corner zones
         //
         // Real world:
         //      [A B]   // A₁..D₁ = first targets; A₂..D₂ = 2nd targets; i.e. same target zone

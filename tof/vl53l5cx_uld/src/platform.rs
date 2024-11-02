@@ -165,33 +165,3 @@ fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T
     f(x)
 }
 
-#[cfg(not(all()))]  // Q: do we use this?
-impl dyn Platform {
-    /**
-    * Check, whether there's a VL53L5CX device in the given I2C address. Calling does not require
-    * the device to have been initialized (so is quick to check in starting).
-    *
-    * Modeled akin to the vendor ULD 'vl53l5cx_is_alive()'.
-    *
-    * Returns:
-    *   Ok(true)    All fine, looks like a VL53L5CX
-    *   Ok(false)   Maybe.. I2C reply received, but 'dev_id', 'rev_id' values are unrecognized
-    *   Err(_)      Did not reach a device in the I2C address
-    */
-    pub fn ping(&mut self) -> Result<bool, ()> {
-        let mut buf: [u8; 2] = [u8::MAX; 2];
-
-        self.wr_bytes(0x7fff, &[0x00])?;
-        self.rd_bytes(0, &mut buf)?;   // [dev_id, rev_id]
-        self.wr_bytes(0x7fff, &[0x02])?;
-
-        match (buf[0],buf[1]) {
-            (0xf0, 0x02) => Ok(true),   // what vendor ULD C driver expects to find
-            (a,b) => {
-                #[cfg(feature = "defmt")]
-                warn!("Unexpected pair: {} != {}", (a,b), (0xf0,0x02));
-                Ok(false)
-            }
-        }
-    }
-}

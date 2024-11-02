@@ -88,7 +88,7 @@ fn main2() -> Result<()> {
     //--- ranging loop
     //
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
+        .with_mode(AUTONOMOUS(5.ms(),10.Hz()))
         .with_target_order(CLOSEST);
 
     let mut ring = vl.start_ranging(&c)

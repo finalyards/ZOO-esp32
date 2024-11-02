@@ -70,7 +70,7 @@ async fn main(spawner: Spawner) {
     // Reset VL53L5CX by pulling down their power for a moment
     if let Some(mut pin) = PWR_EN {
         pin.set_low();
-        delay_ms(2);      // tbd. how long is suitable? This is the time the chip itself is with low power. #measure
+        blocking_delay_ms(2);      // tbd. how long is suitable? This is the time the chip itself is with low power. #measure
         pin.set_high();
         info!("Target powered off and on again.");
     }
