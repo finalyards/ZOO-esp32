@@ -39,7 +39,7 @@ impl<const DIM: usize> Ranging<DIM> {
         Ok(Self{ uld, pinINT })
     }
 
-    pub async fn get_data(&mut self) -> Result<(&ResultsData<DIM>,TempC,Instant)> {
+    pub async fn get_data(&mut self) -> Result<(ResultsData<DIM>,TempC,Instant)> {
         let t0 = now();
 
         // Two kinds of spec can be implemented here:

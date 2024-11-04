@@ -7,7 +7,7 @@ use defmt::debug;
 use core::cell::RefCell;
 
 use esp_hal::{
-    gpio::Input,
+    gpio::{Input, Output},
     i2c::{I2c, Instance},
     Blocking
 };
@@ -34,8 +34,8 @@ pub struct VL {
     uld: State_HP_Idle,   // initialized ULD level driver, with dedicated I2C address
 }
 
-impl<'a> VL {
-    pub fn new_and_setup<T: Instance + 'static>(i2c_shared: &'static RefCell<I2c<'a, T, Blocking>>,
+impl VL {
+    pub fn new_and_setup<T: Instance + 'static>(i2c_shared: &'static RefCell<I2c<'static, T, Blocking>>,
         i2c_addr: I2cAddr
     ) -> Result<Self> {
 
@@ -75,6 +75,30 @@ impl<'a> VL {
 
     pub(crate) fn recreate(uld: State_HP_Idle) -> Self {
         Self { uld }
+    }
+
+    #[cfg(feature = "flock")]
+    pub fn new_flock<T, const BOARDS: usize>(LPns: [Output;BOARDS], i2c_shared: &'static RefCell<I2c<'static, T, Blocking>>, i2c_addr_gen: impl Fn(usize) -> I2cAddr) -> Result<[Self;BOARDS]>
+        where T: Instance + 'static
+    {
+        fn array_try_map_mut_enumerated<A,B, const N: usize>(mut aa: [A;N], f: impl FnMut((usize,&mut A)) -> Result<B>) -> Result<[B;N]> {
+            use arrayvec::ArrayVec;
+            let bs_av = aa.iter_mut().enumerate().map(f)
+                .collect::<Result<ArrayVec<B,N>>>();
+
+            bs_av.map(|x| x.into_inner().ok().unwrap())
+        }
+
+        let tmp: Result<[VL;BOARDS]> = array_try_map_mut_enumerated(LPns, #[allow(non_snake_case)] |(i,LPn)| {
+            LPn.set_high();     // enable this chip and leave it on
+
+            let i2c_addr = i2c_addr_gen(i);
+            let vl = VL::new_and_setup(i2c_shared, i2c_addr)?;
+
+            debug!("Init of board {} succeeded", i);
+            Ok(vl)
+        });
+        tmp
     }
 }
 

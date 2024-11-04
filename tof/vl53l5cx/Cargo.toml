@@ -27,15 +27,11 @@ vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = [] }     # "defmt"
 [dev-dependencies]
 anyhow          = { version = "1.0.92", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
-embassy-executor    = { version = "0.6.1", features = ["task-arena-size-12288"] }
-    # Note: "When the nightly Cargo feature is not enabled, 'embassy-executor' allocates tasks out of an arena (a very
-    #       simple bump allocator)."; i.e. the purpose of the above feature.
+embassy-executor = { version = "0.6.1", features=["task-arena-size-12288"] }     # task area size can be overridden by an env.var.
 embassy-time    = { version = "0.3.2" }
 esp-alloc       = { version = "0.5.0" }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
-#Rfugit           = { version = "0.3.7", features = ["defmt"] }
-#R    # 'esp-hal' anyways depends on 'fugit'; its 'Instant' and 'Duration' come from here.
 static_cell     = { version = "2.1.0" }
 
 [build-dependencies]
@@ -72,6 +68,6 @@ default = []
 name = "single-emb"
 required-features = ["single", "defmt", "distance_mm"]
 
-#|[[example]]
-#|name = "flock-emb"
-#|required-features = ["flock", "defmt", "distance_mm"]
+[[example]]
+name = "many-emb"
+required-features = ["flock", "defmt", "distance_mm"]

@@ -1,33 +1,29 @@
 # `tof`
 
-A "Time of Flight" sensor measures distance in front of it, by actively sending pulses (of infrared laser) and measuring the time (in picoseconds!!!) it takes to <strike>hear</strike> see the echos.
+A "Time of Flight" sensor measures distance in front of it, by actively sending pulses (of infrared laser) and measuring the time (in picoseconds!!!) it takes to see the reflections.
 
 >To the author, these sensors remain purely magical!
 
 ## vl53l5cx
 
-- [`vl53l5cx_uld`](vl53l5cx_uld/README.md) - Lower level C/Rust interface for the [vl53l5cx](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html).
-
-	ULD stands for ["Ultra Light Driver"](https://www.st.com/en/embedded-software/stsw-img023.html) - it's the vendor's terminology for their embedded C driver (not Linux).
-
-	You need to download such C code, and place it within the project. See the `README` for instructions.
+You need two libraries:
 
 - [`vl53l5cx`](vl53l5cx/README.md) - Application level API and examples
 
-	Using the ULD driver (above), this subproject is what you'd use as an application-facing API. It supports using [Embassy](https://embassy.dev) to make your applications multitasking-savvy.
-	
+	This subproject is what you'd likely use in your own code. It provides a "platform" adaptation for `esp-hal` API's and uses [Embassy](https://embassy.dev) to provide `async` interfaces for waiting for measurements.
+
 	There are some examples, too.
 
+- [`vl53l5cx_uld`](vl53l5cx_uld/README.md) - Lower level C/Rust interface for the above project.
 
-## vl53l7cx
+	ULD stands for ["Ultra Light Driver"](https://www.st.com/en/embedded-software/stsw-img023.html) - it's the vendor's terminology for their embedded C driver (not Linux).
 
-Though the author doesn't have any of these, the vendor site states that VL53L7CX is *"pinouts and driver compatible"* with the previous model.
+Before using the libraries, you need to:
 
-If you successfully use the library with VL53L7CX, please mention. :)
+1. Check out the `ULD` side's [`README`](vl53l5cx_uld/README.md), follow the instructions.
+2. Move to higher API side, and run some examples.
+3. Adapt to your own needs?
 
+If you file discussions or issues on this GitHub, please prefix them with `[tof]`. 
 
-<!-- #whisper
-## vl53l8cx
-
-This chip is a further deviation / development, and offers e.g. SPI in addition to I2C communications. It is not claiming pin or driver compatibility with VL53L5CX.
--->
+See you there!

@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 extern crate alloc;
 
+#[cfg(feature = "defmt")]
+use defmt::{Format, Formatter};
+
 #[cfg(feature = "single")]
 mod ranging;
 #[cfg(feature = "flock")]
@@ -15,9 +18,14 @@ mod z_array_try_map;
 pub use ranging::Ranging;
 
 #[cfg(feature = "flock")]
-pub use ranging_flock::RangingFlock;
+pub use {
+    ranging_flock::RangingFlock,
+    vl::VLsExt      // tbd. how to provide such methods properly?  Compare with 'fugit'.
+};
 
-pub use vl::VL;
+pub use vl::{
+    VL,
+};
 
 use vl53l5cx_uld::{
     DEFAULT_I2C_ADDR_8BIT
@@ -28,8 +36,9 @@ pub use vl53l5cx_uld::{
     API_REVISION as ULD_VERSION,
     Mode,
     RangingConfig,
+    Result as UldResult,
     TargetOrder,
-    units
+    units,
 };
 
 pub const DEFAULT_I2C_ADDR: I2cAddr = I2cAddr(DEFAULT_I2C_ADDR_8BIT);
@@ -40,13 +49,20 @@ pub type Instant = esp_hal::time::Instant;
 * Wrapper to eliminate 8-bit vs. 7-bit I2C address misunderstandings.
 */
 //#[derive(Copy, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct I2cAddr(u8);     // stored as 7-bit (doesn't matter)
 
 impl I2cAddr {
-    fn from_8bit(v: u8) -> Self {
+    pub fn from_8bit(v: u8) -> Self {
         assert!(v % 2 == 0, "8-bit I2C address is expected to be even");    // tbd. de-IDE-underscore
         Self(v >> 1)
     }
+    pub const fn as_8bit(&self) -> u8 { self.0 << 1 }
     fn as_7bit(&self) -> u8 { self.0 }
+}
+
+#[cfg(feature = "defmt")]
+impl Format for I2cAddr {
+    fn format(&self, fmt: Formatter) {
+        defmt::write!(fmt, "{=u8:#04x}", self.0);
+    }
 }

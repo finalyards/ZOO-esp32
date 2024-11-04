@@ -29,10 +29,6 @@ defmt-rtt       = { version = "0.4.1" }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
-#fugit           = { version = "0.3.7", features = ["defmt"] }
-    # adding this (with the 'defmt' feature) causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
-    # NOTE: MIGHT NOT be needed any more. At least 'main' of 'esp-hal' (3-Nov-24) should bring in 'fugit' with 'defmt' feature.
-    #       i.e. if it isn't enough, file a PR.     --> https://github.com/esp-rs/esp-hal/blob/main/esp-hal/Cargo.toml#L142
 #R semihosting     = { version = "0.1.16" }
 
 [build-dependencies]
