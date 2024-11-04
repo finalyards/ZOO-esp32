@@ -16,7 +16,7 @@
 use core::convert::identity;
 
 #[cfg(feature = "defmt")]
-use defmt::{warn,debug,trace,assert, Format, write};
+use defmt::{warn,assert};
 
 use crate::uld_raw::{
     VL53L5CX_ResultsData,

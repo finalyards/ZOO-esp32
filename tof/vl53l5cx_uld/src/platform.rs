@@ -9,15 +9,45 @@ use defmt::{trace, warn};
 
 use core::{
     ffi::c_void,
-    slice
+    slice,
+    result::Result as CoreResult,
 };
 
-use crate::Platform;
 use crate::uld_raw::{
     ST_OK,
     ST_ERROR as ST_ERR,
     VL53L5CX_Platform
 };
+
+/**
+* @brief App provides, to talk to the I2C and do blocking delays; provides a mechanism to inform
+*       the platform about an I2C address change.
+*/
+pub trait Platform {
+    // provided by the app
+    //
+    // Note: We're using an unconventional 'Result<(),()>' return type (calls may err, but no error
+    //      details are provided). The errors we get from the vendor ULD C API are technically
+    //      'u8's, but practically only ST_OK/ST_ERR. The platform I2C API's, on the other hand,
+    //      provide their own set of errors (within these callbacks).
+    //
+    //      We *could* add a '<R>' generic to the 'Platform', but this presumably complicates our
+    //      platform-hidden-in-"configuration" trick beyond.. comprehension of the author. The
+    //      '()' error feels like a good starting point. :)
+    //
+    //      We could (and tried):
+    //          - bool              | just feels... wrong in Rust
+    //          - Option            | nah
+    //
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> CoreResult<(),()>;
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> CoreResult<(),()>;
+    fn delay_ms(&mut self, ms: u32);
+
+    // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
+    // address the device identifies with, inform the 'Platform' struct about it.
+    //
+    fn addr_changed(&mut self, new_addr_8bit: u8);
+}
 
 /*
 * Raw part of interfacing.

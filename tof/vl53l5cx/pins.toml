@@ -16,5 +16,5 @@ generate = "examples/pins_gen.in"
 SDA = 18
 SCL = 19
 PWR_EN = 22
-INT = 23
 LPn = [20,21]
+INT = 23

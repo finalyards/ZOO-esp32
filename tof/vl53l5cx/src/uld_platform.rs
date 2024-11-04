@@ -11,9 +11,8 @@ use defmt::{info, debug, error, warn, trace, panic};
 use core::{
     cell::RefCell,
     mem::MaybeUninit,
-    iter::zip
 };
-use core::convert::Infallible;
+
 use esp_hal::{
     delay::Delay,
     i2c::{I2c, Instance},
@@ -57,11 +56,15 @@ impl<'a,T> Pl<'a,T>
 
 impl<T> Platform for Pl<'_,T> where T: Instance
 {
+    // Note: With Rust Edition 2024 out, try '!' or 'Infallible' as the return type (we don't provide
+    //      errors). In Edition 2021, Rust 1.82, 'Infallible' doesn't coerce to '()' (it could),
+    //      so cannot use it now. //2-Nov-24
+
     /*
     * ULD reads can be in sizes of 492 bytes (or more). The 'esp-hal' requires these to be handled
     * in multiple parts.
     */
-    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),Infallible /* !*/> {     // 'Infallible' -> '!' when no longer experimental (on stable)
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),() /* !*/> {
         let index_orig = index;
 
         let chunks = buf.chunks_mut(MAX_RD_LEN);
@@ -78,7 +81,7 @@ impl<T> Platform for Pl<'_,T> where T: Instance
         for (_round,chunk) in chunks.enumerate() {
             i2c.write_read(addr, &index.to_be_bytes(), chunk).unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
-                panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, buf.len(), _round+1, _rounds, e);
+                panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, chunk.len(), _round+1, _rounds, e);
             });
 
             index = index + chunk.len() as u16;
@@ -114,7 +117,7 @@ impl<T> Platform for Pl<'_,T> where T: Instance
     * to stop early. CERTAIN error codes MAY lead to a single retry, if we think we have a chance
     * to recover.
     */
-    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),Infallible /* !*/> {   // Infallible -> '!' when no longer experimental (on stable)
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {
         let index_orig = index;
 
         let chunks = vs.chunks(MAX_WR_LEN-2);

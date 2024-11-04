@@ -9,25 +9,25 @@ mod uld_raw;
 pub mod units;
 
 #[cfg(feature = "defmt")]
-use defmt::{debug, warn, trace, error};
+use defmt::{debug, error};
 
 use core::{
     ffi::CStr,
     fmt::{Display, Formatter},
-    mem::MaybeUninit,
-    ptr::addr_of_mut,
     result::Result as CoreResult,
 };
 
-use state_hp_idle::State_HP_Idle;
-
-pub use state_ranging::{
-    RangingConfig,
-    State_Ranging,
-    TargetOrder
+pub use {
+    platform::Platform,
+    results_data::ResultsData,
+    state_hp_idle::State_HP_Idle,
+    state_ranging::{
+        Mode,
+        RangingConfig,
+        State_Ranging,
+        TargetOrder
+    }
 };
-
-pub use results_data::ResultsData;
 
 use crate::uld_raw::{
     VL53L5CX_Configuration,
@@ -57,36 +57,6 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "ULD driver or hardware error ({})", self.0)
     }
-}
-
-/**
-* @brief App provides, to talk to the I2C and do blocking delays; provides a mechanism to inform
-*       the platform about an I2C address change.
-*/
-pub trait Platform {
-    // provided by the app
-    //
-    // Note: We're using a slightly unconventional 'Result<(),()>' (no type for the errors).
-    //      This is because of adaptation difficulties between the application-level I2C stack
-    //      error values and the vendor ULD C API (that deals with 'u8's, but basically is a
-    //      binary between ST_OK/ST_ERR). We didn't want to expose the library to I2C, nor the
-    //      application to the ST_OK/ST_ERR.
-    //
-    //      This essentially eradicates the error type. We could (and tried):
-    //          - using 'impl Any'  | not supported under 'stable'
-    //          - using 'E: Error'  | works, but makes prototypes look complex (not good for training..)
-    //          - bool              | just feels... wrong in Rust
-    //
-    //      A boolean would do, but using 'Result' is kinda customary.
-    //
-    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> CoreResult<(),()>;
-    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> CoreResult<(),()>;
-    fn delay_ms(&mut self, ms: u32);
-
-    // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
-    // address the device identifies with, inform the 'Platform' struct about it.
-    //
-    fn addr_changed(&mut self, new_addr_8bit: u8);
 }
 
 pub const DEFAULT_I2C_ADDR_8BIT: u8 = 0x52;    // vendor default
@@ -142,6 +112,8 @@ impl VL53L5CX_Configuration {
        *       {0x01, 0x01}
     */
     fn init_with<P : Platform + 'static>(mut p: P) -> Result<Self> {
+        use core::mem::MaybeUninit;
+        use core::ptr::addr_of_mut;
 
         #[allow(unused_unsafe)]
         let ret: Result<VL53L5CX_Configuration> = unsafe {

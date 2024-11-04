@@ -32,7 +32,7 @@ APIs for using either a single, or multiple such sensors at once.
 >
 ><small>`[*]`: *the author regrets not finding the source*</small>
 
-## Run the examples
+## Examples
 
 ### Single
 
@@ -46,7 +46,20 @@ $ cargo build --release --features=distance_mm,defmt --example single
 $ cargo build --release --features=distance_mm,defmt --example many-emb
 ```
 
-## Unknowns...?
+## API
+
+>*The intention is that API documentation would come from the sources. For now, it's here.
+
+### `vl53l5cx::VL`
+
+```
+VL::new_and_setup_single(&i2c_shared);
+```
+
+```
+VL::start_ranging(&RangingConfig)
+```
+
 
 
 ## References

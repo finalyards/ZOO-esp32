@@ -24,21 +24,19 @@ defmt           = { version = "0.3.8", optional = true }
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-anyhow          = { version = "1.0.91", default-features = false }
+anyhow          = { version = "1.0.92", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
-embassy-executor    = { version = "0.6.1", features = ["task-arena-size-12288"] }
-    # Note: "When the nightly Cargo feature is not enabled, 'embassy-executor' allocates tasks out of an arena (a very
-    #       simple bump allocator)."; i.e. the purpose of the above feature.
-embassy-time    = {  version = "0.3.2" }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
-fugit           = { version = "0.3.7", features = ["defmt"] }
-    # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
-semihosting     = { version = "0.1.16" }
+#fugit           = { version = "0.3.7", features = ["defmt"] }
+    # adding this (with the 'defmt' feature) causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
+    # NOTE: MIGHT NOT be needed any more. At least 'main' of 'esp-hal' (3-Nov-24) should bring in 'fugit' with 'defmt' feature.
+    #       i.e. if it isn't enough, file a PR.     --> https://github.com/esp-rs/esp-hal/blob/main/esp-hal/Cargo.toml#L142
+#R semihosting     = { version = "0.1.16" }
 
 [build-dependencies]
-anyhow          = "1.0.91"
+anyhow          = "1.0.92"
 itertools       = "0.13.0"
 serde           = { version = "1.0.214", features = ["derive"] }
 toml            = "0.8.19"

@@ -1,5 +1,5 @@
 [package]
-name = "vl53l5cx_many"
+name = "vl53l5cx"
 edition = "2021"
 rust-version = "1.80"
 publish = false
@@ -18,32 +18,33 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dependencies]
+arrayvec        = { version = "0.7.6", default-features = false }
+    # needed only until '[T;N]::try_map()' makes it to stable
 defmt           = { version = "0.3.8", optional = true }
 esp-hal         = { version = "0.21.1", features = ["esp32c6"] }     # "defmt"
-vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = ["target_status"] }     # "defmt"
+vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = [] }     # "defmt"
 
 [dev-dependencies]
-anyhow          = { version = "1.0.91", default-features = false }
+anyhow          = { version = "1.0.92", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 embassy-executor    = { version = "0.6.1", features = ["task-arena-size-12288"] }
     # Note: "When the nightly Cargo feature is not enabled, 'embassy-executor' allocates tasks out of an arena (a very
     #       simple bump allocator)."; i.e. the purpose of the above feature.
-embassy-time    = {  version = "0.3.2" }
+embassy-time    = { version = "0.3.2" }
+esp-alloc       = { version = "0.5.0" }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
-fugit           = { version = "0.3.7", features = ["defmt"] }
-    # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
+#Rfugit           = { version = "0.3.7", features = ["defmt"] }
+#R    # 'esp-hal' anyways depends on 'fugit'; its 'Instant' and 'Duration' come from here.
+static_cell     = { version = "2.1.0" }
 
 [build-dependencies]
-anyhow          = "1.0.91"
+anyhow          = "1.0.92"
 itertools       = "0.13.0"
 serde           = { version = "1.0.214", features = ["derive"] }
 toml            = "0.8.19"
 
-# ULD C compile-time features
-#
-# These are reflected further to 'vl53l5cx_uld'
-#
+# ULD compile-time features
 [features]
 ambient_per_spad=   ["vl53l5cx_uld/ambient_per_spad"]
 nb_spads_enabled=   ["vl53l5cx_uld/nb_spads_enabled"]
@@ -59,6 +60,9 @@ targets_per_zone_4= ["vl53l5cx_uld/targets_per_zone_4"]
 
 defmt = ["dep:defmt", "vl53l5cx_uld/defmt", "esp-hal/defmt"]
 
+single = []
+flock = []
+
 default = []
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
@@ -66,8 +70,8 @@ default = []
 #
 [[example]]
 name = "single-emb"
-required-features = ["defmt", "distance_mm"]
+required-features = ["single", "defmt", "distance_mm"]
 
-[[example]]
-name = "many-emb"
-required-features = ["defmt", "distance_mm"]
+#|[[example]]
+#|name = "flock-emb"
+#|required-features = ["flock", "defmt", "distance_mm"]

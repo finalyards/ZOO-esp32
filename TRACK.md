@@ -13,3 +13,11 @@
 	The current "no" approach is **restrictive** and **it's relatively easy to make a Rust tool that sniffs the ELF output path**. (call it `hound`?)
 
 	Just.. not doing it.. yet.
+
+
+## `array_try_map`
+
+- ["Tracking issue for array::try_map"](https://github.com/rust-lang/rust/issues/79711)
+
+	At least `tof/vl53l5cx` will benefit from this: turning `[A;N]` into `Result<[B;N]>`.
+	

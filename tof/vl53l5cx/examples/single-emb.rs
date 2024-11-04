@@ -1,5 +1,9 @@
 /*
 * Reading a single board, using Embassy.
+*
+* References:
+*   - ST.com > UM2884 Rev. 6 (PDF, 18pp)
+*       -> https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf
 */
 #![no_std]
 #![no_main]
@@ -13,41 +17,43 @@ use {defmt_rtt as _, esp_backtrace as _};
 use core::cell::RefCell;
 
 use embassy_executor::Spawner;
-use embassy_time::{Duration as EmbDuration, Timer};
 
 use esp_hal::{
+    delay::Delay,
     gpio::{Io, Input},
     i2c::I2c,
+    peripherals::I2C0,
     prelude::*,
     time::{now, Instant, Duration},
     timer::timg::TimerGroup,
+    Blocking
 };
 
-extern crate vl53l5cx_uld as uld;
+use static_cell::StaticCell;
+
+extern crate vl53l5cx;
+use vl53l5cx::{
+    DEFAULT_I2C_ADDR,
+    Mode::*,
+    RangingConfig,
+    TargetOrder::*,
+    ULD_VERSION,
+    VL,
+    units::*
+};
+
+mod common;
+use common::init_heap;
 
 include!("./pins_gen.in");  // pins!
 
-use uld::{
-    VL53L5CX,
-    ranging::{
-        RangingConfig,
-        TargetOrder::CLOSEST,
-        Mode::AUTONOMOUS,
-    },
-    units::*,
-    API_REVISION,
-    DEFAULT_I2C_ADDR_8BIT,
-};
-
-extern crate vl53l5cx_many as vl;
-use vl::{
-    I2cAddr,
-    VL
-};
+type I2cType<'d> = I2c<'d, I2C0,Blocking>;
+static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     init_defmt();
+    init_heap();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -65,18 +71,22 @@ async fn main(spawner: Spawner) {
         400.kHz()
     );
 
-    let i2c_shared = RefCell::new(i2c_bus);
+    let tmp = RefCell::new(i2c_bus);
+    let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
 
     // Reset VL53L5CX by pulling down their power for a moment
     if let Some(mut pin) = PWR_EN {
         pin.set_low();
-        delay_ms(2);      // tbd. how long is suitable? This is the time the chip itself is with low power. #measure
+        blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
         pin.set_high();
         info!("Target powered off and on again.");
     }
 
     // Enable one of the wired boards. Ensures that the others (if any) won't jump on the I2C bus.
-    for (i,pin) in LPns.zip() {
+    //
+    // Note: This also works (gets ignored) if 'LPns' is empty (and the one LPn line has been pulled up).
+    //
+    for (i,pin) in LPns.iter_mut().enumerate() {
         if i==0 {
             pin.set_high();
         } else {
@@ -84,35 +94,37 @@ async fn main(spawner: Spawner) {
         }
     }
 
-    let vl = VL53L5CX::new(i2c_shared);
+    let vl = VL::new_and_setup(&i2c_shared, DEFAULT_I2C_ADDR)
+        .unwrap();
 
-    info!("Init succeeded, driver version {}", API_REVISION);
+    info!("Init succeeded, ULD version {}", ULD_VERSION);
 
-    spawner.spawn(ranging(vl)).unwrap();
+    spawner.spawn(ranging(vl, INT)).unwrap();
 }
 
 
 #[embassy_executor::task]
-async fn ranging(/*move*/ mut vl: VL) {
+#[allow(non_snake_case)]
+async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
 
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(Ms(5),Hz(10)))    // tbd. '5.ms()', '10.Hz()'
+        .with_mode(AUTONOMOUS(5.ms(),HzU8(10)))  // 10.Hz() - but don't want to use 'fugit::Rate' in ULD project
         .with_target_order(CLOSEST);
 
-    let mut ring = vl.start_ranging(&c);
+    let mut ring = vl.start_ranging(&c, pinINT).unwrap();
 
-    let t = Timings::new();
+    let mut t = Timings::new();
 
     for round in 0..10 {
         t.t0();
 
         let results = ring.get_data() .await;
-        t.results_read();
+        t.results();
 
         // tbd. Consider making output a separate task (feed via a channel)
         //
-        for (res, i, temp_degc) in results {
-            info!("Data #{} ({})", round, temp_degc);
+        for (res, temp_degc, time_stamp) in results {
+            info!("Data #{} ({}, {})", round, temp_degc, time_stamp);
 
             info!(".target_status:    {}", res.target_status);
             info!(".targets_detected: {}", res.targets_detected);
@@ -166,7 +178,7 @@ impl Timings {
     fn t0(&mut self) {
         self.t0 = now();
     }
-    fn results_read(&mut self) {
+    fn results(&mut self) {
         self.t1 = now();
     }
     fn results_passed(&mut self) {

@@ -64,7 +64,7 @@ macro_rules! pins {{
     ($io:ident) => {{{{
         use esp_hal::{{ gpio::{{Output as O, Input as I, Level as L, Pull}} }};
 
-        let x: (_, _, I,[O;{LPns_len}]) = (  // {board_id}
+        let x: (_, _, Option<O>, I, [O;{LPns_len}]) = (  // {board_id}
             $io.pins.gpio{SDA},
             $io.pins.gpio{SCL},
             {s_PWR_EN},

@@ -7,45 +7,47 @@
 #[cfg(feature = "defmt")]
 use defmt::{assert, panic, trace};
 
-use crate::uld_raw::{VL53L5CX_Configuration, vl53l5cx_start_ranging, vl53l5cx_check_data_ready, vl53l5cx_get_ranging_data, vl53l5cx_set_resolution, vl53l5cx_set_ranging_frequency_hz, vl53l5cx_set_ranging_mode, vl53l5cx_set_integration_time_ms, vl53l5cx_set_sharpener_percent, vl53l5cx_set_target_order, vl53l5cx_stop_ranging, ST_OK, RangingMode as RangingMode_R, Resolution as Resolution_R, VL53L5CX_ResultsData};
-
-// Enums from 'uld_raw.rs' that are exposed in the public API
-pub use crate::uld_raw::{
-    TargetOrder
+use crate::uld_raw::{
+    VL53L5CX_Configuration,
+    vl53l5cx_start_ranging,
+    vl53l5cx_check_data_ready,
+    vl53l5cx_get_ranging_data,
+    vl53l5cx_set_resolution,
+    vl53l5cx_set_ranging_frequency_hz,
+    vl53l5cx_set_ranging_mode,
+    vl53l5cx_set_integration_time_ms,
+    vl53l5cx_set_sharpener_percent,
+    vl53l5cx_set_target_order,
+    vl53l5cx_stop_ranging,
+    RangingMode as RangingMode_R,
+    Resolution as Resolution_R,
+    ST_OK,
+    TargetOrder as TargetOrder_R,
+    VL53L5CX_ResultsData
 };
 
 use crate::{
     results_data::ResultsData,
-    units::{MsU16, HzU8, TempC, ExtU32 as _},
+    state_hp_idle::State_HP_Idle,
+    units::{MsU16, HzU8, PrcU8, TempC, ExtU32 as _},
     Error,
     Result,
 };
 
-/* Documentation on vendor ULD C API:
-pub struct VL53L5CX_ResultsData {
-    pub silicon_temp_degc: i8,                  // temperature within the sensor [°C]
-    pub nb_target_detected: [u8; 64usize],      // values in range [1..'targets_per_zone_{1..4}'] (inclusive); max steered by feature
-    pub distance_mm: [i16; 64usize],            // note that values could be negative (but never are)
-    pub target_status: [u8; 64usize],           // values: 5,6,10,255   // doc: 5,9 are proper; rest imply unreliable results in that zone
-}
-    The buffers are to be read as:
-    - 4x4 reso: tbd.
-    - 8x8 reso: tbd.
-*/
+use {
+    Mode::{CONTINUOUS, AUTONOMOUS},
+    TargetOrder::{CLOSEST, STRONGEST},
+};
 
-// tbd. #review
 /*
-* The 'Resolution' trait became an implementation detail, and a plain function, expressing the
-* dimensions in app level being by the 'DIM' const generic.
-*
-* This defines which resolutions the system is able to play with; if there are new ones (for similar
-* sensors, in the future), adding the details here will open them up for the larger 'Ranging' and
-* other such structs.
+* Defines which resolutions the device is able to play with; their mapping to ULD and physical
+* limits.
 */
-fn get_reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*integration time*/, HzU8 /*max freq*/) {
+// Rust note: 'const fn' gets evaluated at compile time.
+const fn reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*integration time*/, HzU8 /*max freq*/) {
     match DIM {
-        4 => { (Resolution_R::_4X4, 1, 15.Hz()) },
-        8 => { (Resolution_R::_8X8, 4, 60.Hz()) },
+        4 => { (Resolution_R::_4X4, 1, HzU8(15)) },
+        8 => { (Resolution_R::_8X8, 4, HzU8(60)) },
         _ => unreachable!()
     }
 }
@@ -59,14 +61,30 @@ pub enum Mode {
     CONTINUOUS,
     AUTONOMOUS(MsU16,HzU8)    // (integration time, ranging frequency)
 }
-use Mode::{CONTINUOUS, AUTONOMOUS};
-use crate::state_hp_idle::State_HP_Idle;
 
 impl Mode {
     fn as_uld(&self) -> RangingMode_R {
         match self {
             CONTINUOUS => RangingMode_R::CONTINUOUS,
             AUTONOMOUS(_,_) => RangingMode_R::AUTONOMOUS
+        }
+    }
+}
+
+// 'TargetMode' is 1:1 with ULD API, but we avoid exposing the enum values.
+//
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum TargetOrder {
+    CLOSEST,
+    STRONGEST
+}
+
+impl TargetOrder {
+    fn as_uld(&self) -> TargetOrder_R {
+        match self {
+            CLOSEST => TargetOrder_R::CLOSEST,
+            STRONGEST => TargetOrder_R::STRONGEST
         }
     }
 }
@@ -87,11 +105,18 @@ impl Mode {
 *   - Sharpener range is [0..99]; inclusive; (0 = disabled)
 */
 #[derive(Clone)]
-pub struct RangingConfig<const DIM: usize = 4> {
+pub struct RangingConfig<const DIM: usize /*= 4*/> {    // |*|
     mode: Mode,      // also carries ranging frequency and integration time for 'AUTONOMOUS'
-    sharpener_prc: Option<u8>,      // 'None' | 'Some(1..=99)'
+    sharpener: Option<PrcU8>,       // value range: 1..=99
     target_order: TargetOrder,
 }
+    // |*|: decided to /not/ provide a '= 4' default for the 'DIM'. It *would work*, and slightly
+    //      make it easier for the _application layer_, but it also messes with compile errors,
+    //      because now you need to remember to always add '<DIM>' to use of 'RangingConfig' -
+    //      if you don't, you'll get both defaulting-to-4 and generic, which don't match.
+    //
+    //      tbd. Consider making an application-level 'RangingConfig' that DOES provide such
+    //          a default, otherwise aliasing to us.
 
 impl<const DIM: usize> RangingConfig<DIM> {
     /* We allow construction to make potentially incompatible combinations, but check them within
@@ -99,8 +124,8 @@ impl<const DIM: usize> RangingConfig<DIM> {
     * type-system robustness has been done, e.g. bundling ranging frequency and integration times
     * with the ranging mode (since those only apply to one mode).
     */
-    pub fn with_sharpener_prc(/*move*/ self, v: Option<u8>) -> Self {
-        Self { sharpener_prc: v, ..self }
+    pub fn with_sharpener(/*move*/ self, v: PrcU8) -> Self {
+        Self { sharpener: Some(v), ..self }
     }
 
     pub fn with_target_order(/*move*/ self, order: TargetOrder) -> Self {
@@ -112,7 +137,7 @@ impl<const DIM: usize> RangingConfig<DIM> {
     }
 
     fn validate(&self) {
-        let (_,R_INTEGRATION_TIMES_N, R_FREQ_RANGE_MAX): (_,u8,HzU8) = get_reso_details::<DIM>();
+        let (_,R_INTEGRATION_TIMES_N, R_FREQ_RANGE_MAX): (_,u8,HzU8) = reso_details::<DIM>();
 
         match self.mode {
             AUTONOMOUS(MsU16(integration_time_ms), HzU8(freq)) => {
@@ -139,8 +164,8 @@ impl<const DIM: usize> RangingConfig<DIM> {
             _ => {}
         }
 
-        match self.sharpener_prc {
-            Some(v) => { assert!((1..=99).contains(&v), "Sharpener-% out of range") },
+        match self.sharpener {
+            Some(PrcU8(v)) => { assert!((1..=99).contains(&v), "Sharpener out of range (1..=99)") },
             None => {}
         }
 
@@ -150,7 +175,7 @@ impl<const DIM: usize> RangingConfig<DIM> {
 
     fn apply(&self, vl: &mut VL53L5CX_Configuration) -> Result<()> {
         self.validate();    // may panic
-        let ULD_RESO: Resolution_R = get_reso_details::<DIM>().0;
+        let ULD_RESO: Resolution_R = reso_details::<DIM>().0;
 
         // Set the resolution first. UM2884 (Rev 5) says:
         //  "['..._set_resolution()'] must be used before updating the ranging frequency"
@@ -176,12 +201,16 @@ impl<const DIM: usize> RangingConfig<DIM> {
             e => Err(Error(e))
         }?;
 
-        match unsafe { vl53l5cx_set_sharpener_percent(vl, self.sharpener_prc.unwrap_or(0)) } {
+        let sharpener_prc: u8 = match self.sharpener {
+            Some(PrcU8(v)) => v,
+            None => 0
+        };
+        match unsafe { vl53l5cx_set_sharpener_percent(vl, sharpener_prc) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
 
-        match unsafe { vl53l5cx_set_target_order(vl, self.target_order as _) } {
+        match unsafe { vl53l5cx_set_target_order(vl, self.target_order.as_uld() as _) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
@@ -196,9 +225,9 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
     //
     fn default() -> Self {
         Self {
-            sharpener_prc: None,
-            target_order: TargetOrder::STRONGEST,
-            mode: AUTONOMOUS(5.ms(),1.Hz()),
+            sharpener: None,
+            target_order: STRONGEST,
+            mode: AUTONOMOUS(5.ms(),HzU8(1)/*1.Hz()*/),
         }
     }
 }
@@ -211,7 +240,7 @@ pub struct State_Ranging<const DIM: usize> {    // DIM: 4|8
     rbuf: ResultsData<DIM>      // Rust-side results store
 }
 
-impl<'b: 'c,'c,const DIM: usize> State_Ranging<DIM> {
+impl<const DIM: usize> State_Ranging<DIM> {
     pub(crate) fn transition_from(/*move*/ mut st: State_HP_Idle, cfg: &RangingConfig<DIM>) -> Result<Self> {
         let vl: &mut VL53L5CX_Configuration = st.borrow_uld_mut();
         cfg.apply(vl)?;
