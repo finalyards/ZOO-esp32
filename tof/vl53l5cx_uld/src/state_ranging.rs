@@ -237,7 +237,7 @@ pub struct State_Ranging<const DIM: usize> {    // DIM: 4|8
     // Access to 'VL53L5CX_Configuration'.
     // The 'Option' is needed to have both explicit '.stop()' and an implicit 'Drop'.
     outer_state: Option<State_HP_Idle>,
-    rbuf: ResultsData<DIM>      // Rust-side results store
+    //R rbuf: ResultsData<DIM>      // Rust-side results store
 }
 
 impl<const DIM: usize> State_Ranging<DIM> {
@@ -249,7 +249,7 @@ impl<const DIM: usize> State_Ranging<DIM> {
             ST_OK => {
                 let x = Self{
                     outer_state: Some(st),
-                    rbuf: ResultsData::empty()
+                    //R rbuf: ResultsData::empty()
                 };
                 Ok(x)
             },
@@ -269,16 +269,11 @@ impl<const DIM: usize> State_Ranging<DIM> {
         }
     }
 
-    // tbd. consider adding 'time_stamp' as in the Flock
     /*
     * Collect results from the last successful scan.
-    *
     //tbd. Try and describe what happens, if you call here before a scan is ready.  tbd. Make a test/example
-    *
-    * Note: The data is valid until the next '.get_data()' call. Rust reference management takes
-    *       care that all reads to them are dropped, before a new round is replacing them. #rust
     */
-    pub fn get_data(&mut self) -> Result<(&ResultsData<DIM>, TempC)> {
+    pub fn get_data(&mut self) -> Result<(ResultsData<DIM>, TempC)> {
         use core::mem::MaybeUninit;
         use core::ptr::addr_of_mut;
 
@@ -297,8 +292,8 @@ impl<const DIM: usize> State_Ranging<DIM> {
 
         match unsafe { vl53l5cx_get_ranging_data(self.borrow_uld_mut(), &mut buf) } {
             ST_OK => {
-                let temp_c = self.rbuf.feed(&buf);
-                Ok((&self.rbuf, temp_c))
+                let tuple = ResultsData::<DIM>::from(&buf);
+                Ok(tuple)
             },
             e => Err(Error(e))
         }

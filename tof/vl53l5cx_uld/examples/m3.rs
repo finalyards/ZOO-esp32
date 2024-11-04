@@ -29,7 +29,7 @@ use common::MyPlatform;
 use uld::{
     Result,
     VL53L5CX,
-    ranging::{
+    state_ranging::{
         RangingConfig,
         TargetOrder::CLOSEST,
         Mode::AUTONOMOUS,
@@ -76,7 +76,7 @@ fn main2() -> Result<()> {
     // Reset VL53L5CX by pulling down their power for a moment
     if let Some(mut pin) = PWR_EN {
         pin.set_low();
-        delay_ms(20);      // tbd. how long is suitable, by the specs?
+        delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
         pin.set_high();
         info!("Target powered off and on again.");
     }

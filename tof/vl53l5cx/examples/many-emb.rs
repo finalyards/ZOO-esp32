@@ -8,46 +8,55 @@
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
+
 use {defmt_rtt as _, esp_backtrace as _};
 
 use core::cell::RefCell;
 
 use embassy_executor::Spawner;
-use embassy_time::{Duration as EmbDuration, Timer};
 
 use esp_hal::{
-    gpio::{Io, Input},
+    delay::Delay,
+    gpio::{Io, Input, Output},
     i2c::I2c,
+    peripherals::I2C0,
     prelude::*,
     time::{now, Instant, Duration},
     timer::timg::TimerGroup,
+    Blocking
 };
 
-extern crate vl53l5cx_uld as uld;
+use static_cell::StaticCell;
+
+extern crate vl53l5cx;
+use vl53l5cx::{
+    units::*,
+    DEFAULT_I2C_ADDR,
+    Mode::*,
+    RangingConfig,
+    TargetOrder::*,
+    VL,
+    VLsExt as _
+};
+
+mod common;
+use common::{
+    init_defmt,
+    init_heap
+};
+
+const DEFAULT_I2C_ADDR_8BIT: u8 = DEFAULT_I2C_ADDR.as_8bit();   // 0x52
+const BOARDS: usize = 2;     // number of boards
 
 include!("./pins_gen.in");  // pins!
 
-use uld::{
-    VL53L5CX,
-    ranging::{
-        RangingConfig,
-        TargetOrder::CLOSEST,
-        Mode::AUTONOMOUS,
-    },
-    units::*,
-    API_REVISION,
-    DEFAULT_I2C_ADDR_8BIT,
-};
-
-extern crate vl53l5cx_many as vl;
-use vl::{
-    I2cAddr,
-    VL
-};
+type I2cType<'d> = I2c<'d, I2C0,Blocking>;
+static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     init_defmt();
+    init_heap();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -56,7 +65,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, INT, mut LPns) = pins!(io);
+    let (SDA, SCL, PWR_EN, INT, LPns): (_,_,_,_,[Output;BOARDS]) = pins!(io);
 
     let i2c_bus = I2c::new(
         peripherals.I2C0,
@@ -65,26 +74,35 @@ async fn main(spawner: Spawner) {
         400.kHz()
     );
 
-    let i2c_shared = RefCell::new(i2c_bus);
+    let tmp = RefCell::new(i2c_bus);
+    let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
 
-    // Reset VL53L5CX by pulling down their power for a moment
+    // Reset VL53L5CX's by pulling down their power for a moment
     if let Some(mut pin) = PWR_EN {
         pin.set_low();
-        blocking_delay_ms(2);      // tbd. how long is suitable? This is the time the chip itself is with low power. #measure
+        blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
         pin.set_high();
-        info!("Target powered off and on again.");
+        info!("Targets powered off and on again.");
     }
 
-    #[allow(non_snake_case)]
-    let vls = LPns.enumerate().map(|LPn,i| {
-        let i2c_addr = DEFAULT_I2C_ADDR_8BIT + i*2;
-        VL::new_and_setup(LPn, i2c_shared, I2cAddr::from(i2c_addr))
-    });
+    let vls: [VL;BOARDS] = VL::new_flock(LPns, i2c_shared,
+|i| I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT + (i as u8)*2)
+        ).unwrap();
 
-    info!("Init succeeded, driver version {}", API_REVISION);
+    /***R
+    let vls: [VL;BOARDS] = array_try_map_mut_enumerated(LPns, #[allow(non_snake_case)] |(i,LPn)| {
+        LPn.set_high();     // enable this chip and leave it on
 
-    spawner.spawn(ranging(vls)).unwrap();
-    //R spawner.spawn(track_INT(INT)).unwrap();
+        let i2c_addr = I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT + (i as u8)*2);
+        let vl = VL::new_and_setup(i2c_shared, i2c_addr)?;
+
+        debug!("Init of board {} succeeded", i);
+        Ok(vl)
+    }).unwrap();
+    ***/
+    info!("Init succeeded");
+
+    spawner.spawn(ranging(vls, INT)).unwrap();
 }
 
 
@@ -93,26 +111,29 @@ async fn main(spawner: Spawner) {
 //  2. sees whether the 'INT' pin gets high->low edges, and logs them
 
 #[embassy_executor::task]
-async fn ranging(/*move*/ mut vls: &[VL]) {
+#[allow(non_snake_case)]
+async fn ranging(/*move*/ vls: [VL;BOARDS], pinINT: Input<'static>) {
 
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(Ms(5),Hz(10)))
+        .with_mode(AUTONOMOUS(5.ms(), HzU8(10)))
         .with_target_order(CLOSEST);
 
-    let mut ring = vl::start_ranging(vls, &c);
+    let mut ring = vls.start_ranging(&c, pinINT).unwrap();
 
-    let t = Timings::new();
+    let t0 = now();
+    let mut _t = Timings::new();
 
-    for round in 0..10 {
-        t.t0();
+    for _round in 0..10 {
+        _t.t0();
 
-        let results = ring.get_data() .await;
-        t.results_read();
+        let (i, res, temp_degc, time_stamp) = ring.get_data() .await
+            .unwrap();
+
+        _t.results();
 
         // tbd. Consider making output a separate task (feed via a channel)
-        //
-        for (res, i, temp_degc) in results {
-            info!("Data #{} ({})", round, temp_degc);
+        {
+            info!("Data #{}: ({}, {})", i, temp_degc, (time_stamp-t0).to_millis());
 
             info!(".target_status:    {}", res.target_status);
             info!(".targets_detected: {}", res.targets_detected);
@@ -130,36 +151,9 @@ async fn ranging(/*move*/ mut vls: &[VL]) {
             #[cfg(feature = "reflectance_percent")]
             info!(".reflectance:      {}", res.reflectance);
         }
-        t.results_passed();
-        t.report();
+        _t.results_passed();
+        _t.report();
     }
-}
-
-/***R
-#[embassy_executor::task]
-#[allow(non_snake_case)]
-async fn track_INT(mut pin: Input<'static>) {
-
-    loop {
-        pin.wait_for_rising_edge().await;
-        debug!("INT detected");
-    }
-}***/
-
-/*
-* Tell 'defmt' how to support '{t}' (timestamp) in logging.
-*
-* Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
-*       read operation". Our 'esp_hal::time::now' isn't, but sure seems to work.
-*
-* Reference:
-*   - defmt book > ... > Hardware timestamp
-*       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
-*/
-fn init_defmt() {
-    defmt::timestamp!("{=u64:us}", {
-        now().duration_since_epoch().to_micros()
-    });
 }
 
 struct Timings {
@@ -177,7 +171,7 @@ impl Timings {
     fn t0(&mut self) {
         self.t0 = now();
     }
-    fn results_read(&mut self) {
+    fn results(&mut self) {
         self.t1 = now();
     }
     fn results_passed(&mut self) {
@@ -203,3 +197,14 @@ const D_PROVIDER: Delay = Delay::new();
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }
+
+/***R
+type UldResult<T> = Result<T,vl53l5cx_uld::Error>;
+fn array_try_map_mut_enumerated<A,B, const N: usize>(mut aa: [A;N], f: impl FnMut((usize,&mut A)) -> UldResult<B>) -> UldResult<[B;N]> {
+    use arrayvec::ArrayVec;
+    let bs_av = aa.iter_mut().enumerate().map(f)
+        .collect::<UldResult<ArrayVec<B,N>>>();
+
+    bs_av.map(|x| x.into_inner().ok().unwrap())
+}
+***/

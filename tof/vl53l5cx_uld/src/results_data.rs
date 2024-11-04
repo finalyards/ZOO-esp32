@@ -14,9 +14,10 @@
 *       -> https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf
 */
 use core::convert::identity;
+//Ruse core::mem;
 
 #[cfg(feature = "defmt")]
-use defmt::{warn,assert};
+use defmt::{assert};
 
 use crate::uld_raw::{
     VL53L5CX_ResultsData,
@@ -67,7 +68,7 @@ impl<const DIM: usize> ResultsData<DIM> {
     /*
     * Provide an empty buffer-like struct; owned usually by the application and fed via 'feed()'.
     */
-    pub(crate) fn empty() -> Self {
+    fn empty() -> Self {
 
         Self {
             #[cfg(feature = "ambient_per_spad")]
@@ -92,7 +93,14 @@ impl<const DIM: usize> ResultsData<DIM> {
         }
     }
 
-    pub(crate) fn feed(&mut self, raw_results: &VL53L5CX_ResultsData) -> TempC {
+    pub(crate) fn from(raw_results: &VL53L5CX_ResultsData) -> (Self,TempC) {
+        // tbd. Implement using 'MaybeUninit'; started but left..wasn't as easy as hoped.
+        let mut x = Self::empty();
+        let tempC = x.feed(raw_results);
+        (x, tempC)
+    }
+
+    fn feed(&mut self, raw_results: &VL53L5CX_ResultsData) -> TempC {
 
         // helpers
         //
@@ -169,6 +177,116 @@ impl<const DIM: usize> ResultsData<DIM> {
         TempC(raw_results.silicon_temp_degc)
     }
 }
+/*** WIP; Would be nice to have it just return a 'Self'
+    - ended up in problems with '&mut [[X;DIM];DIM]' not being a "thing"..
+
+pub(crate) fn from(raw_results: &VL53L5CX_ResultsData) -> (Self,TempC) {
+    use mem::MaybeUninit;
+    use core::ptr::addr_of_mut;
+
+    // tbd. could take a time stamp already here, but that means bringing up some dependency
+    //      the ULD side otherwise wouldn't need ('fugit'). #consider
+    //
+    trace!("Converting result on ULD side");
+
+    // helpers
+    //
+    // The ULD C API matrix layout is,
+    //  - looking _out_ through the sensor so that the SATEL mini-board's PCB text is horizontal
+    //    and right-way-up
+    //      ^-- i.e. what the sensor "sees" (not how we look at the sensor)
+    //  - for a fictional 2x2x2 matrix = only the corner zones
+    //
+    // Real world:
+    //      [A B]   // A₁..D₁ = first targets; A₂..D₂ = 2nd targets; i.e. same target zone
+    //      [C D]
+    //
+    // ULD C API vector:
+    //      [A₁ A₂ B₁ B₂ C₁ C₂ D₁ D₂]   // every "zone" is first covered; then next zone
+
+    // RUST note: Cannot use '&[IN;DIM*DIM]' (or '&[IN;DIM_SQ]'), which would technically be
+    //      correct.
+    //      <<
+    //          error: generic parameters may not be used in const operations
+    //      <<
+    //
+    #[allow(dead_code)]
+    fn into_matrix_map_o<IN: Copy, OUT, const DIM: usize>(raw: &[IN], offset: usize, out: &mut [[OUT; DIM]; DIM], f: impl Fn(IN) -> OUT) {
+        let raw = &raw[..DIM * DIM * TARGETS];      // take only the beginning of the C buffer
+
+        for r in 0..DIM {
+            for c in 0..DIM {
+                out[r][c] = f(raw[(r * DIM + c) * TARGETS + offset]);
+                //(unsafe { out.add(r*DIM+c) }) = f(raw[(r * DIM + c) * TARGETS + offset]);
+            }
+        }
+    }
+    #[inline]
+    #[allow(dead_code)]
+    fn into_matrix_o<X: Copy, const DIM: usize>(raw: &[X], offset: usize, out: &mut [[X; DIM]; DIM]) {     // no mapping
+        into_matrix_map_o(raw, offset, out, identity)
+    }
+    // Zone metadata: 'TARGETS' (and 'offset', by extension) are not involved.
+    fn into_matrix<X: Copy, const DIM: usize>(raw: &[X], out: &mut [[X; DIM]; DIM]) {
+        let raw = &raw[..DIM * DIM];      // take only the beginning of the C buffer
+
+        // tbd.
+        // Since we cannot use 2D indexes with the pointer (was able to, with a reference),
+        // and since the layout _might_ be the same, just a memcopy would do?
+        for r in 0..DIM {
+            for c in 0..DIM {
+                out[r][c] = raw[r*DIM+c];
+                //(unsafe { out.add(r*DIM+c) }) = raw[r*DIM+c];
+            }
+        }
+    }
+
+    // Ref -> https://doc.rust-lang.org/beta/std/mem/union.MaybeUninit.html#initializing-a-struct-field-by-field
+    //
+    let rd: ResultsData<DIM> = {
+        let mut un = MaybeUninit::<Self>::uninit();
+        let up = un.as_mut_ptr();
+
+        let rr = raw_results;    // alias
+
+        // Metadata: DIMxDIM (just once)
+        //
+        #[cfg(feature = "ambient_per_spad")]
+        into_matrix(&rr.ambient_per_spad, unsafe { addr_of_mut!((*up).ambient_per_spad) });
+        #[cfg(feature = "nb_spads_enabled")]
+        into_matrix(&rr.spads_enabled, unsafe { addr_of_mut!((*up).nb_spads_enabled) });
+        #[cfg(feature = "nb_targets_detected")]
+        into_matrix(&rr.nb_target_detected, unsafe { addr_of_mut!((*up).targets_detected) });
+
+        // Results: DIMxDIMxTARGETS
+        //
+        for i in 0..TARGETS {
+            #[cfg(feature = "target_status")]
+            into_matrix_map_o(&rr.target_status, i, unsafe { addr_of_mut!((*up).target_status[i]) }, TargetStatus::from_uld);
+
+            // We tolerate '.distance_mm' == 0 for non-existing data (where '.target_status' is 0); no need to check.
+            //
+            #[cfg(feature = "distance_mm")]
+            into_matrix_map_o(&rr.distance_mm, i, unsafe { addr_of_mut!((*up).distance_mm[i]) },
+                              |v: i16| -> u16 {
+                                  assert!(v >= 0, "Unexpected 'distance_mm' value: {} < 0", v);
+                                  v as u16
+                              });
+            #[cfg(feature = "range_sigma_mm")]
+            into_matrix_o(&rr.range_sigma_mm, i, unsafe { addr_of_mut!((*up).range_sigma_mm[i]) });
+
+            #[cfg(feature = "reflectance_percent")]
+            into_matrix_o(&rr.reflectance, i, unsafe { addr_of_mut!((*up).reflectance[i]) });
+            #[cfg(feature = "signal_per_spad")]
+            into_matrix_o(&rr.signal_per_spad, i, unsafe { addr_of_mut!((*up).signal_per_spad[i]) });
+        }
+        unsafe { un.assume_init() }
+    };
+    let tempC = TempC(raw_results.silicon_temp_degc);
+
+    (rd, tempC)
+}
+***/
 
 //---
 // Target status
@@ -187,9 +305,9 @@ pub enum TargetStatus {
     Valid(u8),          // 100% valid: 5
     HalfValid(u8),      // 50% valid: 6,9
     Invalid,            // 255
-    //
     Other(u8),          // other values: 0..13 excluding above; RARE
-                        //               14..254 (inclusive); should not occur
+
+    // 14..254 (inclusive); should not occur; panics
 }
 
 #[cfg(feature = "target_status")]
@@ -199,14 +317,8 @@ impl TargetStatus {
             5 => { Self::Valid(v) },
             6 | 9 => { Self::HalfValid(v) },
             255 => { Self::Invalid },
-            v => {
-                if v > 13 {
-                    #[cfg(feature = "defmt")]
-                    warn!("Unexpected 'target_status' value: {=u8}", v);
-                }
-                Self::Other(v)
-            }
+            0..=13 => { Self::Other(v) },
+            v => panic!("Unexpected value {} for target status", v),
         }
     }
 }
-

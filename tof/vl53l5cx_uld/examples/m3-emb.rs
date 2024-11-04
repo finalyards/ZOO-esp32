@@ -31,7 +31,7 @@ use common::MyPlatform;
 
 use uld::{
     VL53L5CX,
-    ranging::{
+    state_ranging::{
         RangingConfig,
         TargetOrder::CLOSEST,
         Mode::AUTONOMOUS,

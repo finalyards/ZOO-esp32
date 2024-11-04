@@ -1,9 +1,5 @@
 /*
 * Reading a single board, using Embassy.
-*
-* References:
-*   - ST.com > UM2884 Rev. 6 (PDF, 18pp)
-*       -> https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf
 */
 #![no_std]
 #![no_main]
@@ -43,7 +39,10 @@ use vl53l5cx::{
 };
 
 mod common;
-use common::init_heap;
+use common::{
+    init_defmt,
+    init_heap
+};
 
 include!("./pins_gen.in");  // pins!
 
@@ -113,18 +112,20 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
 
     let mut ring = vl.start_ranging(&c, pinINT).unwrap();
 
-    let mut t = Timings::new();
+    let t0 = now();
+    let mut _t = Timings::new();
 
-    for round in 0..10 {
-        t.t0();
+    for _round in 0..10 {
+        _t.t0();
 
-        let results = ring.get_data() .await;
-        t.results();
+        let (res, temp_degc, time_stamp) = ring.get_data() .await
+            .unwrap();
+
+        _t.results();
 
         // tbd. Consider making output a separate task (feed via a channel)
-        //
-        for (res, temp_degc, time_stamp) in results {
-            info!("Data #{} ({}, {})", round, temp_degc, time_stamp);
+        {
+            info!("Data ({}, {})", temp_degc, (time_stamp-t0).to_millis());
 
             info!(".target_status:    {}", res.target_status);
             info!(".targets_detected: {}", res.targets_detected);
@@ -142,25 +143,9 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
             #[cfg(feature = "reflectance_percent")]
             info!(".reflectance:      {}", res.reflectance);
         }
-        t.results_passed();
-        t.report();
+        _t.results_passed();
+        _t.report();
     }
-}
-
-/*
-* Tell 'defmt' how to support '{t}' (timestamp) in logging.
-*
-* Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
-*       read operation". Our 'esp_hal::time::now' isn't, but sure seems to work.
-*
-* Reference:
-*   - defmt book > ... > Hardware timestamp
-*       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
-*/
-fn init_defmt() {
-    defmt::timestamp!("{=u64:us}", {
-        now().duration_since_epoch().to_micros()
-    });
 }
 
 struct Timings {
