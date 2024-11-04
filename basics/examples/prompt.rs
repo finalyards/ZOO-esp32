@@ -44,7 +44,7 @@ fn main() -> ! {
 * Tell 'defmt' how to support '{t}' (timestamp) in logging. Also
 *
 * Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
-*       read operation". Out 'esp_hal::time::now' isn't, but sure seems to work.
+*       read operation". Our 'esp_hal::time::now' isn't, but sure seems to work.
 *
 * Reference:
 *   - defmt book > ... > Hardware timestamp
