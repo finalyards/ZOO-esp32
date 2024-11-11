@@ -163,6 +163,10 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
         trace!("🔸 {}ms", ms);
         delay_ms(ms);
     }
+
+    fn addr_changed(&mut self, _new_addr_8bit: u8) {
+        unimplemented!()
+    }
 }
 
 fn slice_head(vs: &[u8],n_max: usize) -> &[u8] {

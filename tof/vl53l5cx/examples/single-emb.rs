@@ -24,7 +24,7 @@ use esp_hal::{
     timer::timg::TimerGroup,
     Blocking
 };
-
+use esp_hal::gpio::Output;
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
@@ -61,7 +61,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, INT, mut LPns) = pins!(io);
+    let (SDA, SCL, PWR_EN, LPns, INT): (_,_,_,[Output;BOARDS],_) = pins!(io);
 
     let i2c_bus = I2c::new(
         peripherals.I2C0,

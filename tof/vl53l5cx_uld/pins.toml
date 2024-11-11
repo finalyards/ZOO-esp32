@@ -5,15 +5,15 @@
 #
 generate = "examples/pins_gen.in"
 
-[boards.esp32c3]
-SDA = 4
-SCL = 5
-#PWR_EN = 0      # { type=Output, pin=0, optional=true }
-INT=0
+#|[boards.esp32c3]
+#|SDA = 4
+#|SCL = 5
+#|#PWR_EN = 0      # { type=Output, pin=0, optional=true }
+#|INT=0
 
 [boards.esp32c6]
 SDA = 18
 SCL = 19
-LPn = 20
+LPn = [20,21]
 PWR_EN = 22
-INT=23
+INT = 23

@@ -1,8 +1,8 @@
 # `v53l5cx_uld`
 
-The `uld` part for the VL53L5CX time-of-flight sensor takes care of C/Rust adaptation and some translation of the results data formats (e.g. matrices instead of a vector).
+The `uld` part for the VL53L5CX time-of-flight sensor takes care of C/Rust adaptation and translation of the results from 1D vectors to 2D matrices, and enums in favor of integer values.
 
-YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx.md) API, instead (which depends on this ULD level). Before that, though, read on, provide the vendor C API as instructed below, and make sure this stuff builds.
+YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can build this, as a dependency.
 
 
 ## Pre-reading
@@ -17,7 +17,7 @@ YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5c
 
 This build is relatively complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
 
-<!-- tbd. `examples/common.rs` might get replaced by `../vl53l5cx/src/platform.rs` - and instead of examples there might be just tests. 
+<!-- tbd. `examples/common.rs` might get replaced by `../vl53l5cx/src/platform.rs`.
 -->
 
 ## Requirements
@@ -65,7 +65,9 @@ ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs
 
 ## Wiring
 
-See [`../vl53l5cx/WIRING.md`](../vl53l5cx/WIRING.md).
+Same as in [`../vl53l5cx/WIRING.md`](../vl53l5cx/WIRING.md).
+
+Only one device is needed.
 
 
 ## Compiling 
@@ -76,7 +78,7 @@ $ cargo build --release --lib
 
 This compiles the library, and is a good place to start. 
 
->One thing to note about the library is that it's fully hardware agnostic; this is something we inherit from the approach of the vendor ULD C API. *Your code* (represented by `examples/` in this repo) brings in, for example, how to drive the I2C bus. This means only `examples` is MCU specific.
+>One thing to note about the library is that it's fully hardware agnostic; this is something we inherit from the approach of the vendor ULD C API. *Your code* brings in, for example, how to drive the I2C bus. This means only `tests` is MCU specific.
 
 <span />
 
@@ -90,67 +92,35 @@ This compiles the library, and is a good place to start.
 Likely you are more interested in the runnable samples, though. Let's have a look!
 -->
 
+<!-- tbd. should we have examples???
+## Running examples
+
+Example are explorational code checking some driver / hardware interactions. They are run manually, one at a sime.
+-->
 
 ## Running tests
 
-If you have a devkit available, showing with `probe-rs list`, and at least one SATEL board wired to it (according to the instructions in `../vl53l5cx/README.md`, you're ready to run tests!
+The tests are used to establish certain presumptions about how the hardware works. In order to run them, you need:
 
-The point of the tests is to show that the basics (interaction from an app-side `Platform`, via the vendor ULD C API, through to the actual sensor) work. For application level examples, see the `../vl53l5cx` project.
+- a devkit connected:
 
-```
-$ probe-rs list
-The following debug probes were found:
-[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
-```
+	```
+	$ probe-rs list
+	The following debug probes were found:
+	[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
+	```
+
+- at least one SATEL board wired to it (according to the instructions in `../vl53l5cx/README.md`)
+
+Then:
 
 ```
 $ cargo test
 ...
+test tests::time_stamp_test ... 1.094964 [INFO ] Running test: Test { name: "tests::time_stamp_test", function: 0x420012a0, should_panic: false, ignored: false, timeout: None }  embedded_test src/fmt.rs:36
+1.095982 [INFO ] Test exited with () or Ok(..)  embedded_test src/fmt.rs:36
+ok
 ```
-
-
-<!-- R #later
-## Running samples
-
-Running a sample expects that you have a device accessible via `probe-rs`:
-
-```
-$ probe-rs list
-The following debug probes were found:
-[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
-```
-
-```
-$ cargo run --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent,defmt --example m3
-[...]
-      Erasing ✔ [00:00:02] [######################] 256.00 KiB/256.00 KiB @ 98.28 KiB/s (eta 0s )
-  Programming ✔ [00:00:47] [######################] 104.38 KiB/104.38 KiB @ 2.21 KiB/s (eta 0s )    
-  Finished in 47.16089s
-0.848963 [INFO ] Target powered off and on again.
-0.852650 [DEBUG] Ping succeeded: 0xf0,0x02
-3.621574 [INFO ] Init succeeded, driver version VL53L5CX_2.0.0
-4.007674 [INFO ] Data #0 (sensor 36°C)
-...
-5.386734 [INFO ] Data #9 (sensor 35°C)
-5.386766 [INFO ] .target_status:    [[[Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)]], [[Valid(5), Other(4), Other(0), Other(0)], [Other(0), Other(4), Other(4), Other(0)], [Other(0), Other(2), Other(0), Other(4)], [Other(0), Other(0), Other(4), Other(0)]]]
-5.386989 [INFO ] .targets_detected: [[2, 1, 1, 1], [1, 1, 2, 1], [1, 1, 1, 1], [1, 1, 1, 1]]
-5.387078 [INFO ] .ambient_per_spad: [[1, 0, 0, 1], [1, 2, 1, 0], [1, 2, 1, 1], [1, 1, 1, 1]]
-5.387188 [INFO ] .spads_enabled:    [[16128, 15872, 15104, 15872], [15104, 15104, 15872, 14848], [15616, 14848, 15616, 15104], [15360, 15360, 15872, 15360]]
-5.387302 [INFO ] .signal_per_spad:  [[[3, 15, 13, 13], [18, 17, 14, 12], [18, 16, 16, 11], [18, 15, 14, 13]], [[11, 11, 0, 0], [0, 2, 8, 0], [0, 2, 0, 2], [0, 0, 2, 0]]]
-5.387497 [INFO ] .range_sigma_mm:   [[[28, 8, 8, 10], [7, 6, 7, 10], [7, 6, 8, 12], [6, 7, 8, 12]], [[15, 9, 0, 0], [0, 39, 7, 0], [0, 52, 0, 47], [0, 0, 46, 0]]]
-5.387656 [INFO ] .distance_mm:      [[[1217, 1711, 1858, 1946], [1746, 1804, 1837, 1908], [1747, 1768, 1841, 1894], [1736, 1778, 1852, 1911]], [[1542, 1653, 0, 0], [0, 726, 1963, 0], [0, 4042, 0, 524], [0, 0, 2247, 0]]]
-5.387846 [INFO ] .reflectance:      [[[8, 65, 66, 74], [79, 80, 70, 66], [80, 72, 78, 57], [79, 70, 67, 70]], [[37, 45, 0, 0], [0, 2, 43, 0], [0, 57, 0, 1], [0, 0, 17, 0]]]
-5.387989 [INFO ] End of ULD demo
-```
-
-That's a bunch of features!!!
-
-You can steer the `m3` example's behaviour by the set of features you define. Equally, the `targets_per_zone_2` defines the "depth" of possibly separate targets, per zone, that the sensor will report.
-
-Note how this change of behaviour of the code is steered by the Cargo `feature` system. It goes so deep that the *underlying ULD C API* gets compiled differently, omitting the features you don't state you are needing. This reduces both the code size and the data transferred from the sensor over I2C.
-
-By leaving the `targets_per_zone_2` feature out, you will get only one data per zone (closest or strongest, depending on the source code; which seems to be favouring `CLOSEST`).
--->
 
 
 ## Troubleshooting
@@ -209,4 +179,6 @@ This sometimes happens. Something is confused. This seems to resolve the situati
 ### SATEL
 
 - [How to setup and run the VL53L5CX-SATEL using an STM32 Nucleo64 board]() (ST.com AN5717, Rev 2; Dec 2021)
-- [PCB Schematic VL53L5CX-SATEL](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html#cad-resources) (ST.com; Rev A, ver 012, 2021)
+- [PCB4109A, version 12, variant 00B](https://www.st.com/resource/en/schematic_pack/pcb4109a-00b-sch012.pdf) (ST.com; 2021; PDF 2pp.)
+
+	>*Interestingly, marked `CONFIDENTIAL` but behind a public web link.*
