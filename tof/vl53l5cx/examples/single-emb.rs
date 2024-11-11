@@ -8,6 +8,7 @@
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
+
 use {defmt_rtt as _, esp_backtrace as _};
 
 use core::cell::RefCell;
@@ -16,7 +17,7 @@ use embassy_executor::Spawner;
 
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Input},
+    gpio::{Io, Input, Output},
     i2c::I2c,
     peripherals::I2C0,
     prelude::*,
@@ -24,7 +25,6 @@ use esp_hal::{
     timer::timg::TimerGroup,
     Blocking
 };
-use esp_hal::gpio::Output;
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
@@ -61,7 +61,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, LPns, INT): (_,_,_,[Output;BOARDS],_) = pins!(io);
+    let (SDA, SCL, PWR_EN, mut LPns, INT): (_,_,_,[Output;2],_) = pins!(io);
 
     let i2c_bus = I2c::new(
         peripherals.I2C0,
@@ -83,13 +83,9 @@ async fn main(spawner: Spawner) {
 
     // Enable one of the wired boards. Ensures that the others (if any) won't jump on the I2C bus.
     //
-    // Note: This also works (gets ignored) if 'LPns' is empty (and the one LPn line has been pulled up).
-    //
     for (i,pin) in LPns.iter_mut().enumerate() {
         if i==0 {
             pin.set_high();
-        } else {
-            pin.set_low();
         }
     }
 
@@ -120,6 +116,9 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
 
         let (res, temp_degc, time_stamp) = ring.get_data() .await
             .unwrap();
+        if _round==0 { info!("Skipping first results (normally not valid)");
+            continue;
+        }
 
         _t.results();
 
@@ -128,6 +127,7 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
             info!("Data ({}, {})", temp_degc, (time_stamp-t0).to_millis());
 
             info!(".target_status:    {}", res.target_status);
+            #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
             info!(".targets_detected: {}", res.targets_detected);
 
             #[cfg(feature = "ambient_per_spad")]

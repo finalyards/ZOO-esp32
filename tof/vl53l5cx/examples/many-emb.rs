@@ -32,6 +32,7 @@ extern crate vl53l5cx;
 use vl53l5cx::{
     units::*,
     DEFAULT_I2C_ADDR,
+    I2cAddr,
     Mode::*,
     RangingConfig,
     TargetOrder::*,
@@ -89,17 +90,6 @@ async fn main(spawner: Spawner) {
 |i| I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT + (i as u8)*2)
         ).unwrap();
 
-    /***R
-    let vls: [VL;BOARDS] = array_try_map_mut_enumerated(LPns, #[allow(non_snake_case)] |(i,LPn)| {
-        LPn.set_high();     // enable this chip and leave it on
-
-        let i2c_addr = I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT + (i as u8)*2);
-        let vl = VL::new_and_setup(i2c_shared, i2c_addr)?;
-
-        debug!("Init of board {} succeeded", i);
-        Ok(vl)
-    }).unwrap();
-    ***/
     info!("Init succeeded");
 
     spawner.spawn(ranging(vls, INT)).unwrap();
@@ -128,6 +118,9 @@ async fn ranging(/*move*/ vls: [VL;BOARDS], pinINT: Input<'static>) {
 
         let (i, res, temp_degc, time_stamp) = ring.get_data() .await
             .unwrap();
+        if _round==0 { info!("Skipping first results (normally not valid)");
+            continue;
+        }
 
         _t.results();
 
@@ -136,6 +129,7 @@ async fn ranging(/*move*/ vls: [VL;BOARDS], pinINT: Input<'static>) {
             info!("Data #{}: ({}, {})", i, temp_degc, (time_stamp-t0).to_millis());
 
             info!(".target_status:    {}", res.target_status);
+            #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
             info!(".targets_detected: {}", res.targets_detected);
 
             #[cfg(feature = "ambient_per_spad")]
@@ -197,14 +191,3 @@ const D_PROVIDER: Delay = Delay::new();
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }
-
-/***R
-type UldResult<T> = Result<T,vl53l5cx_uld::Error>;
-fn array_try_map_mut_enumerated<A,B, const N: usize>(mut aa: [A;N], f: impl FnMut((usize,&mut A)) -> UldResult<B>) -> UldResult<[B;N]> {
-    use arrayvec::ArrayVec;
-    let bs_av = aa.iter_mut().enumerate().map(f)
-        .collect::<UldResult<ArrayVec<B,N>>>();
-
-    bs_av.map(|x| x.into_inner().ok().unwrap())
-}
-***/

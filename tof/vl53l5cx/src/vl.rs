@@ -7,10 +7,12 @@ use defmt::debug;
 use core::cell::RefCell;
 
 use esp_hal::{
-    gpio::{Input, Output},
+    gpio::Input,
     i2c::{I2c, Instance},
     Blocking
 };
+#[cfg(feature = "flock")]
+use esp_hal::gpio::Output;
 
 use vl53l5cx_uld::{
     DEFAULT_I2C_ADDR_8BIT,

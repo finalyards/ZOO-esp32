@@ -141,6 +141,7 @@ impl<const DIM: usize> ResultsData<DIM> {
             into_matrix_map_o(raw, offset, out, identity)
         }
         // Zone metadata: 'TARGETS' (and 'offset', by extension) are not involved.
+        #[allow(dead_code)]
         fn into_matrix<X: Copy, const DIM: usize>(raw: &[X], out: &mut [[X; DIM]; DIM]) {
             let raw = &raw[..DIM * DIM];      // take only the beginning of the C buffer
 
