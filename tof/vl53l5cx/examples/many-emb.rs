@@ -8,8 +8,9 @@
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
+use defmt_rtt as _;
 
-use {defmt_rtt as _, esp_backtrace as _};
+use esp_backtrace as _;
 
 use core::cell::RefCell;
 
@@ -25,6 +26,9 @@ use esp_hal::{
     timer::timg::TimerGroup,
     Blocking
 };
+
+#[cfg(feature="examples_serial")]
+use esp_println::println;
 
 use static_cell::StaticCell;
 
@@ -46,10 +50,9 @@ use common::{
     init_heap
 };
 
-const DEFAULT_I2C_ADDR_8BIT: u8 = DEFAULT_I2C_ADDR.as_8bit();   // 0x52
-const BOARDS: usize = 2;     // number of boards
+include!("./pins_gen.in");  // pins!, boards!
 
-include!("./pins_gen.in");  // pins!
+const BOARDS: usize = boards!();     // number of boards
 
 type I2cType<'d> = I2c<'d, I2C0,Blocking>;
 static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
@@ -87,8 +90,8 @@ async fn main(spawner: Spawner) {
     }
 
     let vls: [VL;BOARDS] = VL::new_flock(LPns, i2c_shared,
-|i| I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT + (i as u8)*2)
-        ).unwrap();
+        |i| I2cAddr::from_7bit(DEFAULT_I2C_ADDR.as_7bit() + i as u8)
+    ).unwrap();
 
     info!("Init succeeded");
 
@@ -113,12 +116,22 @@ async fn ranging(/*move*/ vls: [VL;BOARDS], pinINT: Input<'static>) {
     let t0 = now();
     let mut _t = Timings::new();
 
+    let mut had_results_from = [false; BOARDS];
+
     for _round in 0..10 {
         _t.t0();
 
+        #[cfg(feature="examples_serial")]
+        {
+            //println!("Testing, 1,2,3... {}", _round);
+        }
+
         let (i, res, temp_degc, time_stamp) = ring.get_data() .await
             .unwrap();
-        if _round==0 { info!("Skipping first results (normally not valid)");
+
+        if !had_results_from[i] {
+            had_results_from[i] = true;
+            info!("Skipping first results (normally not valid)");
             continue;
         }
 

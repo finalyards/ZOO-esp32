@@ -28,14 +28,14 @@ anyhow          = { version = "1.0.93", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 embedded-test   = { version = "0.5.0", features = ["defmt"] }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
-esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
-esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
+#esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }   # also enable 'EXP_esp_hal_next' feature
 semihosting     = { version = "0.1.16" }
 
 [build-dependencies]
 anyhow          = "1.0.93"
 itertools       = "0.13.0"
-serde           = { version = "1.0.214", features = ["derive"] }
+serde           = { version = "1.0.215", features = ["derive"] }
 toml            = "0.8.19"
 
 # C compile-time features
@@ -70,10 +70,13 @@ targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
 
+# Use 'esp-hal' from GitHub 'main'; also change the dependency, above.
+EXP_esp_hal_next = []
+
 #|# 'semihosting/args' is EXPERIMENTAL. It likely works within the library, but probe-rs (0.24) doesn't support it.
 #|semihosting_args = [ "semihosting/args" ]
 
-default = ["target_status"]
+default = ["target_status", "EXP_esp_hal_next"]     # "EXP_esp_hal_next"
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

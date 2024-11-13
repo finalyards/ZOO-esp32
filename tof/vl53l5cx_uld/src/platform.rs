@@ -13,6 +13,7 @@ use core::{
     result::Result as CoreResult,
 };
 
+use crate::I2cAddr;
 use crate::uld_raw::{
     ST_OK,
     ST_ERROR as ST_ERR,
@@ -46,7 +47,7 @@ pub trait Platform {
     // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
     // address the device identifies with, inform the 'Platform' struct about it.
     //
-    fn addr_changed(&mut self, new_addr_8bit: u8);
+    fn addr_changed(&mut self, addr: &I2cAddr);
 }
 
 /*

@@ -15,6 +15,7 @@ generate = "examples/pins_gen.in"
 [boards.esp32c6]
 SDA = 18
 SCL = 19
-LPn = [20,21]
+#LPn = [20,21]
+LPn = [20]
 PWR_EN = 22
 INT = 23

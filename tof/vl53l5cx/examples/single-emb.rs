@@ -83,13 +83,9 @@ async fn main(spawner: Spawner) {
 
     // Enable one of the wired boards. Ensures that the others (if any) won't jump on the I2C bus.
     //
-    for (i,pin) in LPns.iter_mut().enumerate() {
-        if i==0 {
-            pin.set_high();
-        }
-    }
+    LPns[0].set_high();
 
-    let vl = VL::new_and_setup(&i2c_shared, DEFAULT_I2C_ADDR)
+    let vl = VL::new_and_setup(&i2c_shared, &DEFAULT_I2C_ADDR)
         .unwrap();
 
     info!("Init succeeded, ULD version {}", ULD_VERSION);

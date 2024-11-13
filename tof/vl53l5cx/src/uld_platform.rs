@@ -19,10 +19,14 @@ use esp_hal::{
     Blocking
 };
 
-use vl53l5cx_uld::{Platform, DEFAULT_I2C_ADDR_8BIT};
+use vl53l5cx_uld::{
+    DEFAULT_I2C_ADDR,
+    I2cAddr,
+    Platform
+};
 
-use crate::I2cAddr;
-
+// NOTE: THIS WILL CHANGE >0.21.1. See 'vl53l5cx_uld' for "next" platform code.
+//
 // Maximum sizes for I2C writes and reads, via 'esp-hal' (0.19.0). Unfortunately, it does not
 // expose these as values we could read (the values are burnt-in).
 //
@@ -49,7 +53,7 @@ impl<'a,T> Pl<'a,T>
     pub fn new(i2c_shared: &'a RefCell<I2c<'a, T,Blocking>>) -> Self {
         Self{
             i2c_shared,
-            i2c_addr: I2cAddr::from_8bit(DEFAULT_I2C_ADDR_8BIT)     // every board starts with the default address
+            i2c_addr: DEFAULT_I2C_ADDR     // every board starts with the default address
         }
     }
 }
@@ -181,8 +185,8 @@ impl<T> Platform for Pl<'_,T> where T: Instance
     * During a ULD I2C address change, the address changes in-the-fly. We get called, once the next
     * transaction should use a new address. This is transparent to the application level.
     */
-    fn addr_changed(&mut self, new_addr_8bit: u8) {
-        self.i2c_addr = I2cAddr::from_8bit(new_addr_8bit);
+    fn addr_changed(&mut self, addr: &I2cAddr) {
+        self.i2c_addr = addr.clone();
     }
 }
 
@@ -192,6 +196,7 @@ fn slice_head(vs: &[u8],n_max: usize) -> &[u8] {
 }
 
 const D_PROVIDER: Delay = Delay::new();
+
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }

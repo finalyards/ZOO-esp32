@@ -8,9 +8,9 @@ use defmt::{debug,trace};
 
 use esp_hal::{
     gpio::Input,
-    time::Instant
+    time::{now, Instant}
 };
-use esp_hal::time::now;
+
 use vl53l5cx_uld::{
     units::TempC,
     RangingConfig,
@@ -22,8 +22,7 @@ use vl53l5cx_uld::{
 use arrayvec::ArrayVec;
 
 use crate::{
-    VL,
-    z_array_try_map::turn_to_something
+    VL
 };
 
 /*
@@ -43,7 +42,7 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
 
         // Turn the ULD level handles into "ranging" state, and start tracking the 'pinINT'.
 
-        let ulds: [State_Ranging<DIM>;N] = turn_to_something(vls, |x| x.into_uld().start_ranging(cfg))?;
+        let ulds: [State_Ranging<DIM>;N] = array_try_map(vls, |x| x.into_uld().start_ranging(cfg))?;
 
         Ok(Self{
             ulds,
@@ -76,19 +75,18 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
         //      - time stamps should be as close to actual measurement as possible!
 
         // Trace if we see new data
-        #[cfg(not(all()))]
+        #[cfg(all())]
         {
             for (i,uld) in self.ulds.iter_mut().enumerate() {
                 if uld.is_ready()? {
-                    debug!("Data available on entry: {}", i);
+                    trace!("Data available on entry: {}", i);
                 }
             }
         }
 
-        assert!(self.ulds.len() > 1);   // TEMP
         loop {
             // Add new results to the 'self.pending'.
-            for (i,uld) in self.ulds.iter_mut().enumerate().rev() {
+            for (i,uld) in self.ulds.iter_mut().enumerate() /*.rev()*/ {
                 if uld.is_ready()? {
                     let time_stamp = now();
                     let (rd,tempC) = uld.get_data()?;
@@ -126,11 +124,21 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
     }
 
     pub fn stop(self) -> Result<([VL;N], Input<'static>)> {
-        let vls = turn_to_something(self.ulds, |x| {
+        let vls = array_try_map(self.ulds, |x| {
             let uld = x.stop()?;
             Ok( VL::recreate(uld) )
         })?;
 
         Ok( (vls, self.pinINT) )
     }
+}
+
+// 'ArrayVec' allows mapping one '[;N]' to another. Plain Rust (1.82, stable) doesn't.
+// 'array_try_map' does this without 'ArrayVec', but is unstable.
+//
+pub(crate) fn array_try_map<A,B, const N: usize>(aa: [A;N], f: impl FnMut(A) -> Result<B>) -> Result<[B;N]> {
+    use arrayvec::ArrayVec;
+    let bs_av = aa.into_iter().map(f).collect::<Result<ArrayVec<B,N>>>() ?;
+
+    Ok(bs_av.into_inner().ok().unwrap())
 }
