@@ -24,15 +24,16 @@ defmt           = { version = "0.3.8", optional = true }
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-anyhow          = { version = "1.0.92", default-features = false }
+anyhow          = { version = "1.0.93", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
+embedded-test   = { version = "0.5.0", features = ["defmt"] }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
-#R semihosting     = { version = "0.1.16" }
+semihosting     = { version = "0.1.16" }
 
 [build-dependencies]
-anyhow          = "1.0.92"
+anyhow          = "1.0.93"
 itertools       = "0.13.0"
 serde           = { version = "1.0.214", features = ["derive"] }
 toml            = "0.8.19"
@@ -55,24 +56,24 @@ range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
 distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
 reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
 
-# These are suggested to be always enabled, by the vendor
+# Keep always enabled. You need it to know which results are valid.
 target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
+
+# Automatically enabled when having multiple zones.
 nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
 
 # The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
 # If you want to see more, enable these:
-targets_per_zone_2=[]
-targets_per_zone_3=[]
-targets_per_zone_4=[]
+targets_per_zone_2=["nb_targets_detected"]
+targets_per_zone_3=["nb_targets_detected"]
+targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
 
-# Was thought to be used with 'set-address', but since we don't set addresses.. not needed.
-#|# Enable to try 'semihosting' 'args' feature, which IS EXPERIMENTAL. It likely works, but probe-rs doesn't like it.
-#|# Without this, we do a work-around.
+#|# 'semihosting/args' is EXPERIMENTAL. It likely works within the library, but probe-rs (0.24) doesn't support it.
 #|semihosting_args = [ "semihosting/args" ]
 
-default = ["target_status", "nb_targets_detected"]
+default = ["target_status"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
@@ -80,3 +81,8 @@ default = ["target_status", "nb_targets_detected"]
 [[example]]
 name = "m3"
 required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
+
+[[test]]
+name = "plain_test"
+harness = false
+required-features = ["defmt"]

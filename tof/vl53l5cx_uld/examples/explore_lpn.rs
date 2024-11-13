@@ -1,5 +1,6 @@
 /*
-* Just read some data from board with 'LPns[0]'.
+* Explore:
+*   - what LPn's really disable
 */
 #![no_std]
 #![no_main]
@@ -82,17 +83,6 @@ fn main2() -> Result<()> {
 
     // Leave only board #0 comms-enabled.
     LPns[0].set_high();
-    /***R
-    // Before we start, enable one of the wired boards. Ensures that the others (if any) won't jump
-    // on the I2C bus.
-    //
-    for (i,pin) in LPns.iter_mut().enumerate() {
-        if i==0 {
-            pin.set_high();
-        } else {
-            pin.set_low();
-        }
-    }***/
 
     let vl = VL53L5CX::ping_new(pl)?.init()?;
 
@@ -108,9 +98,18 @@ fn main2() -> Result<()> {
         .expect("to start ranging");
 
     for round in 0..3 {
-        let t0= now();
+        // Read the first round, then disable 'LPn[0]'
+        LPns[0].set_low();
+        debug!("Switched LPn off (low)");
 
         // wait for 'INT' to fall
+        //
+        // Note: '.wait_for_falling_edge()' needs async (Embassy); We need to be careful not to
+        //      wait too long (or at all): the INT falls down for 100us and is AUTOMATICALLY RAISED
+        //      by the VL.
+        //
+        debug!("Waiting for an INT");
+        let t0= now();
         loop {
             let v= INT.get_level();
             if v == Level::Low {
@@ -120,6 +119,16 @@ fn main2() -> Result<()> {
                 delay_us(20);   // < 100us
             }
         }
+
+        // First round is often partial; skip it
+        if round==0 {
+            debug!("Skipping round 0");
+            continue;
+        }
+
+        // Re-enable 'LPn[0]' for reading the results
+        LPns[0].set_low();
+        debug!("Switched LPn ON (for reading the results)");
 
         let (res, temp_degc) = ring.get_data()
             .expect("Failed to get data");
@@ -144,6 +153,10 @@ fn main2() -> Result<()> {
         #[cfg(feature = "reflectance_percent")]
         info!(".reflectance:      {}", res.reflectance);
     }
+
+    // 'ring::Drop' will shut the ranging, but it needs the comms enable to be high.
+    //
+    LPns[0].set_high();
 
     Ok(())
 }

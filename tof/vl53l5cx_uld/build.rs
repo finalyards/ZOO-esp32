@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     #[cfg(not(all()))]
     {
         std::env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
-        std::process::exit(1);
+        panic!();
     }
 
     // Pick the current MCU. To be used as board id for 'pins.toml'.
@@ -194,14 +194,15 @@ fn main() -> Result<()> {
     // Link arguments
     //
     {
-        let link_args: Vec<&str> = vec!(
+        for s in [
             "-Tlinkall.x",
             "-Tdefmt.x"     // required by 'defmt'
-        );
-
-        link_args.iter().for_each(|s| {
+        ] {
             println!("cargo::rustc-link-arg={}", s);
-        });
+        }
+
+        // tbd. ideally, have this line only for 'cargo test' runs (check by env.variables)
+        println!("cargo::rustc-link-arg-tests=-Tembedded-test.x");
     }
 
     println!("cargo:rustc-link-search=tmp");

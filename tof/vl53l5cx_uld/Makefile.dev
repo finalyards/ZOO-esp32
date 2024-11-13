@@ -19,6 +19,8 @@ REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
+ALL_FEATURES:="ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent"
+
 # Detect 'cargo' build cache
 #
 # NOTE: This is not very easy. Cargo only exposes the path (which can be defined in THREE different ways!) within
@@ -39,15 +41,29 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
+# Examples
+#|m3:
+#|	EXAMPLE=m3 \
+#|	  FEATURES=targets_per_zone_2,distance_mm,reflectance_percent \
+#|	  $(REMAKE) --no-print-directory _build _run
+
 m3:
 	EXAMPLE=m3 \
-	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
+	  FEATURES=targets_per_zone_2,$(ALL_FEATURES) \
 	  $(REMAKE) --no-print-directory _build _run
 
-e m3-emb:
-	EXAMPLE=m3-emb \
-	  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
+exp:
+	EXAMPLE=explore_lpn \
+	  FEATURES=targets_per_zone_2,distance_mm \
 	  $(REMAKE) --no-print-directory _build _run
+
+# Tests
+plain_test pt:
+	TEST=plain_test \
+	  $(REMAKE) --no-print-directory _test
+
+_test:
+	$(LOG_ENV) cargo test --features=defmt --test $(TEST)
 
 #---
 _build:
@@ -60,4 +76,4 @@ _run:
 echo:
 	@echo a
 
-.PHONY: all m3 int _build _run echo
+.PHONY: all exp plain_test _build _run echo

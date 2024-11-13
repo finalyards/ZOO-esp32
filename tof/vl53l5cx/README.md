@@ -25,10 +25,7 @@ $ EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 \
   cargo build --release --features=flock,distance_mm,defmt --example many-emb
 ```
 
-
 ## References
 
-- [Breakout Boards for VL53L5CX](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) (ST.com)
-- `1`: [PCB4109A, version 12, variant 00B](https://www.st.com/resource/en/schematic_pack/pcb4109a-00b-sch012.pdf) (ST.com; 2021; PDF 2pp.)
+Please see [`../vl53l5cx_uld/README`](../vl53l5cx_uld/README.md) > `References`.
 
-	>*Interestingly, marked `CONFIDENTIAL` but behind a public web link.* `#st.com`
