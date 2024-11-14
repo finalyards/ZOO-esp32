@@ -233,7 +233,6 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
 /*
 * Wrapper to eliminate 8-bit vs. 7-bit I2C address misunderstandings.
 */
-//#[derive(Copy, Clone)]
 #[derive(Clone,Eq,PartialEq)]
 pub struct I2cAddr(u8);     // stored as 7-bit (internal detail)
 

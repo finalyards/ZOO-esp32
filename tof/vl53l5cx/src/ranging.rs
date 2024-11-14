@@ -23,6 +23,13 @@ use crate::{
     VL,
 };
 
+#[derive(Clone, Debug)]
+pub struct SoloResults<const DIM: usize>{
+    pub res: ResultsData<DIM>,
+    pub temp_degc: TempC,
+    pub time_stamp: Instant,
+}
+
 /*
 * Ranging for a single board.
 */
@@ -39,7 +46,7 @@ impl<const DIM: usize> Ranging<DIM> {
         Ok(Self{ uld, pinINT })
     }
 
-    pub async fn get_data(&mut self) -> Result<(ResultsData<DIM>,TempC,Instant)> {
+    pub async fn get_data(&mut self) -> Result<SoloResults<DIM>> {
         let t0 = now();
 
         // Two kinds of spec can be implemented here:
@@ -66,8 +73,8 @@ impl<const DIM: usize> Ranging<DIM> {
             false => panic!("INT edge seen but sensor has no data"),
         }
 
-        let (rd, tempC) = self.uld.get_data()?;
-        Ok( (rd, tempC, ts) )
+        let (res, temp_degc) = self.uld.get_data()?;
+        Ok( SoloResults{ res, temp_degc, time_stamp: ts } )
     }
 
     pub fn stop(self) -> Result<VL> {

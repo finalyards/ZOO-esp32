@@ -25,6 +25,14 @@ use crate::{
     VL
 };
 
+#[derive(Clone, Debug)]
+pub struct FlockResults<const DIM: usize>{
+    pub board_index: usize,
+    pub res: ResultsData<DIM>,
+    pub temp_degc: TempC,
+    pub time_stamp: Instant,
+}
+
 /*
 * State for scanning multiple VL53L5CX boards.
 *
@@ -33,7 +41,7 @@ use crate::{
 pub struct RangingFlock<const N: usize, const DIM: usize> {
     ulds: [State_Ranging<DIM>;N],
     pinINT: Input<'static>,
-    pending: ArrayVec<(usize,ResultsData<DIM>,TempC,Instant),N>    // tbd. pick suitable capacity once we know the behaviour
+    pending: ArrayVec<FlockResults<DIM>,N>    // tbd. pick suitable capacity once we know the behaviour
 }
 
 impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
@@ -57,7 +65,7 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
     * By design, we provide just one result at a time. This is akin to streaming/generation, and
     *       makes it easier for the recipient, compared to getting 1..N results, at once.
     */
-    pub async fn get_data(&mut self) -> Result<(usize,ResultsData<DIM>,TempC,Instant)> {
+    pub async fn get_data(&mut self) -> Result<FlockResults<DIM>> {
 
         // Time stamp the results as fast after knowing they exist, as possible.
 
@@ -89,18 +97,19 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
             for (i,uld) in self.ulds.iter_mut().enumerate() /*.rev()*/ {
                 if uld.is_ready()? {
                     let time_stamp = now();
-                    let (rd,tempC) = uld.get_data()?;
+                    let (res,temp_degc) = uld.get_data()?;
+                    let o = FlockResults{ board_index: i, res, temp_degc, time_stamp };
 
                     debug!("New data from #{}, pending becomes {}", i, self.pending.len()+1);
-                    self.pending.push((i,rd,tempC,time_stamp));
+                    self.pending.push(o);
                 } else {
                     debug!("No new data from #{}", i);
                 }
             }
 
             // Return already pending results, one at a time.
-            if let Some(tuple) = self.pending.pop() {
-                return Ok(tuple);
+            if let Some(tmp) = self.pending.pop() {
+                return Ok(tmp);
             }
 
             // No data; sleep until either edge

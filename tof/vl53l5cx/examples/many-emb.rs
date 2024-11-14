@@ -16,9 +16,14 @@ use core::cell::RefCell;
 
 use embassy_executor::Spawner;
 
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex,
+    watch::{DynReceiver, DynSender, Watch}
+};
+
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Input, Output},
+    gpio::{Io, Input},
     i2c::I2c,
     peripherals::I2C0,
     prelude::*,
@@ -27,22 +32,13 @@ use esp_hal::{
     Blocking
 };
 
-#[cfg(feature="examples_serial")]
-use esp_println::println;
+//R #[cfg(feature="examples_serial")]
+//R use esp_println::println;
 
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
-use vl53l5cx::{
-    units::*,
-    DEFAULT_I2C_ADDR,
-    I2cAddr,
-    Mode::*,
-    RangingConfig,
-    TargetOrder::*,
-    VL,
-    VLsExt as _
-};
+use vl53l5cx::{units::*, DEFAULT_I2C_ADDR, I2cAddr, Mode::*, RangingConfig, TargetOrder::*, VL, VLsExt as _, FlockResults};
 
 mod common;
 use common::{
@@ -52,7 +48,10 @@ use common::{
 
 include!("./pins_gen.in");  // pins!, boards!
 
-const BOARDS: usize = boards!();     // number of boards
+const BOARDS: usize = boards!();
+
+const RESO: usize = 4;
+type RTuple = FlockResults<RESO>;
 
 type I2cType<'d> = I2c<'d, I2C0,Blocking>;
 static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
@@ -69,7 +68,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, LPns, INT): (_,_,_,[Output;BOARDS],_) = pins!(io);
+    let (SDA, SCL, mut PWR_EN, LPns, INT) = pins!(io);
 
     let i2c_bus = I2c::new(
         peripherals.I2C0,
@@ -82,110 +81,134 @@ async fn main(spawner: Spawner) {
     let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
 
     // Reset VL53L5CX's by pulling down their power for a moment
-    if let Some(mut pin) = PWR_EN {
-        pin.set_low();
+    {
+        PWR_EN.set_low();
         blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
-        pin.set_high();
+        PWR_EN.set_high();
         info!("Targets powered off and on again.");
     }
 
-    let vls: [VL;BOARDS] = VL::new_flock(LPns, i2c_shared,
+    let vls = VL::new_flock(LPns, i2c_shared,
         |i| I2cAddr::from_7bit(DEFAULT_I2C_ADDR.as_7bit() + i as u8)
     ).unwrap();
 
     info!("Init succeeded");
 
-    spawner.spawn(ranging(vls, INT)).unwrap();
+    // Create a way to separate ranging from passing on the results.
+    //
+    // Using 'embassy-sync::watch' |1|, because:
+    //  - we don't ever want the producer to wait; i.e. prefer to lose some (older) measurement     // vs. 'channel::Channel'
+    //
+    // |1| https://docs.embassy.dev/embassy-sync/git/default/watch/index.html
+    //
+    // 'embassy-sync' note:
+    //      'Dyn{Receiver|Sender}' are simpler type definitions for 'Receiver|Sender'. We embrace
+    //      the simplicity of the types! :)
+    //
+    static WATCH: Watch<CriticalSectionRawMutex, RTuple, 2 /*max receivers*/> = Watch::new();
+
+    let snd = WATCH.dyn_sender();
+    let rcv0 = WATCH.dyn_receiver().unwrap();
+    //let rcv1 = WATCH.dyn_receiver().unwrap();
+
+    spawner.spawn(ranging(vls, INT, snd)).unwrap();
+
+    spawner.spawn(defmt_print_results(rcv0)).unwrap();
+
+    //spawner.spawn(pass_on_serial(rcv1)).unwrap();
 }
 
-
-// Initially, have two tasks:
-//  1. runs the TOF sensor
-//  2. sees whether the 'INT' pin gets high->low edges, and logs them
-
+// Passing 'vls' to the task is a bit tricky..
+//  - '&[VL]' would need the argument (because of task) to be ''static'.
+//  - '[VL;_]' is not allowed
+//  - '[VL;SIZE]' works, but we don't have (a way to find out) the 'SIZE'
+//  - 'SIZE' cannot be made a const generic (because of task)
+//  - ..?
+//
+// The easiest (well, the way that works!) seems to be to expose the number of 'LPns' from the
+// 'pins' system. DEAL WITH THIS AS AN INTERIM SOLUTION; one to just work on 'LPns' is preferred!
+//
 #[embassy_executor::task]
 #[allow(non_snake_case)]
-async fn ranging(/*move*/ vls: [VL;BOARDS], pinINT: Input<'static>) {
+async fn ranging(/*move*/ vls: [VL;BOARDS], pin_INT: Input<'static>, snd: DynSender<'static, RTuple>) {
 
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(), HzU8(10)))
         .with_target_order(CLOSEST);
 
-    let mut ring = vls.start_ranging(&c, pinINT).unwrap();
+    let mut ring = vls.start_ranging(&c, pin_INT).unwrap();
 
-    let t0 = now();
-    let mut _t = Timings::new();
-
-    let mut had_results_from = [false; BOARDS];
+    let mut had_results_from = [false;BOARDS];
 
     for _round in 0..10 {
-        _t.t0();
+        let mut _t = Timings::new();
 
-        #[cfg(feature="examples_serial")]
-        {
-            //println!("Testing, 1,2,3... {}", _round);
-        }
-
-        let (i, res, temp_degc, time_stamp) = ring.get_data() .await
+        let t: FlockResults<4> = ring.get_data() .await
             .unwrap();
+        _t.results();
 
-        if !had_results_from[i] {
-            had_results_from[i] = true;
+        if !had_results_from[t.board_index] {
+            had_results_from[t.board_index] = true;
             info!("Skipping first results (normally not valid)");
             continue;
         }
 
-        _t.results();
+        snd.send(t);
 
-        // tbd. Consider making output a separate task (feed via a channel)
-        {
-            info!("Data #{}: ({}, {})", i, temp_degc, (time_stamp-t0).to_millis());
-
-            info!(".target_status:    {}", res.target_status);
-            #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
-            info!(".targets_detected: {}", res.targets_detected);
-
-            #[cfg(feature = "ambient_per_spad")]
-            info!(".ambient_per_spad: {}", res.ambient_per_spad);
-            #[cfg(feature = "nb_spads_enabled")]
-            info!(".spads_enabled:    {}", res.spads_enabled);
-            #[cfg(feature = "signal_per_spad")]
-            info!(".signal_per_spad:  {}", res.signal_per_spad);
-            #[cfg(feature = "range_sigma_mm")]
-            info!(".range_sigma_mm:   {}", res.range_sigma_mm);
-            #[cfg(feature = "distance_mm")]
-            info!(".distance_mm:      {}", res.distance_mm);
-            #[cfg(feature = "reflectance_percent")]
-            info!(".reflectance:      {}", res.reflectance);
-        }
-        _t.results_passed();
-        _t.report();
+        _t.results_passed().report();
     }
 }
 
+#[embassy_executor::task]
+async fn defmt_print_results(mut rcv: DynReceiver<'static, RTuple>) {
+    let mut t0: Option<Instant> = None;
+
+    loop {
+        let FlockResults{board_index, res, temp_degc, time_stamp} = rcv.changed().await;
+
+        let dt: Duration = time_stamp - *(t0.get_or_insert(time_stamp));
+        let sign = if dt.is_zero() {""} else {"+"};
+
+        info!("Data #{}: ({}, {}{}ms)", board_index, temp_degc, sign, dt.to_millis());
+
+        info!(".target_status:    {}", res.target_status);
+        #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
+        info!(".targets_detected: {}", res.targets_detected);
+
+        #[cfg(feature = "ambient_per_spad")]
+        info!(".ambient_per_spad: {}", res.ambient_per_spad);
+        #[cfg(feature = "nb_spads_enabled")]
+        info!(".spads_enabled:    {}", res.spads_enabled);
+        #[cfg(feature = "signal_per_spad")]
+        info!(".signal_per_spad:  {}", res.signal_per_spad);
+        #[cfg(feature = "range_sigma_mm")]
+        info!(".range_sigma_mm:   {}", res.range_sigma_mm);
+        #[cfg(feature = "distance_mm")]
+        info!(".distance_mm:      {}", res.distance_mm);
+        #[cfg(feature = "reflectance_percent")]
+        info!(".reflectance:      {}", res.reflectance);
+    }
+}
+
+//---
 struct Timings {
-    t0: Instant,
+    t0: Instant,    // start
     t1: Instant,    // results read
     t2: Instant,    // results passed
 }
 
 impl Timings {
     fn new() -> Self {
-        let dummy = Instant::from_ticks(0);
-        Self{ t0: dummy, t1: dummy, t2: dummy }
+        Self{ t0: now(), t1: Self::DUMMY, t2: Self::DUMMY }
     }
 
-    fn t0(&mut self) {
-        self.t0 = now();
-    }
-    fn results(&mut self) {
-        self.t1 = now();
-    }
-    fn results_passed(&mut self) {
-        self.t2 = now();
+    fn results(&mut self) { self.t1 = now(); }
+
+    fn results_passed(mut self) -> Self {
+        self.t2 = now(); self
     }
 
-    fn report(&mut self) {
+    fn report(/*move*/ self) {
         let dt_total = self.t2 - self.t0;
         let dt1 = self.t1 - self.t0;
         let dt2 = self.t2 - self.t1;
@@ -196,6 +219,8 @@ impl Timings {
 
         debug!("Timing [ms] (total {=f32}): wait+read {}, passing {}", ms(dt_total), ms(dt1), ms(dt2));
     }
+
+    const DUMMY: Instant = Instant::from_ticks(0);
 }
 
 // DO NOT use within the async portion!!!

@@ -39,6 +39,7 @@ const TARGETS: usize =
 *       also metadata. Only '.distance_mm' and (likely) '.reflectance_percent' can be seen as
 *       actual results. It doesn't really matter.
 */
+#[derive(Clone, Debug)]
 pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     // Metadata: DIMxDIM matrix, regardless of 'TARGETS'
     //
@@ -195,7 +196,7 @@ impl<const DIM: usize> ResultsData<DIM> {
 //      application code doesn't need to deal with integers. Where multiple choices exist, they
 //      are provided  as the inner values.
 //
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]       // 'Clone' needed for 'ResultsData' to be cloneable.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TargetStatus {
     NotUpdated,         // 0    "Ranging data are not updated" (O)

@@ -14,11 +14,11 @@ mod uld_platform;
 mod vl;
 
 #[cfg(feature = "single")]
-pub use ranging::Ranging;
+pub use ranging::{Results, Ranging};
 
 #[cfg(feature = "flock")]
 pub use {
-    ranging_flock::RangingFlock,
+    ranging_flock::{FlockResults, RangingFlock},
     vl::VLsExt      // tbd. how to provide such methods properly?  Compare with 'fugit'.
 };
 
@@ -34,6 +34,7 @@ pub use vl53l5cx_uld::{
     Mode,
     RangingConfig,
     Result as UldResult,
+    ResultsData,    // leaked (intentionally) via '[Flock]Results'
     TargetOrder,
     units,
 };

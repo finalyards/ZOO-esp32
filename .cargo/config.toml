@@ -10,7 +10,10 @@
 #   [1]: https://github.com/esp-rs/esp-template/blob/main/.cargo/config.toml
 #
 rustflags = [
-    # "Required to obtain backtraces, however it may negatively impact the performance of your application."
+    # "Required to obtain backtraces [on RISC-V only], however it may negatively impact the performance of your application."
+    #
+    # "Please note that when targeting a RISC-V device, you need to force frame pointers (i.e. "-C", "force-frame-pointers",
+    # in your .cargo/config.toml); this is not required for Xtensa."
     #
     # Note: Interesting discussion in:
     #   - "`force-frame-pointers` flag isn't honored always unless std is recompiled as such"
