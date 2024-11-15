@@ -4,7 +4,7 @@ edition = "2021"
 rust-version = "1.80"
 publish = false
 
-# 'esp-hal' recommends only using 'release', so...
+# 'esp-hal' recommends only using 'release'
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 [profile.release]
 #debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
@@ -13,13 +13,12 @@ debug = 2
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
 codegen-units = 16
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dependencies]
-arrayvec        = { version = "0.7.6", default-features = false }
-    # needed only until '[T;N]::try_map()' makes it to stable
+arrayvec        = { version = "0.7.6", default-features = false }   # needed until '[T;N]::try_map()' makes it to stable
 defmt           = { version = "0.3.8", optional = true }
 esp-hal         = { version = "0.21.1", features = ["esp32c6"] }     # "defmt"
 vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = [] }     # "defmt"
@@ -27,17 +26,20 @@ vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = [] }     # "defmt"
 [dev-dependencies]
 anyhow          = { version = "1.0.93", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
-embassy-executor = { version = "0.6.2", features=["task-arena-size-12288"] }     # task area size can be overridden by an env.var.
+embassy-executor = { version = "0.6.3", features=["task-arena-size-12288"] }     # task area size can be overridden by an env.var.
+#embassy-sync    = { version = "0.6.0" }    # does NOT have 'Watch'
+embassy-sync    = { git = "https://github.com/embassy-rs/embassy.git" }   # has 'Watch'
 embassy-time    = { version = "0.3.2" }
 esp-alloc       = { version = "0.5.0" }
-esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
+esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
+esp-println     = { version = "0.12.0", features = ["uart", "esp32c6"], default-features = false }    # for feature 'examples_serial'; 'dev-dependencies' "not allowed to be optional"
 static_cell     = { version = "2.1.0" }
 
 [build-dependencies]
 anyhow          = "1.0.93"
 itertools       = "0.13.0"
-serde           = { version = "1.0.214", features = ["derive"] }
+serde           = { version = "1.0.215", features = ["derive"] }
 toml            = "0.8.19"
 
 # ULD compile-time features
@@ -59,7 +61,16 @@ defmt = ["dep:defmt", "vl53l5cx_uld/defmt", "esp-hal/defmt"]
 single = []
 flock = []
 
+examples_serial = []    #["dep:esp-println"]    # activate output to serial
+
 default = []
+
+# For cases when you need the stack trace.
+[profile.dev]
+#debug         = "line-tables-only"
+debug = 2
+debug-assertions = true
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

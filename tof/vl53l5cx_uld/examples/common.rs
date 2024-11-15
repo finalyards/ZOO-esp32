@@ -1,36 +1,41 @@
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, trace, panic};
 
-use core::{
-    mem::MaybeUninit,
-    iter::zip
-};
 use esp_hal::{
     delay::Delay,
-    i2c::{I2c, Instance},
-    Blocking
+    Blocking,
 };
+#[cfg(feature = "EXP_esp_hal_next")]
+use esp_hal::i2c::master::{/*I2c,*/ Instance};
+#[cfg(not(feature = "EXP_esp_hal_next"))]
+use esp_hal::i2c::Instance;
 
 extern crate vl53l5cx_uld as uld;
 use uld::{
+    DEFAULT_I2C_ADDR as I2C_ADDR,
+    I2cAddr,
     Platform,
-    DEFAULT_I2C_ADDR_8BIT
 };
 
-// Maximum sizes for I2C writes and reads, via 'esp-hal'. Unfortunately, it does not expose these
-// as values we could read (the values are burnt-in).
+// Maximum sizes for I2C writes and reads, via 'esp-hal' (up to <= 0.21.1). Unfortunately, it does not
+// expose these as values we could read (the values are burnt-in).
 //
+#[cfg(not(feature = "EXP_esp_hal_next"))]
 const MAX_WR_LEN: usize = 254;
+#[cfg(not(feature = "EXP_esp_hal_next"))]
 const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err with 'ExceedingFifo'
 
-const D_PROVIDER: Delay = Delay::new();
-
-const I2C_ADDR: u8 = DEFAULT_I2C_ADDR_8BIT >> 1;
+#[cfg(feature = "EXP_esp_hal_next")]
+#[allow(non_camel_case_types)]
+type I2c_Blocking<'a,T /*: Instance*/> = esp_hal::i2c::master::I2c<'a,Blocking,T>;
+#[cfg(not(feature = "EXP_esp_hal_next"))]
+#[allow(non_camel_case_types)]
+type I2c_Blocking<'a,T /*: Instance*/> = esp_hal::i2c::I2c<'a,T,Blocking>;
 
 /*
 */
 pub struct MyPlatform<'a, T: Instance> {
-    i2c: I2c<'a, T, Blocking>,
+    i2c: I2c_Blocking<'a,T>     // tbd. once >0.21.1, put back as 'I2C<'a,Blocking,T>'
 }
 
 // Rust note: for the lifetime explanation, see:
@@ -39,7 +44,7 @@ pub struct MyPlatform<'a, T: Instance> {
 //
 impl<'a,T> MyPlatform<'a,T> where T: Instance {
     #[allow(non_snake_case)]
-    pub fn new(i2c: I2c<'a,T,Blocking>) -> Self {
+    pub fn new(i2c: I2c_Blocking<'a,T>) -> Self {
         Self{
             i2c,
         }
@@ -54,28 +59,46 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
-        let mut index = index;    // rolled further with the chunks
 
-        let chunks = buf.chunks_mut(MAX_RD_LEN);
-        let rounds = (&chunks).len();
-
-        // Chunks we get are *views* to the 'buf' backing them. Thus, reading to the chunk automatically
-        // fills it.
-        //
-        for (round,chunk) in zip(1.., chunks) {
-
-            match self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), chunk) {
+        #[cfg(feature = "EXP_esp_hal_next")]
+        {
+            match self.i2c.write_read(I2C_ADDR.as_7bit(), &index.to_be_bytes(), buf) {
                 Err(e) => {
                     // If we get an error, let's stop right away.
-                    panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, buf.len(), round, rounds, e);
+                    panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index_orig, buf.len(), e);
                 },
                 Ok(()) => {
-                    index = index + chunk.len() as u16;
-
                     // There should be 1.2ms between transactions, by the VL spec.
-                    delay_ms(1);
+                    blocking_delay_ms(1);
                 }
             };
+        }
+        #[cfg(not(feature = "EXP_esp_hal_next"))]
+        {
+            use core::iter::zip;
+
+            let mut index = index;    // rolled further with the chunks
+
+            let chunks = buf.chunks_mut(MAX_RD_LEN);
+            let rounds = (&chunks).len();
+
+            // Chunks we get are *views* to the 'buf' backing them. Thus, reading to the chunk automatically
+            // fills it.
+            //
+            for (round, chunk) in zip(1.., chunks) {
+                match self.i2c.write_read(I2C_ADDR.as_7bit(), &index.to_be_bytes(), chunk) {
+                    Err(e) => {
+                        // If we get an error, let's stop right away.
+                        panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, buf.len(), round, rounds, e);
+                    },
+                    Ok(()) => {
+                        index = index + chunk.len() as u16;
+
+                        // There should be 1.2ms between transactions, by the VL spec.
+                        blocking_delay_ms(1);
+                    }
+                };
+            }
         }
 
         // Whole 'buf' should now have been read in.
@@ -92,53 +115,68 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
     /***
     * Vendor ULD driver calls us with chunk lengths of 32768, during the initialization.
     *
-    * The 'esp-hal' (v. 0.19.0) has a limit of 254 (inclusive) bytes per write, beyond which
-    * 'ExceedingFifo' error is returned. Unfortunately, we cannot 'use' this limit in code; it's
-    * hard coded. In order to proceed, we chunk the larger parts. ((Which is kind of good, since
-    * it allows us an excuse to make a limited buffer ourselves, which we need for merging the
-    * writing of the address, and the data bytes, into a *single* write transaction. There are no
-    * slice concatenation in 'alloc':less Rust.))
+    * 'esp_hal' VERSIONS <= 0.21.1:
+    *   'esp-hal' (v. 0.19.0) has a limit of 254 (inclusive) bytes per write, beyond which
+    *   'ExceedingFifo' error is returned. Unfortunately, we cannot 'use' this limit in code; it's
+    *   hard coded. In order to proceed, we chunk the larger parts. ((Which is kind of good, since
+    *   it allows us an excuse to make a limited buffer ourselves, which we need for merging the
+    *   writing of the address, and the data bytes, into a *single* write transaction. There are no
+    *   slice concatenation in 'alloc':less Rust.))
     *
     * IF we get errors from the HAL, we panic. ULD C level would often go on for too long; it's best
     * to stop early. CERTAIN error codes MAY lead to a single retry, if we think we have a chance
     * to recover.
-    *
-    * Note: The '254' is hard coded within 'esp-hal', not exposed as a value we could read,
-    *       automatically.
     */
     fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
+        use core::{iter::zip, mem::MaybeUninit};
+
+        // 'esp-hal' has autochunking since (not yet published) >0.21.1 version. It doesn't, however,
+        // have a 'I2c::write_write()' that would allow us to give two slices, to be written
+        // consecutively (or using an iterator, which would also solve the case). VL53L5CX needs
+        // this, because it takes the writing index as the first two bytes.
+        //
+        // Concatenating slices using 'ArrayVec' (or 'MaybeUninit') is an option. If we do that,
+        // we might just as well explicitly chunk the whole payload, to keep RAM consumption small.
+        // This is not a criticism of the esp-hal API. The VL53L5CX use of the I2C (in uploading
+        // its firmware) is likely unusual - and it's not a bit trouble to keep the chunking in.
+        // (However, we can now chunk in longer pieces than with 0.21.1).
+        //
+        #[cfg(feature = "EXP_esp_hal_next")]
+        const BUF_SIZE: usize = 10*1024;   // can be anything (1..32k)
+        #[cfg(not(feature = "EXP_esp_hal_next"))]
+        const BUF_SIZE: usize = MAX_WR_LEN;
+
         let mut index = index;    // rolled further with the chunks
 
-        const MAX_CHUNK_LEN: usize = MAX_WR_LEN-2;
-        let chunks = vs.chunks(MAX_CHUNK_LEN);
+        let chunks = vs.chunks(BUF_SIZE-2);
         let _rounds = (&chunks).len();   // needs taking before we move 'chunks' as an iterator
 
-        let mut buf: [u8;MAX_WR_LEN] = { let un = MaybeUninit::zeroed(); unsafe { un.assume_init() }};
+        let mut buf: [u8; BUF_SIZE] = {
+            let un = MaybeUninit::zeroed();
+            unsafe { un.assume_init() }
+        };
 
-        // Note: We can just chunk everything (if + recursion being the alternative).
-        //
-        for (_round,chunk) in zip(1.., chunks) {
+        for (_round, chunk) in zip(1.., chunks) {
             let n: usize = chunk.len();
 
             // Writing needs to be done in one block, where the first two bytes are the address.
             //
-            // Unfortunately, wasn't able to find a way in 'no_alloc' Rust to concatenate slices
-            // together. Obvious, since slices are *continuous memory blocks*, so either some
-            // allocation, and/or copying bytes, is inevitable.
+            // Concatenating slices in 'no_alloc' Rust means using 'ArrayVec' (a dependency)
+            // or a buffer slice. Slices are *continuous memory blocks*, by their definition.
+            // An iterator would work as a view over multiple of them.
             //
             // We could:
             //  - bring in 'alloc' and use '[addr,vs].concat()' [no]
             //  - use a singular buffer with 'self' (overkill)
-            //  - use a local buffer, separate on each call (good, especially since we know that
-            //    the maximum for 'esp-hal' is rather small).
+            //  - use a local buffer, separate on each call (good; we steer the memory use)
             //
             let out: &[u8] = {
                 buf[0..2].copy_from_slice(&index.to_be_bytes());
-                buf[2..2+n].copy_from_slice(chunk);
-                &buf[..2+n]
+                buf[2..2 + n].copy_from_slice(chunk);
+                &buf[..2 + n]
             };
 
-            self.i2c.write(I2C_ADDR, &out).unwrap_or_else(|e| {
+            self.i2c.write(I2C_ADDR.as_7bit(), &out).unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
                 panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
             });
@@ -153,7 +191,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            delay_ms(1);
+            blocking_delay_ms(1);
         }
 
         Ok(())
@@ -161,10 +199,10 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
 
     fn delay_ms(&mut self, ms: u32) {
         trace!("🔸 {}ms", ms);
-        delay_ms(ms);
+        blocking_delay_ms(ms);
     }
 
-    fn addr_changed(&mut self, _new_addr_8bit: u8) {
+    fn addr_changed(&mut self, _: &I2cAddr) {
         unimplemented!()
     }
 }
@@ -174,6 +212,8 @@ fn slice_head(vs: &[u8],n_max: usize) -> &[u8] {
     &vs[..min(vs.len(),n_max)]
 }
 
-fn delay_ms(ms: u32) {
+const D_PROVIDER: Delay = Delay::new();
+
+fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }

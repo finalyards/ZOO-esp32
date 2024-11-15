@@ -20,9 +20,9 @@ struct PinsToml {
 struct Board {
     SDA: u32,
     SCL: u32,
-    PWR_EN: Option<u32>,
+    PWR_EN: u32,
+    LPn: Vec<u32>,
     INT: u32,   // same interrupt pin for all the boards
-    LPn: Vec<u32>
 }
 
 #[allow(non_snake_case)]
@@ -39,14 +39,9 @@ fn process_pins(toml: &str, board_id: &str) -> Result<()> {
     assert!(fn_.len() > 0);
 
     // unpack, because "field access not supported [...] in a format string"
-    let (SDA, SCL, PWR_EN, INT, LPns) = (board.SDA, board.SCL, board.PWR_EN, board.INT, &board.LPn);
+    let (SDA, SCL, PWR_EN, LPns, INT) = (board.SDA, board.SCL, board.PWR_EN, &board.LPn, board.INT);
 
     let contents = {
-        let s_PWR_EN: String = match PWR_EN {
-            None => "None".into(),
-            Some(n) => format!("Some(O::new($io.pins.gpio{n}, L::Low))")
-        };
-
         let LPns_len = LPns.len();
         let s_LPns: String = LPns.iter().map(|s| { format!("O::new($io.pins.gpio{s}, L::Low)") })
             .join(", ");
@@ -58,20 +53,25 @@ macro_rules! pins {{
     ($io:ident) => {{{{
         use esp_hal::{{ gpio::{{Output as O, Input as I, Level as L, Pull}} }};
 
-        let x: (_, _, Option<O>, [O;{LPns_len}], I) = (  // {board_id}
+        let x: (_, _, O, [O;{LPns_len}], I) = (  // {board_id}
             $io.pins.gpio{SDA},
             $io.pins.gpio{SCL},
-            {s_PWR_EN},
+            O::new($io.pins.gpio{PWR_EN}, L::Low),
             [{s_LPns}],
             I::new($io.pins.gpio{INT}, Pull::None),
         );
         x
     }}}}
 }}
+
+#[allow(unused_macros)]
+macro_rules! boards {{
+    () => ({LPns_len})
+}}
 "#)
     };
 
-    fs::write(fn_, contents).with_context(
+    std::fs::write(fn_, contents).with_context(
         || format!("Unable to write {fn_}")
     )?;
 

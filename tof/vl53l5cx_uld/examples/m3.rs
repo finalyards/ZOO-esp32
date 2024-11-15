@@ -9,12 +9,21 @@ use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
 
 use esp_backtrace as _;
+
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Level, Output},
-    i2c::I2c,
+    gpio::Level,
     prelude::*,
     time::now
+};
+#[cfg(feature = "EXP_esp_hal_next")]
+use esp_hal::{
+    i2c::master::{Config as I2cConfig, I2c},
+};
+#[cfg(not(feature = "EXP_esp_hal_next"))]
+use esp_hal::{
+    gpio::Io,
+    i2c::I2c
 };
 
 const D_PROVIDER: Delay = Delay::new();
@@ -22,7 +31,7 @@ const D_PROVIDER: Delay = Delay::new();
 extern crate vl53l5cx_uld as uld;
 mod common;
 
-include!("./pins_gen.in");  // pins!
+include!("./pins_gen.in");  // pins! | pins_next!
 
 use common::MyPlatform;
 
@@ -53,19 +62,29 @@ fn main() -> ! {
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
+    #[cfg(not(feature = "EXP_esp_hal_next"))]
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, mut LPns, INT): (_,_,_,[Output;2],_) = pins!(io);
+    #[cfg(feature = "EXP_esp_hal_next")]
+    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins_next!(peripherals);
     #[allow(non_snake_case)]
+    #[cfg(not(feature = "EXP_esp_hal_next"))]
+    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(io);
 
     let pl = {
+        #[cfg(feature = "EXP_esp_hal_next")]
+        let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+            .with_sda(SDA)
+            .with_scl(SCL);
+        #[cfg(not(feature = "EXP_esp_hal_next"))]
         let i2c_bus = I2c::new(
             peripherals.I2C0,
             SDA,
             SCL,
             400.kHz()
         );
+
         MyPlatform::new(i2c_bus)
     };
 
@@ -73,28 +92,17 @@ fn main2() -> Result<()> {
     let delay_us = |us| D_PROVIDER.delay_micros(us);
 
     // Reset VL53L5CX(s) by pulling down their power for a moment
-    if let Some(mut pin) = PWR_EN {
-        pin.set_low();
+    {
+        PWR_EN.set_low();
         delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
-        pin.set_high();
+        PWR_EN.set_high();
         info!("Target powered off and on again.");
     }
 
-    // Leave only board #0 comms-enabled.
+    // Leave only one board comms-enabled.
     LPns[0].set_high();
-    /***R
-    // Before we start, enable one of the wired boards. Ensures that the others (if any) won't jump
-    // on the I2C bus.
-    //
-    for (i,pin) in LPns.iter_mut().enumerate() {
-        if i==0 {
-            pin.set_high();
-        } else {
-            pin.set_low();
-        }
-    }***/
 
-    let vl = VL53L5CX::ping_new(pl)?.init()?;
+    let vl = VL53L5CX::new_with_ping(pl)?.init()?;
 
     info!("Init succeeded");
 

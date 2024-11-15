@@ -9,7 +9,7 @@ mod uld_raw;
 pub mod units;
 
 #[cfg(feature = "defmt")]
-use defmt::{debug, error};
+use defmt::{debug, error, Format};
 
 use core::{
     ffi::CStr,
@@ -59,7 +59,7 @@ impl Display for Error {
     }
 }
 
-pub const DEFAULT_I2C_ADDR_8BIT: u8 = 0x52;    // vendor default
+pub const DEFAULT_I2C_ADDR: I2cAddr = I2cAddr::from_8bit(0x52);    // default after each power on
 
 // After LOTS of variations, here's a way to expose a 'CStr' string as a '&str' const (as long as
 // we avoid '.unwrap*()' of any kind, it's const). Why it matters (does it tho?):
@@ -179,7 +179,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     * Instead of just creating this structure, this already pings the bus to see, whether there's
     * a suitable sensor out there.
     */
-    pub fn ping_new(/*move*/ mut p: P) -> Result<Self> {    // old name was: 'new_maybe()'
+    pub fn new_with_ping(/*move*/ mut p: P) -> Result<Self> {
         match Self::ping(&mut p) {
             Err(_) => Err(Error(ST_ERROR)),
             Ok(()) => Ok(Self{ p })
@@ -228,4 +228,32 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     pl.wr_bytes(0x7fff, &[0x02])?;
 
     Ok( (buf[0], buf[1]) )
+}
+
+/*
+* Wrapper to eliminate 8-bit vs. 7-bit I2C address misunderstandings.
+*/
+#[derive(Clone,Eq,PartialEq)]
+pub struct I2cAddr(u8);     // stored as 7-bit (internal detail)
+
+impl I2cAddr {
+    pub const fn from_8bit(v: u8) -> Self {
+        assert!(v % 2 == 0, "8-bit I2C address is expected to be even");
+        Self(v >> 1)
+    }
+    pub fn from_7bit(v: u8) -> Self {
+        assert!(v < 0x80, "not 7-bit");
+        Self(v)
+    }
+    pub fn as_7bit(&self) -> u8 { self.0 }      // used by platform code (needs to be 'pub')
+    //fn as_8bit(&self) -> u8 { self.0 << 1 }
+}
+
+#[cfg(feature = "defmt")]
+impl Format for I2cAddr {
+    fn format(&self, fmt: defmt::Formatter) {
+        // 'esp-hal' (as most of the world) uses 7-bit I2C addresses, but the vendor uses 8-bit.
+        // It IS confusing, but don't want to go full 8-bit. Treating vendor as the exception!
+        defmt::write!(fmt, "{=u8:#04x}_u7", self.as_7bit());
+    }
 }

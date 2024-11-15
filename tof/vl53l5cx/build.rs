@@ -15,7 +15,7 @@ use std::{
 
 // Snippets need to be read in here (cannot do in "statement position")
 //
-include!("snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
+include!("build_snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.

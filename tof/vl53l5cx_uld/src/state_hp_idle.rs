@@ -27,6 +27,7 @@ use crate::{
         VL53L5CX_Configuration
     },
     Error,
+    I2cAddr,
     Result,
     ST_OK
 };
@@ -71,20 +72,18 @@ impl State_HP_Idle {
     * mechanism there.. is very.. intrusive(??). Instead, we do the full bytewise comms here, in
     * Rust side, allowing us to make a callback in the middle of the dance. :)
     */
-    pub fn set_i2c_address(&mut self, addr: u8) -> Result<()> {
+    pub fn set_i2c_address(&mut self, addr: &I2cAddr) -> Result<()> {
 
         // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
 
-        platform::with(&mut self.uld.platform, |pl| {
-            // Note: Ignore the return codes. The '.wr_bytes' implementation might not even ever
-            //      return an error, but fail instantly. If there were an error, we'd find out anyways.
-            //
-            _= pl.wr_bytes(0x7fff, &[0]);
-            _= pl.wr_bytes(0x4, &[addr >> 1]);
+        platform::with(&mut self.uld.platform, |pl| -> core::result::Result<(),()> {
+            pl.wr_bytes(0x7fff, &[0])?;
+            pl.wr_bytes(0x4, &[addr.as_7bit()])?;
             pl.addr_changed(addr);
 
-            _= pl.wr_bytes(0x7fff, &[2]);  // now with the new I2C address
-        });
+            pl.wr_bytes(0x7fff, &[2])?;  // now with the new I2C address
+            Ok(())
+        }).expect("writing to I2C to succeed");
 
         // Further comms will happen to the new address. Let's still make a small access with the
         // new address, e.g. reading something.

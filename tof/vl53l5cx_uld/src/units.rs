@@ -83,7 +83,7 @@ impl ExtU32 for u32 {
 // Note: Takes in also negative temperatures. Vendor ULD does, and it's.. possible the sensor gets
 //      operated below 0°C.
 //
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct TempC(pub i8);
 
 #[cfg(feature = "defmt")]

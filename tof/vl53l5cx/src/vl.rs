@@ -15,7 +15,7 @@ use esp_hal::{
 use esp_hal::gpio::Output;
 
 use vl53l5cx_uld::{
-    DEFAULT_I2C_ADDR_8BIT,
+    DEFAULT_I2C_ADDR,
     RangingConfig,
     Result,
     State_HP_Idle,
@@ -37,8 +37,10 @@ pub struct VL {
 }
 
 impl VL {
+    // tbd. make so that caller can give either 'I2cAddr' or a reference
+    //
     pub fn new_and_setup<T: Instance + 'static>(i2c_shared: &'static RefCell<I2c<'static, T, Blocking>>,
-        i2c_addr: I2cAddr
+        i2c_addr: &I2cAddr
     ) -> Result<Self> {
 
         // Note: It seems the VL53L5CX doesn't retain its I2C address. Thus, we start each session
@@ -47,11 +49,12 @@ impl VL {
         //
         let pl = Pl::new(i2c_shared);
 
-        let mut uld = VL53L5CX::ping_new(pl)?.init()?;
+        let mut uld = VL53L5CX::new_with_ping(pl)?.init()?;
 
-        let a = i2c_addr.as_7bit() << 1;    // vendor ULD uses 8-bit addresses (LSB == 0)
-        if a != DEFAULT_I2C_ADDR_8BIT {
-            uld.set_i2c_address(a)?;
+        let a = i2c_addr;
+        if *a != DEFAULT_I2C_ADDR {
+            debug!("!!!! calling set_i2c_address: {}", a);
+            uld.set_i2c_address(a)?;     // tbd. '.as_8bit()' if public
         }
         debug!("Board now reachable as: {}", i2c_addr);
 
@@ -95,7 +98,8 @@ impl VL {
             LPn.set_high();     // enable this chip and leave it on
 
             let i2c_addr = i2c_addr_gen(i);
-            let vl = VL::new_and_setup(i2c_shared, i2c_addr)?;
+            debug!("I2C ADDR: {} -> {}", i, i2c_addr);   // TEMP
+            let vl = VL::new_and_setup(i2c_shared, &i2c_addr)?;
 
             debug!("Init of board {} succeeded", i);
             Ok(vl)

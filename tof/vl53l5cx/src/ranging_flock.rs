@@ -8,9 +8,9 @@ use defmt::{debug,trace};
 
 use esp_hal::{
     gpio::Input,
-    time::Instant
+    time::{now, Instant}
 };
-use esp_hal::time::now;
+
 use vl53l5cx_uld::{
     units::TempC,
     RangingConfig,
@@ -22,9 +22,16 @@ use vl53l5cx_uld::{
 use arrayvec::ArrayVec;
 
 use crate::{
-    VL,
-    z_array_try_map::turn_to_something
+    VL
 };
+
+#[derive(Clone, Debug)]
+pub struct FlockResults<const DIM: usize>{
+    pub board_index: usize,
+    pub res: ResultsData<DIM>,
+    pub temp_degc: TempC,
+    pub time_stamp: Instant,
+}
 
 /*
 * State for scanning multiple VL53L5CX boards.
@@ -34,7 +41,7 @@ use crate::{
 pub struct RangingFlock<const N: usize, const DIM: usize> {
     ulds: [State_Ranging<DIM>;N],
     pinINT: Input<'static>,
-    pending: ArrayVec<(usize,ResultsData<DIM>,TempC,Instant),N>    // tbd. pick suitable capacity once we know the behaviour
+    pending: ArrayVec<FlockResults<DIM>,N>    // tbd. pick suitable capacity once we know the behaviour
 }
 
 impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
@@ -43,7 +50,7 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
 
         // Turn the ULD level handles into "ranging" state, and start tracking the 'pinINT'.
 
-        let ulds: [State_Ranging<DIM>;N] = turn_to_something(vls, |x| x.into_uld().start_ranging(cfg))?;
+        let ulds: [State_Ranging<DIM>;N] = array_try_map(vls, |x| x.into_uld().start_ranging(cfg))?;
 
         Ok(Self{
             ulds,
@@ -58,7 +65,7 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
     * By design, we provide just one result at a time. This is akin to streaming/generation, and
     *       makes it easier for the recipient, compared to getting 1..N results, at once.
     */
-    pub async fn get_data(&mut self) -> Result<(usize,ResultsData<DIM>,TempC,Instant)> {
+    pub async fn get_data(&mut self) -> Result<FlockResults<DIM>> {
 
         // Time stamp the results as fast after knowing they exist, as possible.
 
@@ -76,33 +83,33 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
         //      - time stamps should be as close to actual measurement as possible!
 
         // Trace if we see new data
-        #[cfg(not(all()))]
+        #[cfg(all())]
         {
             for (i,uld) in self.ulds.iter_mut().enumerate() {
                 if uld.is_ready()? {
-                    debug!("Data available on entry: {}", i);
+                    trace!("Data available on entry: {}", i);
                 }
             }
         }
 
-        assert!(self.ulds.len() > 1);   // TEMP
         loop {
             // Add new results to the 'self.pending'.
-            for (i,uld) in self.ulds.iter_mut().enumerate().rev() {
+            for (i,uld) in self.ulds.iter_mut().enumerate() /*.rev()*/ {
                 if uld.is_ready()? {
                     let time_stamp = now();
-                    let (rd,tempC) = uld.get_data()?;
+                    let (res,temp_degc) = uld.get_data()?;
+                    let o = FlockResults{ board_index: i, res, temp_degc, time_stamp };
 
                     debug!("New data from #{}, pending becomes {}", i, self.pending.len()+1);
-                    self.pending.push((i,rd,tempC,time_stamp));
+                    self.pending.push(o);
                 } else {
                     debug!("No new data from #{}", i);
                 }
             }
 
             // Return already pending results, one at a time.
-            if let Some(tuple) = self.pending.pop() {
-                return Ok(tuple);
+            if let Some(tmp) = self.pending.pop() {
+                return Ok(tmp);
             }
 
             // No data; sleep until either edge
@@ -126,11 +133,21 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
     }
 
     pub fn stop(self) -> Result<([VL;N], Input<'static>)> {
-        let vls = turn_to_something(self.ulds, |x| {
+        let vls = array_try_map(self.ulds, |x| {
             let uld = x.stop()?;
             Ok( VL::recreate(uld) )
         })?;
 
         Ok( (vls, self.pinINT) )
     }
+}
+
+// 'ArrayVec' allows mapping one '[;N]' to another. Plain Rust (1.82, stable) doesn't.
+// 'array_try_map' does this without 'ArrayVec', but is unstable.
+//
+pub(crate) fn array_try_map<A,B, const N: usize>(aa: [A;N], f: impl FnMut(A) -> Result<B>) -> Result<[B;N]> {
+    use arrayvec::ArrayVec;
+    let bs_av = aa.into_iter().map(f).collect::<Result<ArrayVec<B,N>>>() ?;
+
+    Ok(bs_av.into_inner().ok().unwrap())
 }

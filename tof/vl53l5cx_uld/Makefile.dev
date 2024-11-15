@@ -2,12 +2,11 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=...] make -f Makefile.dev {m3|...}
+#	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {m3|...}
 #		# builds and runs a certain sample
 #
 DEFMT_LOG?=debug
 FEATURES?=
-
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
@@ -76,4 +75,4 @@ _run:
 echo:
 	@echo a
 
-.PHONY: all exp plain_test _build _run echo
+.PHONY: all m3 exp plain_test _test _build _run echo

@@ -8,8 +8,9 @@
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
+use defmt_rtt as _;
 
-use {defmt_rtt as _, esp_backtrace as _};
+use esp_backtrace as _;
 
 use core::cell::RefCell;
 
@@ -17,7 +18,7 @@ use embassy_executor::Spawner;
 
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Input, Output},
+    gpio::{Io, Input},
     i2c::I2c,
     peripherals::I2C0,
     prelude::*,
@@ -61,7 +62,7 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, PWR_EN, mut LPns, INT): (_,_,_,[Output;2],_) = pins!(io);
+    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(io);
 
     let i2c_bus = I2c::new(
         peripherals.I2C0,
@@ -74,22 +75,18 @@ async fn main(spawner: Spawner) {
     let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
 
     // Reset VL53L5CX by pulling down their power for a moment
-    if let Some(mut pin) = PWR_EN {
-        pin.set_low();
+    {
+        PWR_EN.set_low();
         blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
-        pin.set_high();
+        PWR_EN.set_high();
         info!("Target powered off and on again.");
     }
 
     // Enable one of the wired boards. Ensures that the others (if any) won't jump on the I2C bus.
     //
-    for (i,pin) in LPns.iter_mut().enumerate() {
-        if i==0 {
-            pin.set_high();
-        }
-    }
+    LPns[0].set_high();
 
-    let vl = VL::new_and_setup(&i2c_shared, DEFAULT_I2C_ADDR)
+    let vl = VL::new_and_setup(&i2c_shared, &DEFAULT_I2C_ADDR)
         .unwrap();
 
     info!("Init succeeded, ULD version {}", ULD_VERSION);
