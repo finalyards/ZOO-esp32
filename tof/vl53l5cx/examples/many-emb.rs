@@ -31,10 +31,7 @@ use esp_hal::{
     timer::timg::TimerGroup,
     Blocking
 };
-
-//R #[cfg(feature="examples_serial")]
-//R use esp_println::println;
-
+use esp_println::println;
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
@@ -51,7 +48,7 @@ include!("./pins_gen.in");  // pins!, boards!
 const BOARDS: usize = boards!();
 
 const RESO: usize = 4;
-type RTuple = FlockResults<RESO>;
+type FRes = FlockResults<RESO>;
 
 type I2cType<'d> = I2c<'d, I2C0,Blocking>;
 static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
@@ -105,17 +102,19 @@ async fn main(spawner: Spawner) {
     //      'Dyn{Receiver|Sender}' are simpler type definitions for 'Receiver|Sender'. We embrace
     //      the simplicity of the types! :)
     //
-    static WATCH: Watch<CriticalSectionRawMutex, RTuple, 2 /*max receivers*/> = Watch::new();
+    static WATCH: Watch<CriticalSectionRawMutex, FRes, 2 /*max receivers*/> = Watch::new();
 
     let snd = WATCH.dyn_sender();
     let rcv0 = WATCH.dyn_receiver().unwrap();
-    //let rcv1 = WATCH.dyn_receiver().unwrap();
+    #[cfg(feature = "examples_serial")]
+    let rcv1 = WATCH.dyn_receiver().unwrap();
 
     spawner.spawn(ranging(vls, INT, snd)).unwrap();
 
     spawner.spawn(defmt_print_results(rcv0)).unwrap();
 
-    //spawner.spawn(pass_on_serial(rcv1)).unwrap();
+    #[cfg(feature = "examples_serial")]
+    spawner.spawn(pass_on_serial(rcv1)).unwrap();
 }
 
 // Passing 'vls' to the task is a bit tricky..
@@ -130,7 +129,7 @@ async fn main(spawner: Spawner) {
 //
 #[embassy_executor::task]
 #[allow(non_snake_case)]
-async fn ranging(/*move*/ vls: [VL;BOARDS], pin_INT: Input<'static>, snd: DynSender<'static, RTuple>) {
+async fn ranging(/*move*/ vls: [VL;BOARDS], pin_INT: Input<'static>, snd: DynSender<'static, FRes>) {
 
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(), HzU8(10)))
@@ -160,7 +159,7 @@ async fn ranging(/*move*/ vls: [VL;BOARDS], pin_INT: Input<'static>, snd: DynSen
 }
 
 #[embassy_executor::task]
-async fn defmt_print_results(mut rcv: DynReceiver<'static, RTuple>) {
+async fn defmt_print_results(mut rcv: DynReceiver<'static, FRes>) {
     let mut t0: Option<Instant> = None;
 
     loop {
@@ -187,6 +186,22 @@ async fn defmt_print_results(mut rcv: DynReceiver<'static, RTuple>) {
         info!(".distance_mm:      {}", res.distance_mm);
         #[cfg(feature = "reflectance_percent")]
         info!(".reflectance:      {}", res.reflectance);
+    }
+}
+
+/*
+* Provide a stream of the results on serial output.
+*/
+#[cfg(feature = "examples_serial")]
+#[embassy_executor::task]
+async fn pass_on_serial(mut rcv: DynReceiver<'static, FRes>) {
+    use esp_println::println;
+
+    loop {
+        // FlockResults{board_index, res, temp_degc, time_stamp}
+        let fr  = rcv.changed().await;
+
+        println!("{:?}", fr);
     }
 }
 
@@ -223,7 +238,8 @@ impl Timings {
     const DUMMY: Instant = Instant::from_ticks(0);
 }
 
-// DO NOT use within the async portion!!!
+// Note: Could also use 'embassy_time::Delay::delay_ms' (but it's a bit elaborate)
+
 const D_PROVIDER: Delay = Delay::new();
 
 fn blocking_delay_ms(ms: u32) {

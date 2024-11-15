@@ -4,7 +4,7 @@ edition = "2021"
 rust-version = "1.80"
 publish = false
 
-# 'esp-hal' recommends only using 'release', so...
+# 'esp-hal' recommends only using 'release'
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 [profile.release]
 #debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
@@ -13,7 +13,7 @@ debug = 2
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
 codegen-units = 16
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
@@ -67,11 +67,10 @@ default = []
 
 # For cases when you need the stack trace.
 [profile.dev]
-debug         = "line-tables-only"
+#debug         = "line-tables-only"
+debug = 2
 debug-assertions = true
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-#panic         = "abort"
-#lto           = "thin"
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

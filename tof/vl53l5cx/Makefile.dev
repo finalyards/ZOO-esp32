@@ -59,7 +59,7 @@ s_full2:
 
 many m:
 	EXAMPLE=many-emb \
-	  FEATURES=flock,distance_mm \
+	  FEATURES=examples_serial,flock,distance_mm \
 	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
 
 m_full:
@@ -67,12 +67,20 @@ m_full:
 	  FEATURES=flock,$(ALL_FEATURES) \
 	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
 
-# Use this for getting symbols in stack traces.
-m-debug:
+# TEMP: Use this for a working 'Watch'
+m-dev md:
 	EXAMPLE=many-emb \
-	  FEATURES=flock,distance_mm \
+	  FEATURES=examples_serial,flock,distance_mm \
 	  BUILD_MODE="" \
 	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
+
+# Run connected to UART (to see serial output)
+#
+m-dev-serial mds:
+	EXAMPLE=many-emb \
+	  FEATURES=examples_serial,flock,distance_mm \
+	  BUILD_MODE="" \
+	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run_with_espflash
 
 #---
 _build:
@@ -81,6 +89,9 @@ _build:
 
 _run:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
+
+_run_with_espflash:
+	espflash flash -f 80mhz --monitor $(_OUT_EXAMPLE)
 
 echo:
 	@echo $(_OUT_DIR)
