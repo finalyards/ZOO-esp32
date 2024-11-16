@@ -14,7 +14,7 @@ mod uld_platform;
 mod vl;
 
 #[cfg(feature = "single")]
-pub use ranging::{Results, Ranging};
+pub use ranging::{SoloResults, Ranging};
 
 #[cfg(feature = "flock")]
 pub use {
@@ -34,7 +34,7 @@ pub use vl53l5cx_uld::{
     Mode,
     RangingConfig,
     Result as UldResult,
-    ResultsData,    // leaked (intentionally) via '[Flock]Results'
+    ResultsData,    // leaked (intentionally) via '{Flock|Solo}Results'
     TargetOrder,
     units,
 };
