@@ -1,0 +1,42 @@
+[package]
+name = "comms-ble"
+edition = "2021"
+rust-version = "1.80"
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+codegen-units = 16
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+panic       = "abort"
+lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dev-dependencies]
+bleps               = { git = "https://github.com/bjoernQ/bleps", package = "bleps", rev = "a5148d8ae679e021b78f53fd33afb8bb35d0b62e", features = [ "macros", "async"] }
+    # as per https://github.com/esp-rs/esp-hal/blob/main/examples/Cargo.toml#L10
+defmt           = { version = "0.3.8" }
+defmt-rtt       = { version = "0.4.1" }
+embassy-executor = { version = "0.6.3", features=["task-arena-size-12288"] }     # task area size can be overridden by an env.var.
+#esp-alloc       = { version = "0.5.0" }
+esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
+#esp-hal         = { version = "0.21.0", features = ["defmt", "esp32c6"] }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }
+#esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
+esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "integrated-timers", "esp32c6"] }
+#esp-wifi = { version = "0.10.1" }
+esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git", features = ["ble", "defmt", "esp32c6"] }
+semihosting     = { version = "0.1.16" }
+static_cell     = { version = "2.1.0" }
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared.
+#
+[[example]]
+name = "x-emb"
+required-features = []
