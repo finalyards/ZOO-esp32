@@ -33,7 +33,7 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-run:
+x-emb x run:
 	EXAMPLE=x-emb \
 	  $(REMAKE) --no-print-directory _build _run
 

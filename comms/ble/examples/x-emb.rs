@@ -44,20 +44,20 @@ use esp_hal::{
 };
 use esp_wifi::{
     ble::controller::BleConnector,
-    init,
     EspWifiController
 };
 
-// tbd. is there a way _not_ to use 'mk_static', now? Compare with other 'StaticCell' occurences.
+use static_cell::StaticCell;
+
+// There's also 'static_cell::make_static' but that requires 'nightly'
+#[cfg(not(all()))]
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
-        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
-        #[deny(unused_attributes)]
-        let x = STATIC_CELL.uninit().write(($val));
+        static STATIC_CELL: StaticCell<$t> = StaticCell::new();
+        let x = STATIC_CELL.init_with(|| ($val));
         x
     }};
 }
-//#later: static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
 
 const CHIP: &str = esp_hal::chip!();    //"esp32c6"
 
@@ -75,16 +75,23 @@ async fn main(_spawner: Spawner) -> ! {
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
-    let init = &*mk_static!(
-        EspWifiController<'static>,
-        init(
-            timg0.timer0,
-            Rng::new(peripherals.RNG),
-            peripherals.RADIO_CLK,
-        )
-        .unwrap()
-    );
-    //#later let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
+    let init: &'static EspWifiController = {    // tbd. why is it called 'init'?
+        #[cfg(not(all()))]
+        {
+            &*mk_static!(
+                EspWifiController<'static>,
+                esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK )
+                .unwrap()
+            )
+        }
+        #[cfg(all())]
+        {
+            static SC: StaticCell<EspWifiController<'static>> = StaticCell::new();
+            SC.init_with( ||
+                esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK).unwrap()
+            )
+        }
+    };
 
     let button = match CHIP {
         "esp32" | "esp32s2" | "esp32s3" =>
