@@ -7,7 +7,7 @@
 *   - but uses 'defmt' instead of 'esp-println'
 *   - limited to C6/C3 MCU's (that the author has access to)
 *   - some other dependency simplifications/edits
-*   - selection of chip not by features, but by macro
+*   - selection of chip not by features, but by macro (that proxies build-time info)
 */
 #![no_std]
 #![no_main]
@@ -40,7 +40,10 @@ use esp_hal::{
     prelude::*,
     rng::Rng,
     time,
-    timer::timg::TimerGroup,
+    timer::{
+        systimer::{SystemTimer, Target},
+        timg::TimerGroup
+    },
 };
 use esp_wifi::{
     ble::controller::BleConnector,
@@ -88,23 +91,21 @@ async fn main(_spawner: Spawner) -> ! {
         {
             static SC: StaticCell<EspWifiController<'static>> = StaticCell::new();
             SC.init_with( ||
-                esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK).unwrap()
+                esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK)
+                    .unwrap()
             )
         }
     };
 
     let button = match CHIP {
-        "esp32" | "esp32s2" | "esp32s3" =>
-            Input::new(peripherals.GPIO0, Pull::Down),
-        _ =>
-            Input::new(peripherals.GPIO9, Pull::Down)
+        "esp32" | "esp32s2" | "esp32s3" =>  Input::new(peripherals.GPIO0, Pull::Down),
+        _ =>                                Input::new(peripherals.GPIO9, Pull::Down)
     };
 
     if CHIP == "esp32" {
         let timg1 = TimerGroup::new(peripherals.TIMG1);
         esp_hal_embassy::init(timg1.timer0);
     } else {
-        use esp_hal::timer::systimer::{SystemTimer, Target};
         let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
         esp_hal_embassy::init(systimer.alarm0);
     }

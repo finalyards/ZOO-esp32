@@ -1,13 +1,9 @@
 /node_modules/
 
 # Output
-.output
-/.svelte-kit
-/build
-
-# OS
-#.DS_Store
-#Thumbs.db
+#? .output
+/.svelte-kit/
+#? /build
 
 # Env
 .env
@@ -16,7 +12,7 @@
 !.env.test
 
 # wrangler files
-.wrangler
+/.wrangler/
 .dev.vars
 
 /package-lock.json

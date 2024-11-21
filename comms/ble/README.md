@@ -1,21 +1,25 @@
 # Bluetooth Low Energy
 
-Exposing an ESP32 device via the [Bluetooth Low Energy](...) protocol, and interacting with it using [Web Bluetooth](...).
+Exposing an ESP32 device via the [Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy/introduction) (Adafruit) protocol.
 
-<!-- tbd. picture here, perhaps from parent -->
+**Background**
+
+The BLE protocol is completely separate from "Bluetooth Classic" (which can co-exists with it). The "LE" protocol allows the radio to be switched on and off, saving power.
 
 ## Requirements
 
-- ESP32-C6 devkit
-- Android phone or 
-   - desktop/laptop with Chrome browser
+An ESP32-C6 or ESP32-C3 devkit (with [JTAG-USB cable added](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html) for C3).
 
-No wiring is needed.
+Test this by:
 
->Apple note:
->
->Web Bluetooth is not supported by Apple's WebKit, but there are [third party applications](https://www.apple.com/us/search/web-bluetooth?src=globalnav) that allow Web Bluetooth on iOS/iPad devices.
- 
+```
+$ probe-rs list
+The following debug probes were found:
+[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
+```
+
+No wiring is needed. 
+
 
 ## Running
 
@@ -37,21 +41,36 @@ $ DEFMT_LOG=debug cargo run --release --example x-emb
 
 ### Confirm that the service is seen (optional)
 
-You can now use a Bluetooth development tool (such as [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp)), to:
+You can now use a Bluetooth development tool such as [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play Store), to:
 
-- confirm that a device named "`esp32c6`" is advertising itself
+- confirm that a device named "`esp32c{3|6}`" is advertising itself
 - `CONNECT` to it
-	- check its services and characteristics
+- check its services and characteristics
 
-<!-- with screenshots:
-	>Try to a) read the "Hello Bare Metal" string
-	>b) Change it to something else
--->	 
+>![](.images/ble_sniffing.png)
 
-Once you've written data on the tool, observe these in the `defmt` output:
+*Figure. Screenshot of the `nRF Connect for Mobile` Android app*
 
-```
-156.678779 [INFO ] RECEIVED: 0 [72, 105, 32, 116, 111, 32, 121, 111, 117]
-192.729017 [INFO ] RECEIVED: 0 [72, 105, 32, 97, 103, 97, 105, 110, 33]
-```
+>**Exercise**
+>
+>If you are using the above tool, do this:
+>- `Connect`
+> 	- Tap `Unknown Service` to reveal the characteristics
+>		- You can now read and write those (the DOWN/UP arrows)
+>
+>You can also walk away from the device, with the phone, and see how far its range reaches.
+>
+>In addition, you can log data:
+>
+>```
+>156.678779 [INFO ] RECEIVED: 0 [72, 105, 32, 116, 111, 32, 121, 111, 117]
+>192.729017 [INFO ] RECEIVED: 0 [72, 105, 32, 97, 103, 97, 105, 110, 33]
+>```
+
+
+## Next episode - Web 
+
+Head over to [`../extras/ble-web-app`](../extras/ble-web-app/README.md) and you'll find a Web app that can interact with your BLE device!
+
+Leave the device on. See you there! :)
 
