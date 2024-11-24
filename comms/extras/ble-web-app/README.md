@@ -2,15 +2,23 @@
 
 A web application for interacting with a local BLE embedded product.
 
-`../ble/`: source code for the BLE device
+See [`../ble/`](../ble) for source code of a BLE device (*unless you just came from there*).
 
+>Note:
+>
+>"Bluetooth Web API" (which we'll use) really is "BLE Web API". It doesn't cover the "classic" side of Bluetooth and we are really, really fine by this (for example, also the ESP32 MCUs only provide BLE, not classic Bluetooth). Read it as "BLE Web API". :)
+>
+><details><summary>Note #2:</summary>
+>Why didn't they call it BLE-Web API, as in.. BLEW. Yeah, perhaps not.
+></details>
 
 ## Requirements
 
 - `node.js` 
 - `npm`
+- `wrangler` (optional)
 
-If you wish a ready package, see [`mp > web`](https://github.com/akauppi/mp/tree/main/web) (GitHub).
+	>If you wish a ready package for these, see `mp` > [`web+cf`](https://github.com/akauppi/mp/tree/main/web+cf) (GitHub).
 
 ## Steps
 
@@ -18,7 +26,7 @@ If you wish a ready package, see [`mp > web`](https://github.com/akauppi/mp/tree
 $ npm install
 ```
 
-That installs the dependencies listed in `package.json`.
+That installs the dependencies.
 
 ```
 $ npm run dev
@@ -32,7 +40,7 @@ Forced re-optimization of dependencies
   ➜  press h + enter to show help
 ```
 
-If you are using Multipass for virtualization, that `localhost` is within your VM, not the host. There are two ways to access it:
+If you are using Multipass for virtualization, that `localhost` is within your VM, unreachable. Either:
 
 **A. Use your VM's IP**
 
@@ -48,7 +56,7 @@ With that IP, open [`http://192.168.64.149:5173`](http://192.168.64.149:5173).
 This approach is easier, but you need to remember to use the VM's IP. Also, the IP is bound to change at times.
 
 
-**B. Port forward 5173**
+**B. Port forward**
 
 This approach makes the port `5173` usable - as `localhost:5173` - from your host. However, it requires you to:
 
@@ -177,3 +185,32 @@ True.
 
 For pairing, you can require certain numbers to be entered. You can likely hide the device. But this is something the author is only approaching. Browsing the web, you'll likely get answers (after all, BLE is already 14 years old!) - and ideally, you'd write something about it *right here*. :)
 
+
+## References
+
+- [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (blog-like doc; "Last updated 2015-07-21")
+
+	>Note the date
+
+<!-- #LeaveOut, since:
+>>Not /quite/ good enough for us... Verbose, and some opinions are a bit shaky ("limited range" as a con, when it can also be seen as a pro, and frankly... it's relative to what your aims are!!
+
+- [Bluetooth Web API Guide Based on Our Experience With BLE Device Connection](https://stormotion.io/blog/web-ble-implementation/) (article, Jul'24)
+-->
+
+<!-- #LeftOut, since
+	- aging
+	- no search!
+	- not needed to understand Bluetooth Web API!
+
+- [Web Bluetooth specification](https://webbluetoothcg.github.io/web-bluetooth/) (GitHub, dated Nov'24 but... seems aging)
+
+	Written mostly to the implementors of Web Bluetooth (i.e. browser authors), it's still an interesting read if you have the time...
+
+	>While the beginning mentions 2024, the text itself covers Bluetooth 4..4.2, not Bluetooth 5 (which was released ~2019 and carries improvements to BLE, thus essential for Bluetooth Web API). Strange.
+
+	<span />
+	
+	>Also, while being from W3C (at least a working group), the site doesn't sport a search field. Great omission! Don't like it... at all.
+-->	
+	
