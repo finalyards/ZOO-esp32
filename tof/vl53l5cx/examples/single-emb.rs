@@ -26,6 +26,7 @@ use esp_hal::{
     timer::timg::TimerGroup,
     Blocking
 };
+
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
@@ -33,6 +34,7 @@ use vl53l5cx::{
     DEFAULT_I2C_ADDR,
     Mode::*,
     RangingConfig,
+    SoloResults,
     TargetOrder::*,
     ULD_VERSION,
     VL,
@@ -111,7 +113,7 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
     for _round in 0..10 {
         _t.t0();
 
-        let (res, temp_degc, time_stamp) = ring.get_data() .await
+        let SoloResults{res, temp_degc, time_stamp} = ring.get_data() .await
             .unwrap();
         if _round==0 { info!("Skipping first results (normally not valid)");
             continue;

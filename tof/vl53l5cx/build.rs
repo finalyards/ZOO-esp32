@@ -106,9 +106,9 @@ fn main() -> Result<()> {
             "-Tdefmt.x"     // required by 'defmt'
         );
 
-        link_args.iter().for_each(|s| {
+        for s in link_args {
             println!("cargo::rustc-link-arg={}", s);
-        });
+        }
     }
 
     Ok(())
