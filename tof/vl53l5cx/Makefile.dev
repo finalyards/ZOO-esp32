@@ -59,7 +59,7 @@ s_full2:
 
 many m:
 	EXAMPLE=many-emb \
-	  FEATURES=examples_serial,flock,distance_mm \
+	  FEATURES=flock,distance_mm \
 	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
 
 m_full:
@@ -67,12 +67,18 @@ m_full:
 	  FEATURES=flock,$(ALL_FEATURES) \
 	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
 
-# TEMP: Use this for a working 'Watch'
 m-dev md:
 	EXAMPLE=many-emb \
-	  FEATURES=examples_serial,flock,distance_mm \
+	  FEATURES=flock,distance_mm \
 	  BUILD_MODE="" \
 	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
+
+# Run connected to UART (to see serial output); release
+#
+m-serial ms:
+	EXAMPLE=many-emb \
+	  FEATURES=examples_serial,flock,distance_mm \
+	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run_with_espflash
 
 # Run connected to UART (to see serial output)
 #

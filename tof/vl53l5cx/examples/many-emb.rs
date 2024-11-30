@@ -6,6 +6,7 @@
 
 #![allow(for_loops_over_fallibles)]
 
+use core::alloc;
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
@@ -31,16 +32,29 @@ use esp_hal::{
     timer::timg::TimerGroup,
     Blocking
 };
+
+#[cfg(feature = "examples_serial")]
 use esp_println::println;
+
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
-use vl53l5cx::{units::*, DEFAULT_I2C_ADDR, I2cAddr, Mode::*, RangingConfig, TargetOrder::*, VL, VLsExt as _, FlockResults};
+use vl53l5cx::{
+    units::*,
+    DEFAULT_I2C_ADDR,
+    I2cAddr,
+    Mode::*,
+    RangingConfig,
+    TargetOrder::*,
+    VL,
+    VLsExt as _,
+    FlockResults
+};
 
 mod common;
 use common::{
     init_defmt,
-    init_heap
+    //init_heap
 };
 
 include!("./pins_gen.in");  // pins!, boards!
@@ -56,7 +70,7 @@ static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     init_defmt();
-    init_heap();
+    //init_heap();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -156,6 +170,9 @@ async fn ranging(/*move*/ vls: [VL;BOARDS], pin_INT: Input<'static>, snd: DynSen
 
         _t.results_passed().report();
     }
+
+    // tbd. What happens when an Embassy task runs to its end?
+    // is the way to close a task / the whole process. Would be clean.
 }
 
 #[embassy_executor::task]
@@ -245,3 +262,21 @@ const D_PROVIDER: Delay = Delay::new();
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
 }
+
+// Something brings in need for global allocator. Fake it!!!
+//
+use alloc::{GlobalAlloc, Layout};
+
+pub struct Allocator;
+
+unsafe impl GlobalAlloc for Allocator {
+    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
+        0 as *mut u8
+    }
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        unreachable!();     // since we never allocate
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: Allocator = Allocator;
