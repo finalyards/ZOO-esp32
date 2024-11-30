@@ -1,14 +1,16 @@
 # Bluetooth Low Energy
 
-Exposing an ESP32 device via the [Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy/introduction) (Adafruit) protocol.
+Exposing an ESP32 device via the *Bluetooth Low Energy* protocol.
 
 **Background**
 
-The BLE protocol is completely separate from "Bluetooth Classic" (which can co-exists with it). The "LE" protocol allows the radio to be switched on and off, saving power.
+The BLE protocol is independent of the "Classic" Bluetooth stack (which continues to co-exist with it). Some devices (like ESP32's and Nordic Semiconductor's only support BLE, not the "classic" profiles).
+
+The "LE" stack is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
 
 ## Requirements
 
-An ESP32-C6 or ESP32-C3 devkit (with [JTAG-USB cable added](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html) for C3).
+An ESP32-C6 or ESP32-C3 devkit (with [JTAG-USB cable added](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html) for C3). No wiring required.
 
 Test this by:
 
@@ -18,7 +20,11 @@ The following debug probes were found:
 [0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
 ```
 
-No wiring is needed. 
+### Debug tooling
+
+Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play store), or a similar debugging tool on your mobile phone or tablet - and learning to use it.
+
+>The Nordic Semiconductor training material mentioned in the `Recommended Training material` section covers this tool.
 
 
 ## Running
@@ -26,7 +32,7 @@ No wiring is needed.
 ### Launching the Bluetooth device
 
 ```
-$ DEFMT_LOG=debug cargo run --release --example x-emb
+$ DEFMT_LOG=debug cargo run --release --features=defmt --example x-emb
 [...]
 0.793924 [INFO ] esp-wifi configuration EspWifiConfig { rx_queue_size: 5, tx_queue_size: 3, static_rx_buf_num: 10, dynamic_rx_buf_num: 32, static_tx_buf_num: 0, dynamic_tx_buf_num: 32, csi_enable: false, ampdu_rx_enable: true, ampdu_tx_enable: true, amsdu_tx_enable: false, rx_ba_win: 6, max_burst_size: 1, country_code: "CN", country_code_operating_class: 0, mtu: 1492, tick_rate_hz: 100, listen_interval: 3, beacon_timeout: 6, ap_beacon_timeout: 300, failure_retry_cnt: 1, scan_method: 0 }
 0.853086 [DEBUG] The ble_controller_init was initialized
@@ -41,7 +47,7 @@ $ DEFMT_LOG=debug cargo run --release --example x-emb
 
 ### Confirm that the service is seen (optional)
 
-You can now use a Bluetooth development tool such as [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play Store), to:
+Using a Bluetooth development tool such as [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play Store):
 
 - confirm that a device named "`esp32c{3|6}`" is advertising itself
 - `CONNECT` to it
@@ -54,6 +60,7 @@ You can now use a Bluetooth development tool such as [nRF Connect for Mobile](ht
 >**Exercise**
 >
 >If you are using the above tool, do this:
+>
 >- `Connect`
 > 	- Tap `Unknown Service` to reveal the characteristics
 >		- You can now read and write those (the DOWN/UP arrows)
@@ -66,6 +73,37 @@ You can now use a Bluetooth development tool such as [nRF Connect for Mobile](ht
 >156.678779 [INFO ] RECEIVED: 0 [72, 105, 32, 116, 111, 32, 121, 111, 117]
 >192.729017 [INFO ] RECEIVED: 0 [72, 105, 32, 97, 103, 97, 105, 110, 33]
 >```
+
+
+## Recommended training material (optional)
+
+To learn more about the potential of BLE, check these:
+
+- [Introduction to Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy?view=all) (Adafruit; updated Mar'14)
+
+	Simple introduction (maybe 5-10 min).
+
+	>Note: The text has *some* inaccuracies, for example a Bluetooth Peripheral can be in connection with multiple Centrals, at the same time.
+
+- [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/) (DevAcademy by Nordic Semiconductor)
+
+	- 6 lessons
+	- "8–10 hours to complete"
+	- Exercises use Nordic hardware, but can also just be read through.
+
+	Author opinion: *If you only plan to attend one course, this is a good one!*
+
+<!-- tbd. read, some day?
+- [The Basic Concepts of Bluetooth Low Energy (BLE) for Beginner](https://pcng.medium.com/the-basic-concepts-of-bluetooth-low-energy-ble-for-beginner-c0fe062190c5) (Medium; Sep'19)
+-->
+
+## Why not use `bleps-macros`?
+
+The `gatt` macro is copied from [`bleps-macros`](https://github.com/bjoernQ/bleps/tree/main/bleps-macros), but:
+
+- `gatt!` provides a value (placed to a variable by the application), instead of assigning a fixed `gatt_attributes` variable. The `bleps-macros` approach confuses RustRover IDE syntax highlighting.
+
+- Rust Rover has a bug in handling crates from a GitHub URL, with features enabled. This eliminates the need for examples to have `macros` feature. *Not a real hard reason, but.. something.*
 
 
 ## Next episode - Web 
