@@ -17,12 +17,25 @@ panic       = "abort"
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
+# Dependencies needed by 'trouble' examples taken here. These are collected from both 'trouble/examples/esp32' and 'trouble/examples/apps'.
+#
+[dependencies]
+bt-hci          = { version = "0.1.2", features = [] }   # "defmt"
+defmt           = { version = "0.3.10" , optional = true }
+embassy-futures = { version = "0.1.1" }
+embassy-sync    = { version = "0.6.1" }
+embassy-time    = { version = "0.3.2", features = ["generic-queue-8"] }    # "defmt"
+embedded-hal   = { version = "1.0", features = [] }   # "defmt-03"
+embedded-hal-async = "1.0"
+embedded-io     = { version = "0.6.1", features = [] }    # "defmt-03"
+heapless        = { version = "0.8.0", default-features = false }
+static_cell     = { version = "2.1.0" }
+trouble-host    = { git = "https://github.com/embassy-rs/trouble", features = ["derive", "peripheral", "gatt"], default-features = false } # "defmt"
+
 [dev-dependencies]
-bleps           = { git = "https://github.com/bjoernQ/bleps", package = "bleps", features = ["async", "macros", "defmt"] }
 defmt           = { version = "0.3.10" }
 defmt-rtt       = { version = "0.4.1" }
-embassy-executor = { version = "0.6.3", features=["task-arena-size-12288"] }     # task area size can be overridden by an env.var.
-embassy-time    = { version = "0.3.2" }
+embassy-executor = { version = "0.6.3", features=["task-arena-size-65536"] }     # task area size can be overridden by an env.var.
 esp-alloc       = { version = "0.5.0" }
 #esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
     # ^-- Enable this if using GitHub 'main' for esp-{hal|hal-embassy|wifi}
@@ -30,14 +43,16 @@ esp-alloc       = { version = "0.5.0" }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
 esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c3"] }
 #esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c3"] }
-esp-hal-embassy = { version = "0.5.0", features = ["defmt", "integrated-timers", "esp32c3"] }
-#esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "integrated-timers", "esp32c3"] }
+esp-hal-embassy = { version = "0.5.0", features = ["defmt", "esp32c3"] }
+#esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c3"] }
 esp-wifi = { version = "0.11.0" , features = ["ble", "defmt", "esp32c3"]}
 #esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git", features = ["ble", "defmt", "esp32c3"] }
-static_cell     = { version = "2.1.0" }
+
+[features]
+defmt = ["dep:defmt", "bt-hci/defmt", "embassy-time/defmt", "embedded-hal/defmt-03", "embedded-io/defmt-03", "trouble-host/defmt"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #
 [[example]]
-name = "bleps-emb"
-required-features = []
+name = "trouble-emb"
+required-features = ["defmt"]

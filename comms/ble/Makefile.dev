@@ -33,13 +33,9 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-bleps b:
-	EXAMPLE=bleps-emb \
+trouble t:
+	EXAMPLE=trouble-emb \
 	  $(REMAKE) --no-print-directory _build _run
-
-#|trouble t:
-#|	EXAMPLE=trouble \
-#|	  $(REMAKE) --no-print-directory _build _run
 
 #|attach a:
 #|	EXAMPLE=x-emb \
@@ -48,7 +44,7 @@ bleps b:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_EXAMPLE} || (echo >&2 "Did not produce ${_OUT_EXAMPLE}"; false)
 
 _run:

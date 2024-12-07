@@ -192,6 +192,8 @@ For pairing, you can require certain numbers to be entered. You can likely hide 
 
 	>Note the date
 
+- ["Bluetooth Web API Guide Based on Our Experience With BLE Device Connection"](https://stormotion.io/blog/web-ble-implementation/) (Stormotion, Jul'24)
+
 <!-- #LeaveOut, since:
 >>Not /quite/ good enough for us... Verbose, and some opinions are a bit shaky ("limited range" as a con, when it can also be seen as a pro, and frankly... it's relative to what your aims are!!
 

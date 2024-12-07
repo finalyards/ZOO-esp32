@@ -229,11 +229,3 @@ fn init_defmt() {
         now().duration_since_epoch().to_micros()
     });
 }
-
-/***R
-async fn async_delay_ms(ms: u32) {
-    use embassy_time::{Duration, Timer};
-
-    Timer::after(Duration::from_millis(ms as u64)) .await
-}
-***/

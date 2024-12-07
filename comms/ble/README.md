@@ -4,9 +4,21 @@ Exposing an ESP32 device via the *Bluetooth Low Energy* protocol.
 
 **Background**
 
-The BLE protocol is independent of the "Classic" Bluetooth stack (which continues to co-exist with it). Some devices (like ESP32's and Nordic Semiconductor's only support BLE, not the "classic" profiles).
+The BLE protocol is independent of the "Classic" Bluetooth stack (which continues to co-exist with it). Some devices (like ESP32's and all Nordic Semiconductor's only support BLE, not the classic profiles).
 
 The "LE" stack is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
+
+>With the advent of BLE 6 (not supported by ESP32 chips, yet; 2024), also home audio enters the application domain, via Bluetooth LE Audio.
+
+## Sample case
+
+![](.images/bluetooth-human-app-80%.png)
+
+*Figure 1. Interacting with an embedded device, using a web app.*
+
+Collecting information and/or controlling a device, via Bluetooth, off a web application. This allows a mobile phone user to wirelessly, and without installing a native application, to work with an embedded product.
+
+Since we control the ESP32 side of things, we can freely affect what kind of Bluetooth profile is used for the link.
 
 ## Requirements
 
@@ -32,7 +44,7 @@ Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/
 ### Launching the Bluetooth device
 
 ```
-$ DEFMT_LOG=debug cargo run --release --features=defmt --example x-emb
+$ DEFMT_LOG=debug cargo run --release --example trouble-emb
 [...]
 0.793924 [INFO ] esp-wifi configuration EspWifiConfig { rx_queue_size: 5, tx_queue_size: 3, static_rx_buf_num: 10, dynamic_rx_buf_num: 32, static_tx_buf_num: 0, dynamic_tx_buf_num: 32, csi_enable: false, ampdu_rx_enable: true, ampdu_tx_enable: true, amsdu_tx_enable: false, rx_ba_win: 6, max_burst_size: 1, country_code: "CN", country_code_operating_class: 0, mtu: 1492, tick_rate_hz: 100, listen_interval: 3, beacon_timeout: 6, ap_beacon_timeout: 300, failure_retry_cnt: 1, scan_method: 0 }
 0.853086 [DEBUG] The ble_controller_init was initialized
@@ -44,6 +56,8 @@ $ DEFMT_LOG=debug cargo run --release --features=defmt --example x-emb
 0.918109 [INFO ] "Ok(CommandComplete { num_packets: 1, opcode: 8202, data: [0] })"
 0.918306 [INFO ] started advertising
 ```
+
+<!-- tbd. ^--replace with trouble example output (above is from bleps) -->
 
 ### Confirm that the service is seen (optional)
 
