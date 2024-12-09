@@ -8,6 +8,7 @@
 *   - limited to C6/C3 MCU's (that the author has access to)
 *   - some other dependency simplifications/edits
 *   - selection of chip not by features, but by macro (that proxies build-time info)
+*   - using 'StaticCell' directly, instead of via a macro
 */
 #![no_std]
 #![no_main]
@@ -20,6 +21,7 @@ use core::{
 use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
 
+// Note: some below rendered red, due to Rust Rover IDE bug. Ignore it
 use bleps::{
     ad_structure::{
         create_advertising_data,
@@ -50,19 +52,18 @@ use esp_wifi::{
     EspWifiController
 };
 
-use static_cell::StaticCell;
-
-// There's also 'static_cell::make_static' but that requires 'nightly'
-#[cfg(not(all()))]
-macro_rules! mk_static {
-    ($t:ty,$val:expr) => {{
-        static STATIC_CELL: StaticCell<$t> = StaticCell::new();
-        let x = STATIC_CELL.init_with(|| ($val));
-        x
-    }};
-}
-
 const CHIP: &str = esp_hal::chip!();    //"esp32c6"
+
+const LOCAL_NAME: &str = CHIP;
+
+// Note: 'gatt!' macro doesn't allow use of constants, but we'd like to have these defined here.
+//      // maybe bypass the macro, one day?=?
+//
+const UUID_SVC: &str = "438785e7-4942-4749-a072-dceb73fd6c87";
+
+const UUID_C0: &str = "448785e7-4942-4749-a072-dceb73fd6c87";
+const UUID_C1: &str = "458785e7-4942-4749-a072-dceb73fd6c87";
+    // tbd. experiment with 16-bit (eg. "12bc") UUID's, at some point; are they ok on a custom service?
 
 #[esp_hal_embassy::main]
 async fn main(_spawner: Spawner) -> ! {
@@ -78,23 +79,14 @@ async fn main(_spawner: Spawner) -> ! {
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
-    let init: &'static EspWifiController = {    // tbd. why is it called 'init'?
-        #[cfg(not(all()))]
-        {
-            &*mk_static!(
-                EspWifiController<'static>,
-                esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK )
+    let init: &'static EspWifiController = {
+        use static_cell::StaticCell;
+        static SC: StaticCell<EspWifiController<'static>> = StaticCell::new();
+
+        SC.init_with( ||
+            esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK)
                 .unwrap()
-            )
-        }
-        #[cfg(all())]
-        {
-            static SC: StaticCell<EspWifiController<'static>> = StaticCell::new();
-            SC.init_with( ||
-                esp_wifi::init(timg0.timer0, Rng::new(peripherals.RNG), peripherals.RADIO_CLK)
-                    .unwrap()
-            )
-        }
+        )
     };
 
     let button = match CHIP {
@@ -129,7 +121,7 @@ async fn main(_spawner: Spawner) -> ! {
                 create_advertising_data(&[
                     AdStructure::Flags(LE_GENERAL_DISCOVERABLE | BR_EDR_NOT_SUPPORTED),
                     AdStructure::ServiceUuids16(&[Uuid::Uuid16(0x1809)]),
-                    AdStructure::CompleteLocalName(esp_hal::chip!()),
+                    AdStructure::CompleteLocalName(LOCAL_NAME),
                 ])
                     .unwrap()
             )
@@ -139,50 +131,57 @@ async fn main(_spawner: Spawner) -> ! {
 
         info!("started advertising");
 
-        let mut rf = |_offset: usize, data: &mut [u8]| {
+        let mut read_0 = |_offset: usize, data: &mut [u8]| {
             data[..20].copy_from_slice(&b"Hello Bare-Metal BLE"[..]);
-            17
+            17  // <-- tbd. what's this? (NOT the length of the string)
         };
-        let mut wf = |offset: usize, data: &[u8]| {
+        let mut write_0 = |offset: usize, data: &[u8]| {
             info!("RECEIVED: {} {:?}", offset, data);
         };
 
-        let mut wf2 = |offset: usize, data: &[u8]| {
+        // Characteristic 1 (multicolored LED):
+        //
+        // Array of three bytes: RGB
+        //
+        let mut write_1 = |offset: usize, data: &[u8]| {
             info!("RECEIVED: {} {:?}", offset, data);
         };
 
-        let mut rf3 = |_offset: usize, data: &mut [u8]| {
-            data[..5].copy_from_slice(&b"Hola!"[..]);
-            5
-        };
-        let mut wf3 = |offset: usize, data: &[u8]| {
-            info!("RECEIVED: Offset {}, data {:?}", offset, data);
-        };
-
+        // Note:
+        //      The 'esp-hal' example uses almost the same UUID, with 1 char variation:
+        //          "937312e0-2354-11eb-9f10-fbc30a62cf38"     // for both service and characteristic #0
+        //          "957[...]"      // characteristic #1
+        //          "987[...]"      // characteristic #2
+        //
+        // We do a bit similar, but use a different UUID for the service - it's likely a mistake
+        // on the side of 'esp-hal'.
+        //
+        // Note #2: 'gatt!' macro insists to get UUIDs as "string literals" (kind of bummer). :/
+        //
+        // Sets:
+        //  - 'gatt_attributes'
+        //  - 'abc_handle'
+        //
         gatt!([service {
-            uuid: "937312e0-2354-11eb-9f10-fbc30a62cf38",
+            uuid: "438785e7-4942-4749-a072-dceb73fd6c87",   // "937312e0-2354-11eb-9f10-fbc30a62cf38",
             characteristics: [
                 characteristic {
-                    uuid: "937312e0-2354-11eb-9f10-fbc30a62cf38",
-                    read: rf,
-                    write: wf,
+                    uuid: "448785e7-4942-4749-a072-dceb73fd6c87", // UUID_C0
+                    read: read_0,
+                    write: write_0,
                 },
                 characteristic {
-                    uuid: "957312e0-2354-11eb-9f10-fbc30a62cf38",
-                    write: wf2,
-                },
-                characteristic {
-                    name: "my_characteristic",
-                    uuid: "987312e0-2354-11eb-9f10-fbc30a62cf38",
+                    name: "abc",     // gets magically turned to '{...}_handle' handler
+                    uuid: "458785e7-4942-4749-a072-dceb73fd6c87",   // UUID_C1
                     notify: true,
-                    read: rf3,
-                    write: wf3,
+                    write: write_1,
                 },
             ],
         },]);
+        let mut ga = gatt_attributes;
 
         let mut rng = bleps::no_rng::NoRng;
-        let mut srv = AttributeServer::new(&mut ble, &mut gatt_attributes, &mut rng);
+        let mut srv = AttributeServer::new(&mut ble, &mut ga, &mut rng);
 
         let counter = RefCell::new(0u8);
         let counter = &counter;
@@ -201,7 +200,7 @@ async fn main(_spawner: Spawner) -> ! {
                     data[data.len() - 1] += *counter;
                     *counter = (*counter + 1) % 10;
                 }
-                NotificationData::new(my_characteristic_handle, &data)
+                NotificationData::new(abc_handle, &data)
             }
         };
 

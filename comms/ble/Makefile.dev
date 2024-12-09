@@ -33,19 +33,27 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-x-emb x run:
-	EXAMPLE=x-emb \
+trouble t:
+	EXAMPLE=trouble-emb \
 	  $(REMAKE) --no-print-directory _build _run
+
+#|attach a:
+#|	EXAMPLE=x-emb \
+#|	  $(REMAKE) --no-print-directory _attach
+#|
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
-	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	@test -f ${_OUT_EXAMPLE} || (echo >&2 "Did not produce ${_OUT_EXAMPLE}"; false)
 
 _run:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
+#|_attach:
+#|	probe-rs attach --log-format $(DEFMT_HOST_FMT) ${_OUT_EXAMPLE}
+
 echo:
 	@echo $(MCU)
 
-.PHONY: all abc _build _run echo
+.PHONY: all x-emb x attach _build _run _attach echo
