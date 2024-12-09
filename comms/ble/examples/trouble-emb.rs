@@ -28,6 +28,7 @@ use {
 
 #[esp_hal_embassy::main]
 async fn main(_s: Spawner) {
+    init_defmt();
     info!("Let's go!");
 
     let peripherals = esp_hal::init({
@@ -56,4 +57,22 @@ async fn main(_s: Spawner) {
     let controller: ExternalController<_, 20> = ExternalController::new(connector);
 
     ble_bas_peripheral::run(controller).await;
+}
+
+/*
+* Tell 'defmt' how to support '{t}' (timestamp) in logging.
+*
+* Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
+*       read operation". Out 'esp_hal::time::now' isn't, but sure seems to work.
+*
+* Reference:
+*   - defmt book > ... > Hardware timestamp
+*       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
+*/
+fn init_defmt() {
+    use esp_hal::time::now;
+
+    defmt::timestamp!("{=u64:us}", {
+        now().duration_since_epoch().to_micros()
+    });
 }

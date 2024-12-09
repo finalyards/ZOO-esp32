@@ -44,20 +44,25 @@ Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/
 ### Launching the Bluetooth device
 
 ```
-$ DEFMT_LOG=debug cargo run --release --example trouble-emb
-[...]
-0.793924 [INFO ] esp-wifi configuration EspWifiConfig { rx_queue_size: 5, tx_queue_size: 3, static_rx_buf_num: 10, dynamic_rx_buf_num: 32, static_tx_buf_num: 0, dynamic_tx_buf_num: 32, csi_enable: false, ampdu_rx_enable: true, ampdu_tx_enable: true, amsdu_tx_enable: false, rx_ba_win: 6, max_burst_size: 1, country_code: "CN", country_code_operating_class: 0, mtu: 1492, tick_rate_hz: 100, listen_interval: 3, beacon_timeout: 6, ap_beacon_timeout: 300, failure_retry_cnt: 1, scan_method: 0 }
-0.853086 [DEBUG] The ble_controller_init was initialized
-0.853120 [INFO ] Connector created
-0.857462 [INFO ] ble_npl_eventq_remove 0x4080c08c 0x4080e730
-0.877252 [INFO ] "Ok(CommandComplete { num_packets: 1, opcode: 3075, data: [0] })"
-0.887373 [INFO ] "Ok(CommandComplete { num_packets: 1, opcode: 8198, data: [0] })"
-0.907548 [INFO ] "Ok(CommandComplete { num_packets: 1, opcode: 8200, data: [0] })"
-0.918109 [INFO ] "Ok(CommandComplete { num_packets: 1, opcode: 8202, data: [0] })"
-0.918306 [INFO ] started advertising
+$ DEFMT_LOG=debug cargo run --release --features=defmt --example trouble-emb
+   Compiling comms-ble v0.0.0 (/home/ubuntu/ZOO.comms/comms/ble)
+    Finished `release` profile [optimized + debuginfo] target(s) in 8.39s
+probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' /home/ubuntu/target/riscv32imc-unknown-none-elf/release/examples/trouble-emb
+      Erasing ✔ 100% [####################] 384.00 KiB @  76.86 KiB/s (took 5s)
+  Programming ✔ 100% [####################] 166.78 KiB @   1.46 KiB/s (took 2m)                                                                                                   Finished in 113.91s
+<time> [INFO ] Let's go!
+<time> [INFO ] esp-wifi configuration EspWifiConfig { rx_queue_size: 5, tx_queue_size: 3, static_rx_buf_num: 10, dynamic_rx_buf_num: 32, static_tx_buf_num: 0, dynamic_tx_buf_num: 32, csi_enable: false, ampdu_rx_enable: true, ampdu_tx_enable: true, amsdu_tx_enable: false, rx_ba_win: 6, max_burst_size: 1, country_code: "CN", country_code_operating_class: 0, mtu: 1492, tick_rate_hz: 100, listen_interval: 3, beacon_timeout: 6, ap_beacon_timeout: 300, failure_retry_cnt: 1, scan_method: 0 }
+<time> [DEBUG] BT controller compile version aa16a46
+<time> [DEBUG] !!!! unimplemented srand 82
+<time> [DEBUG] The btdm_controller_init was initialized
+<time> [INFO ] Our address = Address { kind: AddrKind(1), addr: BdAddr([65, 90, 227, 30, 131, 231]) }
+<time> [INFO ] Starting advertising and GATT service
+<time> [INFO ] [host] filter accept list size: 12
+<time> [INFO ] [host] setting txq to 12
+<time> [INFO ] [host] configuring host buffers (8 packets of size 251)
+<time> [INFO ] [host] initialized
+<time> [INFO ] [adv] advertising
 ```
-
-<!-- tbd. ^--replace with trouble example output (above is from bleps) -->
 
 ### Confirm that the service is seen (optional)
 

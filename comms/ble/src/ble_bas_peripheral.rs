@@ -2,6 +2,8 @@
 
 #[cfg(feature = "defmt")]
 use defmt::info;
+#[cfg(not(feature = "defmt"))]
+compiler_error! {}
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
@@ -50,6 +52,7 @@ where
     // Using a fixed seed means the "random" address will be the same every time the program runs,
     // which can be useful for testing. If truly random addresses are required, a different,
     // dynamically generated seed should be used.
+    // tbd. ^-- make this into a feature
     let address = Address::random([0x41, 0x5A, 0xE3, 0x1E, 0x83, 0xE7]);
     info!("Our address = {:?}", address);
 
