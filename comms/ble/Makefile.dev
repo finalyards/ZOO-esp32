@@ -33,8 +33,12 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-trouble t:
-	EXAMPLE=trouble-emb \
+bas:
+	EXAMPLE=bas-emb \
+	  $(REMAKE) --no-print-directory _build _run
+
+custom:
+	EXAMPLE=custom-emb \
 	  $(REMAKE) --no-print-directory _build _run
 
 #|attach a:

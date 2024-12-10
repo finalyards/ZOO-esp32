@@ -1,7 +1,7 @@
 /*
-* BLE host example, using 'trouble'
+* Battery Level example
 *
-* Based on:
+* Based strongly on:
 *   trouble > examples > esp32
 *       -> https://github.com/embassy-rs/trouble/tree/main/examples/esp32
 */
@@ -29,7 +29,6 @@ use {
 #[esp_hal_embassy::main]
 async fn main(_s: Spawner) {
     init_defmt();
-    info!("Let's go!");
 
     let peripherals = esp_hal::init({
         let mut config = esp_hal::Config::default();

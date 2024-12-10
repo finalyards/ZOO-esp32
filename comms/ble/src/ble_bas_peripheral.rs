@@ -1,5 +1,8 @@
+//
+// Battery level peripheral
+//
 // From 'trouble' examples/apps/src
-
+//
 #[cfg(feature = "defmt")]
 use defmt::info;
 #[cfg(not(feature = "defmt"))]

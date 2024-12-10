@@ -44,7 +44,7 @@ Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/
 ### Launching the Bluetooth device
 
 ```
-$ DEFMT_LOG=debug cargo run --release --features=defmt --example trouble-emb
+$ DEFMT_LOG=debug cargo run --release --features=defmt --example bas-emb
    Compiling comms-ble v0.0.0 (/home/ubuntu/ZOO.comms/comms/ble)
     Finished `release` profile [optimized + debuginfo] target(s) in 8.39s
 probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' /home/ubuntu/target/riscv32imc-unknown-none-elf/release/examples/trouble-emb
