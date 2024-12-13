@@ -22,7 +22,7 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 [dependencies]
 defmt           = { version = "0.3.10" , optional = true }
 embassy-futures = { version = "0.1.1" }
-embassy-sync    = { version = "0.6.1" }
+embassy-sync    = { version = "0.6.1" }    # used via '#[gatt_server]'
 embassy-time    = { version = "0.3.2", features = ["generic-queue-8"] }    # "defmt"
 static_cell     = { version = "2.1.0" }
 trouble-host    = { git = "https://github.com/embassy-rs/trouble", features = ["derive", "peripheral", "gatt"], default-features = false } # "defmt"
@@ -45,7 +45,11 @@ esp-wifi = { version = "0.11.0" , features = ["ble", "defmt", "esp32c3"]}
 #esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git", features = ["ble", "defmt", "esp32c3"] }
 
 [features]
+# Q: Where does randomness of the address matter?  Should this default to stable, or random address?
+random_address = []
 defmt = ["dep:defmt", "embassy-time/defmt", "trouble-host/defmt"]
+
+default = []
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #

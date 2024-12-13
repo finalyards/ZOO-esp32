@@ -52,11 +52,9 @@ async fn main(_s: Spawner) {
     };
     esp_hal_embassy::init(systimer.alarm0);
 
-    let controller = {
-        let bluetooth = peripherals.BT;
-        let connector = BleConnector::new(&init, bluetooth);
-        ExternalController::<_,20>::new(connector)
-    };
+    let bluetooth = peripherals.BT;
+    let connector = BleConnector::new(&init, bluetooth);
+    let controller: ExternalController<_, 20> = ExternalController::new(connector);
 
     ble_bas_peripheral::run(controller).await;
 }

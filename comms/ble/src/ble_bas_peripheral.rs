@@ -3,10 +3,11 @@
 //
 // From 'trouble' examples/apps/src
 //
-#[cfg(feature = "defmt")]
-use defmt::info;
+
 #[cfg(not(feature = "defmt"))]
-compiler_error! {}
+compiler_error! { "Not implemented without 'defmt' feature." }
+
+use defmt::info;
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
@@ -15,7 +16,6 @@ use trouble_host::prelude::*;
 /// Size of L2CAP packets (ATT MTU is this - 4)
 const L2CAP_MTU: usize = 251;
 
-/// Max number of connections
 const CONNECTIONS_MAX: usize = 1;
 
 /// Max number of L2CAP channels.
@@ -52,11 +52,11 @@ pub async fn run<C>(controller: C)
 where
     C: Controller,
 {
-    // Using a fixed seed means the "random" address will be the same every time the program runs,
-    // which can be useful for testing. If truly random addresses are required, a different,
-    // dynamically generated seed should be used.
-    // tbd. ^-- make this into a feature
-    let address = Address::random([0x41, 0x5A, 0xE3, 0x1E, 0x83, 0xE7]);
+    let address = if cfg!(feature = "random_address") {
+        unimplemented!()
+    } else {
+        Address::random([0x41, 0x5A, 0xE3, 0x1E, 0x83, 0xE7])
+    };
     info!("Our address = {:?}", address);
 
     let mut resources = Resources::new(PacketQos::None);
@@ -76,7 +76,7 @@ where
     let ble_background_tasks = select(ble_task(runner), gatt_task(&server));
     let app_task = async {
         loop {
-            match advertise("Trouble Example", &mut peripheral).await {
+            match advertise("bas example", &mut peripheral).await {
                 Ok(conn) => {
                     // set up tasks when the connection is established to a central, so they don't run when no one is connected.
                     let connection_task = conn_task(&server, &conn);
@@ -111,13 +111,25 @@ where
 ///
 /// spawner.must_spawn(ble_task(runner));
 /// ```
-async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) -> Result<(), BleHostError<C::Error>> {
-    runner.run().await
+async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) {
+    loop {
+        if let Err(e) = runner.run().await {
+            #[cfg(feature = "defmt")]
+            let e = defmt::Debug2Format(&e);
+            panic!("[ble_task] error: {:?}", e);
+        }
+    }
 }
 
 /// Run the Gatt Server.
-async fn gatt_task<C: Controller>(server: &Server<'_, '_, C>) -> Result<(), BleHostError<C::Error>> {
-    server.run().await
+async fn gatt_task<C: Controller>(server: &Server<'_, '_, C>) {
+    loop {
+        if let Err(e) = server.run().await {
+            #[cfg(feature = "defmt")]
+            let e = defmt::Debug2Format(&e);
+            panic!("[gatt_task] error: {:?}", e);
+        }
+    }
 }
 
 /// Stream Events until the connection closes.

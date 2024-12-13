@@ -39,7 +39,7 @@ Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/
 >The Nordic Semiconductor training material mentioned in the `Recommended Training material` section covers this tool.
 
 
-## Running
+## Running (bas example)
 
 ### Launching the Bluetooth device
 
@@ -68,66 +68,46 @@ probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' /home/ubuntu/target/riscv3
 
 Using a Bluetooth development tool such as [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play Store):
 
-- confirm that a device named "`esp32c{3|6}`" is advertising itself
+- confirm that the device is advertising itself as "`bas example`"
 - `CONNECT` to it
 - check its services and characteristics
 
 >![](.images/ble_sniffing.png)
 
-*Figure. Screenshot of the `nRF Connect for Mobile` Android app*
+<font color=red>*tbd. renew the screenshot*</font>
+*Screenshot of the `nRF Connect for Mobile` Android app*
 
 >**Exercise**
 >
 >If you are using the above tool, do this:
 >
 >- `Connect`
-> 	- Tap `Unknown Service` to reveal the characteristics
->		- You can now read and write those (the DOWN/UP arrows)
+> 	- Tap `Generic Access` > `Device Name` > `⤓` (load)
+>  		- Check the `Value` now shows `TrouBLE`
+> 	- Tap `Battery Service` > `Battery Level` > `⤓` (notify)
+> 		- Notice that `Notifications enabled` is shown and the (simulated) battery charging level starts increasing. ((It does increase past 100%; heh)
 >
->You can also walk away from the device, with the phone, and see how far its range reaches.
->
->In addition, you can log data:
+>In addition, note that the device logs show:
 >
 >```
->156.678779 [INFO ] RECEIVED: 0 [72, 105, 32, 116, 111, 32, 121, 111, 117]
->192.729017 [INFO ] RECEIVED: 0 [72, 105, 32, 97, 103, 97, 105, 110, 33]
+>[...]
+>294.890915 [INFO ] [adv] notifying connection of tick 69
+>296.904956 [INFO ] [adv] notifying connection of tick 70
+>298.923065 [INFO ] [adv] notifying connection of tick 71
+>299.004378 [INFO ] [gatt] Write event on battery level characteristic: [0, 0]
+>299.004975 [INFO ] [gatt] Write Event to Level Characteristic: Ok(71)
+>300.957732 [INFO ] [adv] notifying connection of tick 72
+>302.978011 [INFO ] [adv] notifying connection of tick 73
+>305.073700 [INFO ] [adv] notifying connection of tick 74
+>307.094089 [INFO ] [adv] notifying connection of tick 75
+>[...]
 >```
 
+The service emulates a battery level indicator, and is a standard BLE profile. What's more interesting (to this author, at least) is making *custom* profiles.
 
-## Recommended training material (optional)
+Let's run such, next!
 
-To learn more about the potential of BLE, check these:
+---
 
-- [Introduction to Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy?view=all) (Adafruit; updated Mar'14)
-
-	Simple introduction (maybe 5-10 min).
-
-	>Note: The text has *some* inaccuracies, for example a Bluetooth Peripheral can be in connection with multiple Centrals, at the same time.
-
-- [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/) (DevAcademy by Nordic Semiconductor)
-
-	- 6 lessons
-	- "8–10 hours to complete"
-	- Exercises use Nordic hardware, but can also just be read through.
-
-	Author opinion: *If you only plan to attend one course, this is a good one!*
-
-<!-- tbd. read, some day?
-- [The Basic Concepts of Bluetooth Low Energy (BLE) for Beginner](https://pcng.medium.com/the-basic-concepts-of-bluetooth-low-energy-ble-for-beginner-c0fe062190c5) (Medium; Sep'19)
--->
-
-## Why not use `bleps-macros`?
-
-The `gatt` macro is copied from [`bleps-macros`](https://github.com/bjoernQ/bleps/tree/main/bleps-macros), but:
-
-- `gatt!` provides a value (placed to a variable by the application), instead of assigning a fixed `gatt_attributes` variable. The `bleps-macros` approach confuses RustRover IDE syntax highlighting.
-
-- Rust Rover has a bug in handling crates from a GitHub URL, with features enabled. This eliminates the need for examples to have `macros` feature. *Not a real hard reason, but.. something.*
-
-
-## Next episode - Web 
-
-Head over to [`../extras/ble-web-app`](../extras/ble-web-app/README.md) and you'll find a Web app that can interact with your BLE device!
-
-Leave the device on. See you there! :)
+[>> Readme section 2: Custom BLE service](./STEP_2.md)
 
