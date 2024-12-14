@@ -1,8 +1,10 @@
 <!-- tbd. finalize -->
 
-## Recommended training material (optional)
+## Learning material (optional)
 
-To learn more about the potential of BLE, check these:
+The Bluetooth Low Energy ecosystem is more complex than normal sensors would be. Thus, we want to offer a list of in-depth dive to the protocols.
+
+>Notice: you mostly need to focus on the "host" side of BLE. HCI is a standardized interface between that (close to your application) and the client (the stack handling actual hardware).
 
 - [Introduction to Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy?view=all) (Adafruit; updated Mar'14)
 
@@ -18,11 +20,16 @@ To learn more about the potential of BLE, check these:
 
 	Author opinion: *If you only plan to attend one course, this is a good one!*
 
-<!-- tbd. read, some day?
-- [The Basic Concepts of Bluetooth Low Energy (BLE) for Beginner](https://pcng.medium.com/the-basic-concepts-of-bluetooth-low-energy-ble-for-beginner-c0fe062190c5) (Medium; Sep'19)
+<!-- 
+tbd. Add resources on:
+- HCI data structures
+
+	Something that helps understanding the `trouble` source code.
 -->
 
-## Next episode - Web 
+---
+
+## Next - Web app
 
 Head over to [`../extras/ble-web-app`](../extras/ble-web-app/README.md) and you'll find a Web app that can interact with your BLE device!
 

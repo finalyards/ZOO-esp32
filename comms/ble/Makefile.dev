@@ -48,7 +48,7 @@ custom:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
 	@test -f ${_OUT_EXAMPLE} || (echo >&2 "Did not produce ${_OUT_EXAMPLE}"; false)
 
 _run:

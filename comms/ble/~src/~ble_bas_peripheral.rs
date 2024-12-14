@@ -26,6 +26,7 @@ const MAX_ATTRIBUTES: usize = 10;
 type Resources<C> = HostResources<C, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>;
 
 // GATT Server definition
+// Q: What's the role of the 'server', over 'service'?  Are both needed?
 #[gatt_server]
 struct Server {
     battery_service: BatteryService,
@@ -178,7 +179,7 @@ async fn advertise<'a, C: Controller>(
         ],
         &mut advertiser_data[..],
     )?;
-    let mut advertiser = peripheral
+    let advertiser = peripheral
         .advertise(
             &Default::default(),
             Advertisement::ConnectableScannableUndirected {

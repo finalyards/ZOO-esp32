@@ -39,18 +39,19 @@ Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/
 >The Nordic Semiconductor training material mentioned in the `Recommended Training material` section covers this tool.
 
 
-## Running (bas example)
+## Running the example
+
+<!-- tbd. UPDATE so this is all on the custom -->
 
 ### Launching the Bluetooth device
 
 ```
-$ DEFMT_LOG=debug cargo run --release --features=defmt --example bas-emb
+$ DEFMT_LOG=debug cargo run --release --example custom-emb
    Compiling comms-ble v0.0.0 (/home/ubuntu/ZOO.comms/comms/ble)
     Finished `release` profile [optimized + debuginfo] target(s) in 8.39s
 probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' /home/ubuntu/target/riscv32imc-unknown-none-elf/release/examples/trouble-emb
       Erasing ✔ 100% [####################] 384.00 KiB @  76.86 KiB/s (took 5s)
   Programming ✔ 100% [####################] 166.78 KiB @   1.46 KiB/s (took 2m)                                                                                                   Finished in 113.91s
-<time> [INFO ] Let's go!
 <time> [INFO ] esp-wifi configuration EspWifiConfig { rx_queue_size: 5, tx_queue_size: 3, static_rx_buf_num: 10, dynamic_rx_buf_num: 32, static_tx_buf_num: 0, dynamic_tx_buf_num: 32, csi_enable: false, ampdu_rx_enable: true, ampdu_tx_enable: true, amsdu_tx_enable: false, rx_ba_win: 6, max_burst_size: 1, country_code: "CN", country_code_operating_class: 0, mtu: 1492, tick_rate_hz: 100, listen_interval: 3, beacon_timeout: 6, ap_beacon_timeout: 300, failure_retry_cnt: 1, scan_method: 0 }
 <time> [DEBUG] BT controller compile version aa16a46
 <time> [DEBUG] !!!! unimplemented srand 82

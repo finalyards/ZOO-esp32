@@ -8,24 +8,24 @@
 #![no_std]
 #![no_main]
 
+mod ble_custom;
+use ble_custom::run_stack;
+
 #[allow(unused_imports)]
 use defmt::{info};
 use defmt_rtt as _;
 
-use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
+use esp_alloc as _;
+use esp_backtrace as _;
 use esp_hal::{
     prelude::*,
     timer::{
         timg::TimerGroup
     }
 };
-use esp_wifi::ble::controller::BleConnector;
-use comms_ble::ble_bas_peripheral;
-use {
-    esp_alloc as _,
-    esp_backtrace as _
-};
+use esp_wifi::EspWifiController;
+use static_cell::StaticCell;
 
 #[esp_hal_embassy::main]
 async fn main(_s: Spawner) {
@@ -39,12 +39,17 @@ async fn main(_s: Spawner) {
     esp_alloc::heap_allocator!(72 * 1024);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
-    let init = esp_wifi::init(
-        timg0.timer0,
-        esp_hal::rng::Rng::new(peripherals.RNG),
-        peripherals.RADIO_CLK,
-    )
-        .unwrap();
+    let init: &EspWifiController<'static> = {
+        static SC: StaticCell<EspWifiController> = StaticCell::new();
+        let tmp = &*SC.init(
+            esp_wifi::init(
+                timg0.timer0,
+                esp_hal::rng::Rng::new(peripherals.RNG),
+                peripherals.RADIO_CLK,
+            ).unwrap()
+        );
+        tmp
+    };
 
     let systimer = {
         use esp_hal::timer::systimer::{SystemTimer, Target};
@@ -52,11 +57,7 @@ async fn main(_s: Spawner) {
     };
     esp_hal_embassy::init(systimer.alarm0);
 
-    let bluetooth = peripherals.BT;
-    let connector = BleConnector::new(&init, bluetooth);
-    let controller: ExternalController<_, 20> = ExternalController::new(connector);
-
-    ble_bas_peripheral::run(controller).await;
+    run_stack(peripherals.BT, &init).await;
 }
 
 /*
