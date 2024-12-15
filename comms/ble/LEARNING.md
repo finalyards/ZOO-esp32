@@ -1,10 +1,7 @@
-<!-- tbd. finalize -->
 
 ## Learning material (optional)
 
 The Bluetooth Low Energy ecosystem is more complex than normal sensors would be. Thus, we want to offer a list of in-depth dive to the protocols.
-
->Notice: you mostly need to focus on the "host" side of BLE. HCI is a standardized interface between that (close to your application) and the client (the stack handling actual hardware).
 
 - [Introduction to Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy?view=all) (Adafruit; updated Mar'14)
 
@@ -20,17 +17,15 @@ The Bluetooth Low Energy ecosystem is more complex than normal sensors would be.
 
 	Author opinion: *If you only plan to attend one course, this is a good one!*
 
-<!-- 
-tbd. Add resources on:
-- HCI data structures
+You will be "living" on the "host" side of the HCI (Host/Client Interface). Most BLE devices (ESP32 included) have such an interface, even when the same chip would handle both roles. The interface is standardized, so essentially it means serializing/deserializing whatever goes on in BLE. The [`trouble´](...) library takes care of this for you, but it's good to know what's under the hood...
 
-	Something that helps understanding the `trouble` source code.
--->
 
----
+## References
 
-## Next - Web app
+- [Part A. Data Types Specification](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/CSS_v11/out/en/supplement-to-the-bluetooth-core-specification/data-types-specification.html) (Bluetooth.com; very official)
 
-Head over to [`../extras/ble-web-app`](../extras/ble-web-app/README.md) and you'll find a Web app that can interact with your BLE device!
-
-Leave the device on, running the custom service. See you there! :)
+	Look up here for using the right terms.
+	
+	<!-- #hizzz -->
+	>*Unfortunately individual chapters aren't addressable; why, what kind of HTML is this??! <font size=+3>🧌</font>*
+	

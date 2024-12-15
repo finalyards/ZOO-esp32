@@ -12,6 +12,7 @@
 //      - shows use of 128-bit UUID's
 //      - ..and custom service
 //
+use arrayvec::ArrayVec;
 use bt_hci::controller::ExternalController;
 use defmt::{error, info, warn};
 
@@ -23,23 +24,10 @@ use trouble_host::prelude::*;
 
 // tbd. What are L2CAP's?  Perhaps that could be a feature in 'trouble' (if they are needed only
 //      by some peripherals)?
-
-/// Size of L2CAP packets (ATT MTU is this - 4)
-const L2CAP_MTU: usize = 251;
-
+//
+const L2CAP_MTU: usize = 251;   // Size of L2CAP packets (ATT MTU is this - 4)
 const CONNECTIONS_MAX: usize = 1;
-
-/// Max number of L2CAP channels.
-const L2CAP_CHANNELS_MAX: usize = 2; // Signal + att
-
-const NAME: &str = "TrouBLE";
-const BRAND: &str = "custom example";
-
-// Note: Cannot use them as consts, in the 'gatt_service' block, Would perhaps... like to=? :)
-const _UUID_SVC: &str = "438785e7-4942-4749-a072-dceb73fd6c87";
-
-const _UUID_C0: &str = "448785e7-4942-4749-a072-dceb73fd6c87";
-const _UUID_C1: &str = "458785e7-4942-4749-a072-dceb73fd6c87";
+const L2CAP_CHANNELS_MAX: usize = 2;    // Max number of L2CAP channels
 
 type Resources<C> = HostResources<C, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>;
 
@@ -50,11 +38,11 @@ struct Server {
 }
 
 // Custom service
-#[gatt_service(uuid = "438785e7-4942-4749-a072-dceb73fd6c87")]
+#[gatt_service(uuid = "438785e7-4942-4749-a072-dceb73fd6c87")]  // SERVICE_UUID
 struct MyService {
-    #[characteristic(uuid = "448785e7-4942-4749-a072-dceb73fd6c87", write, on_write = rgb_on_write)]
+    #[characteristic(uuid = "448785e7-4942-4749-a072-dceb73fd6c87", write, on_write = rgb_on_write)]    // CHAR_0_UUID
     rgb: [u8;3],
-    #[characteristic(uuid = "458785e7-4942-4749-a072-dceb73fd6c87", read, notify, on_read = magic_on_read)]
+    #[characteristic(uuid = "458785e7-4942-4749-a072-dceb73fd6c87", read, notify, on_read = magic_on_read)]     // CHAR_1_UUID
     magic: u32
 }
 
@@ -73,11 +61,32 @@ fn rgb_on_write(_conn: &Connection, data: &[u8]) -> Result<(), ()> {
     Ok(())
 }
 
+include!("./config.in");
+// NAME
+// BRAND
+// SERVICE_UUID
+// CHAR_{01}_UUID
+
 /// Run the BLE stack.
 // tbd. This can (likely?) be made into a task, since no longer templated.
 //  - [ ] How to pass arguments to a task, at creation?
 //
 pub async fn run_stack(bluetooth: impl esp_hal::peripheral::Peripheral<P=esp_hal::peripherals::BT>, esp_wifi_ctrl: &'static EspWifiController<'_>) {
+
+    let (_,_,_) = (SERVICE_UUID, CHAR_0_UUID, CHAR_1_UUID); // pretend to use them (cannot, in the macro)
+
+    // tbd. take these as 'Config' parameter, from 'main'
+
+    #[allow(non_snake_case)]
+    /*const*/ let HOST_RANDOM_ADDRESS: [u8; 6] = {
+        let tmp = env!("HOST_RANDOM_ADDRESS")
+            .split('-')         // not 'const fn'
+            .map( |ab| { u8::from_str_radix(&ab, 16).expect("hex") } )
+            .collect::<ArrayVec<_,6>>();
+
+        tmp.into_inner()
+            .expect("exactly 6 values")
+    };
 
     // Note: Moving initialization of 'Controller' here, from 'main()', makes a clearer distinction
     //      (in the author's mind) between general ESP32 initialization and BLE specific details.
@@ -88,14 +97,14 @@ pub async fn run_stack(bluetooth: impl esp_hal::peripheral::Peripheral<P=esp_hal
         ExternalController::<_, 20>::new(connector)
     };
 
-    // Q: Where does randomness of the address matter?
-    // IDE note: Rust Rover (2024.3.1) doesn't hide the inactive branch
+    // Such address is not really "random" (that's just BLE parlance); it's "can be anything" and
+    // used for separating advertising devices from each other (or something...).
     //
-    let address = if cfg!(feature = "random_address") {
-        Address::random([0,0,0,0x1E, 0x83, 0xE7])   // tbd. truly random; see https://github.com/embassy-rs/trouble/issues/195
-    } else {
-        Address::random([0x41, 0x5A, 0xE3, 0x1E, 0x83, 0xE7])
-    };
+    //  tbd. Make it come from build environment
+    //
+    // reference -> https://github.com/embassy-rs/trouble/issues/195
+    //
+    let address = Address::random(HOST_RANDOM_ADDRESS);
     info!("Our address = {:?}", address);
 
     let mut resources = Resources::new(PacketQos::None);

@@ -7,6 +7,7 @@
 */
 #![no_std]
 #![no_main]
+extern crate alloc;
 
 mod ble_custom;
 use ble_custom::run_stack;

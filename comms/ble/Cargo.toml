@@ -18,6 +18,7 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dev-dependencies]
+arrayvec        = { version="0.7.6", default-features = false }
 bt-hci          = { version = "0.1.2", features = ["defmt"] }
 defmt           = { version = "0.3.10" }
 defmt-rtt       = { version = "0.4.1" }
@@ -36,7 +37,6 @@ esp-hal-embassy = { version = "0.5.0", features = ["defmt", "esp32c3"] }
 #esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c3"] }
 esp-wifi = { version = "0.11.0" , features = ["ble", "defmt", "esp32c3"]}
 #esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git", features = ["ble", "defmt", "esp32c3"] }
-rand            = {  version = "0.8.5", features = [], default-features = false }
 static_cell     = { version = "2.1.0" }
 trouble-host    = { git = "https://github.com/embassy-rs/trouble", features = ["derive", "peripheral", "gatt", "defmt"], default-features = false }
 
