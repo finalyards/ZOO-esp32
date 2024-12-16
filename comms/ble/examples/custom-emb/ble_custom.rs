@@ -12,12 +12,12 @@
 //      - shows use of 128-bit UUID's
 //      - ..and custom service
 //
-use arrayvec::ArrayVec;
 use bt_hci::controller::ExternalController;
 use defmt::{error, info, warn};
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
+use esp_hal::efuse::Efuse;
 use esp_wifi::ble::controller::BleConnector;
 use esp_wifi::EspWifiController;
 use trouble_host::prelude::*;
@@ -75,19 +75,6 @@ pub async fn run_stack(bluetooth: impl esp_hal::peripheral::Peripheral<P=esp_hal
 
     let (_,_,_) = (SERVICE_UUID, CHAR_0_UUID, CHAR_1_UUID); // pretend to use them (cannot, in the macro)
 
-    // tbd. take these as 'Config' parameter, from 'main'
-
-    #[allow(non_snake_case)]
-    /*const*/ let HOST_RANDOM_ADDRESS: [u8; 6] = {
-        let tmp = env!("HOST_RANDOM_ADDRESS")
-            .split('-')         // not 'const fn'
-            .map( |ab| { u8::from_str_radix(&ab, 16).expect("hex") } )
-            .collect::<ArrayVec<_,6>>();
-
-        tmp.into_inner()
-            .expect("exactly 6 values")
-    };
-
     // Note: Moving initialization of 'Controller' here, from 'main()', makes a clearer distinction
     //      (in the author's mind) between general ESP32 initialization and BLE specific details.
     //      The 'trouble' examples having it differently (Dec'24).
@@ -100,11 +87,11 @@ pub async fn run_stack(bluetooth: impl esp_hal::peripheral::Peripheral<P=esp_hal
     // Such address is not really "random" (that's just BLE parlance); it's "can be anything" and
     // used for separating advertising devices from each other (or something...).
     //
-    //  tbd. Make it come from build environment
+    //      tbd. add spec/etc. reference.
     //
-    // reference -> https://github.com/embassy-rs/trouble/issues/195
+    // See (until formal reference) -> https://github.com/embassy-rs/trouble/issues/195
     //
-    let address = Address::random(HOST_RANDOM_ADDRESS);
+    let address = Address::random(Efuse::mac_address());
     info!("Our address = {:?}", address);
 
     let mut resources = Resources::new(PacketQos::None);
