@@ -26,3 +26,12 @@ A BLE peripheral provides one or more services. These can be standardized (so "a
 
 A service consists of one or more capabilities. These stand for certain data to be read, written or notified when it changes.
 
+
+## GAPP
+
+*tbd.*
+
+## GATT
+
+*tbd.*
+
