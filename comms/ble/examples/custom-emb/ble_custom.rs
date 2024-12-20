@@ -84,19 +84,10 @@ pub async fn run_stack(bluetooth: impl esp_hal::peripheral::Peripheral<P=esp_hal
         ExternalController::<_, 20>::new(connector)
     };
 
-    // Such address is not really "random" (that's just BLE parlance); it's "can be anything" and
-    // used for separating advertising devices from each other (or something...).
-    //
-    //      tbd. add spec/etc. reference.
-    //
-    // See (until formal reference) -> https://github.com/embassy-rs/trouble/issues/195
-    //
-    let address = Address::random(Efuse::mac_address());
-    info!("Our address = {:?}", address);
-
     let mut resources = Resources::new(PacketQos::None);
     let (stack, mut peripheral, runner) = trouble_host::new(controller, &mut resources)
-        .set_random_address(address)
+        // It's not really "random" address - it's consistent within the one device.
+        .set_random_address( Address::random(Efuse::mac_address()) )
         .build();
 
     info!("Starting advertising and GATT service");
