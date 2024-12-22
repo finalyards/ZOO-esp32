@@ -1,15 +1,15 @@
 # `ble-web-app`
 
-A web application for interacting with a local BLE embedded product.
+A web application for interacting with a nearby Bluetooth device, advertising a custom service.
 
-See [`../ble/`](../ble) for source code of a BLE device (*unless you just came from there*).
+Like... the one in [`../ble/examples/custom-emb.rs`](../ble/examples/custom-emb.rs). 
 
->Note:
->
->"Bluetooth Web API" (which we'll use) really is "BLE Web API". It doesn't cover the "classic" side of Bluetooth and we are really, really fine by this (for example, also the ESP32 MCUs only provide BLE, not classic Bluetooth). Read it as "BLE Web API". :)
->
-><details><summary>Note #2:</summary>
->Why didn't they call it BLE-Web API, as in.. BLEW. Yeah, perhaps not.
+## Small preface
+
+"Bluetooth Web API" (which we'll use) really is a BLE API. It doesn't cover the "classic" side of Bluetooth and we are really, really fine by this (also the Nordic Semiconductor and ESP32 MCUs only provide BLE, not classic Bluetooth).
+
+<details><summary>So.. why didn't they call it BLE Web API?</summary>
+That choice BLEW! 💥
 ></details>
 
 ## Requirements
@@ -19,6 +19,16 @@ See [`../ble/`](../ble) for source code of a BLE device (*unless you just came f
 - `wrangler` (optional)
 
 	>If you wish a ready package for these, see `mp` > [`web+cf`](https://github.com/akauppi/mp/tree/main/web+cf) (GitHub).
+
+## Pre-read (optional)
+
+- [How To Use The Web Bluetooth API](https://confidence.sh/blog/how-to-use-the-web-bluetooth-api/) (blog; Jan'24)
+
+	`Megaconfidence`'s write is really concise, diving right into the API without needing *any frameworks* - bare HTML, CSS and JS. 
+	
+	The author claims it would work with the wrist watch you are wearing!! (but this author failed to see his listed).
+
+	>Hint: Complete repo is at [megaconfidence/bt-heart-monitor](https://github.com/megaconfidence/bt-heart-monitor).
 
 ## Steps
 
@@ -193,6 +203,10 @@ For pairing, you can require certain numbers to be entered. You can likely hide 
 	>Note the date
 
 - ["Bluetooth Web API Guide Based on Our Experience With BLE Device Connection"](https://stormotion.io/blog/web-ble-implementation/) (Stormotion, Jul'24)
+
+- [Web Bluetooth](https://webbluetoothcg.github.io/web-bluetooth) (spec draft, last edit Oct'24)
+
+	Mostly on how to implement a User Agent (in a browser); security and such. Can be an interesting read, though. Though it's marked as "Oct'24", some references within the text itself date from 2014.
 
 <!-- #LeaveOut, since:
 >>Not /quite/ good enough for us... Verbose, and some opinions are a bit shaky ("limited range" as a con, when it can also be seen as a pro, and frankly... it's relative to what your aims are!!

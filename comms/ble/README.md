@@ -85,6 +85,8 @@ Using a Bluetooth development tool such as [nRF Connect for Mobile](https://play
 	>![](.images/characteristics.png)
 
 	The icons show which characteristics you can write to, read, or observe (be notified).
+	
+	>Note: Ignore the "Unknown" in the titles. It simply means that the UUID's are not within the set of standardized services/characteristics of the Bluetooth specification. You cannot set titles, anyways, and `nRF Connect for Mobile` could list them as "Custom". 
 
 Press the three-down-arrows (notify) icon.
 
@@ -126,8 +128,11 @@ There is a thing called [Bluetooth Web API](https://developer.mozilla.org/en-US/
 
 Now. **How cool is that!**
 
-Leave the BLE service running (you can even keep your phone/tablet connected to it) and head to: [`../extras/ble-web-app`](../extras/ble-web-app/README.md)
+Leave the BLE service running (you can even keep your phone/tablet connected to it) and head to: [`{some URL once deployed}`](..). <!-- tbd.
+ -->
 
+>Oh, and please use a Chrome or Edge browser. [caniuse](https://caniuse.com/web-bluetooth)
 
----
+<p />
 
+>The source for the web app is available at [`../extras/ble-web-app`](../extras/ble-web-app/README.md).
