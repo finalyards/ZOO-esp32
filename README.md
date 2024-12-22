@@ -19,6 +19,10 @@ This repo covers various sensors (things that measure stuff) and actuators (thin
 
 ||folder|what is it?|stability|comments|
 |---|---|---|---|---|
+|**Comms**|
+|![](.images/about/ble.png)|[`comms/ble`](comms/ble/README.md)|Working as custom Bluetooth (BLE) service|alpha||
+|**Display**|
+|![](.images/about/chip-with-rgb.png)|[`display/rgb`](display/rgb/README.md)|RGB LED available on most dev boards|WIP||
 |**DC&nbsp;motors &&nbsp;controllers** (brushed)|
 |![](.images/about/drv8871.png)|[`dc-motors/drv8871`](dc-motors/drv8871/README.md)|Controller for brushed (simple) DC motors - 6.5..45V, 3.6A max|WIP||
 |**Time of flight** = distance sensors|
@@ -119,8 +123,6 @@ The repo can be used in many ways. The setup the author prefers is shown above.
 - Code editing happens on a host (Mac), using an IDE (Rust Rover)
 - Compilation happens in a virtual machine (using [Multipass](https://multipass.run) for this); the whole Rust and embedded toolchain *only needs to be installed within here*.
 - Hardware devices (MCU + sensors) are connected to *another PC* that runs `usbipd` (a USB/IP server).
-
->Ideally, the "other PC" could be a Raspberry Pi, but the author had issues setting up `usbipd` server there. This can be done - if you do it, please share the detailed steps! `:)`
 
 >Note: Due to using WLAN, the software development and hardware setups are fully air-gapped from each other.
 
