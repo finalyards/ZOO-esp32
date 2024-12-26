@@ -33,22 +33,25 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-bas:
-	EXAMPLE=bas-emb \
+x:
+	EXAMPLE=x-emb \
 	  $(REMAKE) --no-print-directory _build _run
 
-custom:
-	EXAMPLE=custom-emb \
-	  $(REMAKE) --no-print-directory _build _run
-
-#|attach a:
-#|	EXAMPLE=x-emb \
-#|	  $(REMAKE) --no-print-directory _attach
-#|
+# Expand the '#[gatt...]' macros
+#
+# Before using this:
+#	<<
+#	  $ rustup toolchain install nightly
+#	  $ rustup +nightly target add riscv32imc-unknown-none-elf
+#	  $ cargo +nightly install cargo-expand
+#	<<
+#
+_expand:
+	cargo +nightly expand --features=defmt --example x-emb
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_EXAMPLE} || (echo >&2 "Did not produce ${_OUT_EXAMPLE}"; false)
 
 _run:
@@ -60,4 +63,4 @@ _run:
 echo:
 	@echo $(MCU)
 
-.PHONY: all x-emb x attach _build _run _attach echo
+.PHONY: all x _expand _build _run _attach echo

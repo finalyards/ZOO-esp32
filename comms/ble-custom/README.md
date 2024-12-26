@@ -4,7 +4,7 @@ Exposing an ESP32 device via the *Bluetooth Low Energy* protocol.
 
 ## Some background
 
-The BLE protocol is independent of the "Classic" Bluetooth stack (which continues to co-exist with it). Some devices (like ESP32's and all Nordic Semiconductor's only support BLE, not the classic profiles).
+The BLE protocol is independent of the "Classic" Bluetooth stack (which continues to co-exist with it). Some devices (like most Espressif's and all Nordic Semiconductor's) only support BLE, not the classic profiles.
 
 The "LE" stack is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
 

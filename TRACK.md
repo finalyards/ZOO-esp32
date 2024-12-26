@@ -1,5 +1,6 @@
 # TRACK
 
+<!-- solved
 ## Sniffing the (ELF) output path in `cargo`
 
 - [ ] ["Need a reliable way to get the target dir from the build script"](https://github.com/rust-lang/cargo/issues/9661)
@@ -13,7 +14,7 @@
 	The current "no" approach is **restrictive** and **it's relatively easy to make a Rust tool that sniffs the ELF output path**. (call it `hound`?)
 
 	Just.. not doing it.. yet.
-
+-->
 
 ## `array_try_map`
 

@@ -10,10 +10,3 @@
 	- BLE host capabilities, for custom capabilities
 
 	Let's track when `trouble` would reach its first real release - and if necessary/possible, try to push it past the line!!!
-
-<!-- #whisper
-### Alternatives
-	
-- `bleps` - also early, and states not to want to grow up. 🧚🧚
--->
-
