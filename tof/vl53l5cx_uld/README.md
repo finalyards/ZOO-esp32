@@ -166,27 +166,39 @@ If you need to work on ESP32-C3, you can install commit `6fee4b6` of `probe-rs`.
 
 >More details in -> [`../../TROUBLES.md`](../../TROUBLES.md).
 
+### `VL53L5CX_Configuration` size dispute
 
-<!-- Q: is this relevant with tests?  Perhaps move to ../vl53l5cx/ ?
-### [ESP32-C3] No `defmt` output
-
-```
-$ probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' target/riscv32imc-unknown-none-elf/release/examples/multiboard
-      Erasing ✔ [00:00:02] [################################] 256.00 KiB/256.00 KiB @ 112.53 KiB/s (eta 0s )
-  Programming ✔ [00:00:33] [################################] 105.54 KiB/105.54 KiB @ 3.13 KiB/s (eta 0s )
-    Finished in 33.767773s
-
-
+>This *is* a bug of the build system, but happens rather rarely and therefore the author hasn't been able to fix it. Please try! :)
 
 ```
+$ make -f Makefile.dev m3
+EXAMPLE=m3 \
+  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
+  make -f Makefile.dev --no-print-directory _build _run
+DEFMT_LOG=debug cargo build --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent,defmt --example m3
+   [...]
+error[E0080]: evaluation of constant value failed
+  --> src/uld_raw.rs:38:10
+   |
+38 |         [::core::mem::size_of::<VL53L5CX_Configuration>() - 3248usize];
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ attempt to compute `3240_usize - 3248_usize`, which would overflow
 
-This sometimes happens. Something is confused. This seems to resolve the situation:
+For more information about this error, try `rustc --explain E0080`.
+error: could not compile `vl53l5cx_uld` (lib) due to 1 previous error
+[...]
+```
 
-- detach the USB cable of the device
-- attach back
-- `usbip attach -r ...` (if you are using USB/IP)
-- try again
--->
+The reason is something's gotten confused with the `tmp/config.h[.next]` files. Remove them, and retry the build:
+
+```
+$ rm tmp/config.h*
+$ cargo build		# might be neede
+$ make manual
+$ make -f Makefile.dev m3
+```
+
+That should fix it.
+
 	
 ## References
 
