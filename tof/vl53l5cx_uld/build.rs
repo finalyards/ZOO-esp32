@@ -16,9 +16,6 @@ use std::{
 
 // Snippets need to be read in here (cannot do in "statement position")
 //
-#[cfg(feature="EXP_esp_hal_next")]
-include!("build_snippets/pins_next.in");
-#[cfg(not(feature="EXP_esp_hal_next"))]
 include!("build_snippets/pins.in");
 
 const CONFIG_H_NEXT: &str = "tmp/config.h.next";

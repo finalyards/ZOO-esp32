@@ -18,15 +18,12 @@ use embassy_executor::Spawner;
 
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Input},
-    i2c::I2c,
-    peripherals::I2C0,
-    prelude::*,
+    gpio::Input,
+    i2c::master::{Config as I2cConfig, I2c},
     time::{now, Instant, Duration},
     timer::timg::TimerGroup,
     Blocking
 };
-
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
@@ -42,14 +39,11 @@ use vl53l5cx::{
 };
 
 mod common;
-use common::{
-    init_defmt,
-    init_heap
-};
+use common::init_defmt;
 
 include!("./pins_gen.in");  // pins!
 
-type I2cType<'d> = I2c<'d, I2C0,Blocking>;
+type I2cType<'d> = I2c<'d, Blocking>;
 static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
 
 #[esp_hal_embassy::main]
@@ -58,23 +52,19 @@ async fn main(spawner: Spawner) {
     init_heap();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(io);
+    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(peripherals);
 
-    let i2c_bus = I2c::new(
-        peripherals.I2C0,
-        SDA,
-        SCL,
-        400.kHz()
-    );
+    let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+        .with_sda(SDA)
+        .with_scl(SCL);
 
     let tmp = RefCell::new(i2c_bus);
-    let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
+    let i2c_shared: &'static RefCell<I2c<Blocking>> = I2C_SC.init(tmp);
 
     // Reset VL53L5CX by pulling down their power for a moment
     {
@@ -187,4 +177,29 @@ const D_PROVIDER: Delay = Delay::new();
 
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
+}
+
+/*
+* Would rather not have this, but /something/ (only in 'single-emb', not 'many-emb') requires an allocator.
+* Otherwise:
+*   <<
+*       error: no global memory allocator found but one is required; link to std or add `#[global_allocator]` to a static item that implements the GlobalAlloc trait
+*   <<
+*
+* tbd. #help What is causing this?  Some dependency needing 'anyhow', perhaps???
+*/
+fn init_heap() {
+    use core::mem::MaybeUninit;
+
+    const HEAP_SIZE: usize = 32 * 1024;
+    static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+
+    unsafe {
+        #[allow(static_mut_refs)]
+        esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+            HEAP.as_mut_ptr() as *mut u8,
+            HEAP_SIZE,
+            esp_alloc::MemoryCapability::Internal.into(),
+        ));
+    }
 }

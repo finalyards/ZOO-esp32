@@ -16,14 +16,8 @@ use esp_hal::{
     prelude::*,
     time::now
 };
-#[cfg(feature = "EXP_esp_hal_next")]
 use esp_hal::{
     i2c::master::{Config as I2cConfig, I2c},
-};
-#[cfg(not(feature = "EXP_esp_hal_next"))]
-use esp_hal::{
-    gpio::Io,
-    i2c::I2c
 };
 
 const D_PROVIDER: Delay = Delay::new();
@@ -31,7 +25,7 @@ const D_PROVIDER: Delay = Delay::new();
 extern crate vl53l5cx_uld as uld;
 mod common;
 
-include!("./pins_gen.in");  // pins! | pins_next!
+include!("./pins_gen.in");  // pins!
 
 use common::MyPlatform;
 
@@ -62,28 +56,14 @@ fn main() -> ! {
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    #[cfg(not(feature = "EXP_esp_hal_next"))]
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     #[allow(non_snake_case)]
-    #[cfg(feature = "EXP_esp_hal_next")]
-    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins_next!(peripherals);
-    #[allow(non_snake_case)]
-    #[cfg(not(feature = "EXP_esp_hal_next"))]
-    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(io);
+    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(peripherals);
 
     let pl = {
-        #[cfg(feature = "EXP_esp_hal_next")]
         let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
             .with_sda(SDA)
             .with_scl(SCL);
-        #[cfg(not(feature = "EXP_esp_hal_next"))]
-        let i2c_bus = I2c::new(
-            peripherals.I2C0,
-            SDA,
-            SCL,
-            400.kHz()
-        );
 
         MyPlatform::new(i2c_bus)
     };
@@ -120,7 +100,7 @@ fn main2() -> Result<()> {
 
         // wait for 'INT' to fall
         loop {
-            let v= INT.get_level();
+            let v= INT.level();
             if v == Level::Low {
                 debug!("INT after: {}ms", (now()-t0).to_micros() as f32 / 1000.0);
                 break;

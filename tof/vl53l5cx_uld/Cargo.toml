@@ -28,8 +28,8 @@ anyhow          = { version = "1.0.93", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 embedded-test   = { version = "0.5.0", features = ["defmt"] }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
-esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
-#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }   # also enable 'EXP_esp_hal_next' feature
+esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }   # also enable 'EXP_esp_hal_next' feature
 semihosting     = { version = "0.1.16" }
 
 [build-dependencies]
@@ -71,10 +71,7 @@ targets_per_zone_4=["nb_targets_detected"]
 defmt = ["dep:defmt"]
 
 # Use 'esp-hal' from GitHub 'main'; also change the dependency, above.
-EXP_esp_hal_next = []
-
-#|# 'semihosting/args' is EXPERIMENTAL. It likely works within the library, but probe-rs (0.24) doesn't support it.
-#|semihosting_args = [ "semihosting/args" ]
+#|EXP_esp_hal_next = []
 
 default = ["target_status"]     # "EXP_esp_hal_next"
 

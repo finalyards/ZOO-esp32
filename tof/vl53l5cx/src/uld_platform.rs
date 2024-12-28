@@ -8,15 +8,9 @@
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, trace, panic};
 
-use core::{
-    cell::RefCell,
-    mem::MaybeUninit,
-};
-
 use esp_hal::{
     delay::Delay,
-    i2c::{I2c, Instance},
-    Blocking
+    i2c::master::Instance,
 };
 
 use vl53l5cx_uld::{
@@ -25,13 +19,8 @@ use vl53l5cx_uld::{
     Platform
 };
 
-// NOTE: THIS WILL CHANGE >0.21.1. See 'vl53l5cx_uld' for "next" platform code.
-//
-// Maximum sizes for I2C writes and reads, via 'esp-hal' (0.19.0). Unfortunately, it does not
-// expose these as values we could read (the values are burnt-in).
-//
-const MAX_WR_LEN: usize = 254;
-const MAX_RD_LEN: usize = 254;      // trying to read longer than this would err with 'ExceedingFifo'
+use core::cell::RefCell;
+use crate::I2c_Blocking;
 
 #[cfg(feature = "defmt")]
 const TRACE_HEAD_N:usize=20;        // Number of first bytes to show
@@ -39,7 +28,7 @@ const TRACE_HEAD_N:usize=20;        // Number of first bytes to show
 /*
 */
 pub(crate) struct Pl<'a, T: Instance> {
-    i2c_shared: &'a RefCell<I2c<'a, T, Blocking>>,
+    i2c_shared: &'a RefCell<I2c_Blocking<'a,T>>,
     i2c_addr: I2cAddr
 }
 
@@ -50,7 +39,7 @@ pub(crate) struct Pl<'a, T: Instance> {
 impl<'a,T> Pl<'a,T>
     where T: Instance
 {
-    pub fn new(i2c_shared: &'a RefCell<I2c<'a, T,Blocking>>) -> Self {
+    pub fn new(i2c_shared: &'a RefCell<I2c_Blocking<'a,T>>) -> Self {
         Self{
             i2c_shared,
             i2c_addr: DEFAULT_I2C_ADDR     // every board starts with the default address
@@ -68,31 +57,21 @@ impl<T> Platform for Pl<'_,T> where T: Instance
     * ULD reads can be in sizes of 492 bytes (or more). The 'esp-hal' requires these to be handled
     * in multiple parts.
     */
-    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),() /* !*/> {
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
 
-        let chunks = buf.chunks_mut(MAX_RD_LEN);
-        let _rounds = chunks.len();
-
-        // Chunks we get are *views* to the 'buf' backing them. Thus, reading to the chunk automatically
-        // fills it.
-        //
         let mut i2c = self.i2c_shared.borrow_mut();
-        let addr: u8 = self.i2c_addr.as_7bit();
 
-        let mut index = index;    // rolled further with the chunks
-
-        for (_round,chunk) in chunks.enumerate() {
-            i2c.write_read(addr, &index.to_be_bytes(), chunk).unwrap_or_else(|e| {
+        match i2c.write_read(self.i2c_addr.as_7bit(), &index.to_be_bytes(), buf) {
+            Err(e) => {
                 // If we get an error, let's stop right away.
-                panic!("I2C read at {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, chunk.len(), _round+1, _rounds, e);
-            });
-
-            index = index + chunk.len() as u16;
-
-            // There should be 1.2ms between transactions, by the VL spec.
-            blocking_delay_ms(1);
-        }
+                panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index_orig, buf.len(), e);
+            },
+            Ok(()) => {
+                // There should be 1.2ms between transactions, by the VL spec.
+                blocking_delay_ms(1);
+            }
+        };
 
         // Whole 'buf' should now have been read in.
         //
@@ -111,48 +90,63 @@ impl<T> Platform for Pl<'_,T> where T: Instance
     /***
     * Vendor ULD driver calls us with up to 32768 bytes, during the initialization.
     *
-    * The 'esp-hal' has a limit of 254 (inclusive) bytes per write, beyond which 'ExceedingFifo'
-    * error is returned. In order to proceed, we chunk the larger parts. ((Which is kind of good,
-    * since it allows us an excuse to make a limited buffer ourselves, which we need for merging
-    * the writing of the address, and the data bytes, into a *single* write transaction. There are
-    * no slice concatenation in 'alloc':less Rust.))
-    *
     * IF we get errors from the HAL, we panic. ULD C level would often go on for too long; it's best
     * to stop early. CERTAIN error codes MAY lead to a single retry, if we think we have a chance
     * to recover.
     */
-    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {
-        let index_orig = index;
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
+        use core::{iter::zip, mem::MaybeUninit};
 
-        let chunks = vs.chunks(MAX_WR_LEN-2);
-        let _rounds = chunks.len();   // needs taking before we consume 'chunks' as an iterator
+        // 'esp-hal' has autochunking since 0.22.0. It doesn't, however,
+        // have a 'I2c::write_write()' that would allow us to give two slices, to be written
+        // consecutively (or using an iterator, which would also solve the case). VL53L5CX needs
+        // this, because it takes the writing index as the first two bytes.
+        //
+        // Concatenating slices using 'ArrayVec' (or 'MaybeUninit') is an option. If we do that,
+        // we might just as well explicitly chunk the whole payload, to keep RAM consumption small.
+        // This is not a criticism of the esp-hal API. The VL53L5CX use of the I2C (in uploading
+        // its firmware) is likely unusual - and it's not a bit trouble to keep the chunking in.
+        // (However, we can now chunk in longer pieces than with 0.21.1).
+        //
+        const BUF_SIZE: usize = 10*1024;   // can be anything (1..32k)
+        //const BUF_SIZE: usize = MAX_WR_LEN;   // prior (0.21.x)
 
-        let mut buf: [u8;MAX_WR_LEN] = unsafe { MaybeUninit::zeroed().assume_init() };
+        let mut index = index;    // rolled further with the chunks
+
+        let chunks = vs.chunks(BUF_SIZE-2);
+        let _rounds = (&chunks).len();   // needs taking before we move 'chunks' as an iterator
+
+        let mut buf: [u8; BUF_SIZE] = {
+            let un = MaybeUninit::zeroed();
+            unsafe { un.assume_init() }
+        };
 
         let mut i2c = self.i2c_shared.borrow_mut();
         let addr: u8 = self.i2c_addr.as_7bit();
 
-        let mut index = index;    // rolled further with the chunks
-
-        for (_round,chunk) in chunks.enumerate() {
+        for (_round, chunk) in zip(1.., chunks) {
             let n: usize = chunk.len();
 
-            // Writing needs to be done in one block, where the first two bytes are the index.
+            // Writing needs to be done in one block, where the first two bytes are the address.
             //
             // Rust note:
             //      Since slices are *continuous memory blocks*, there's no way to concatenate two
             //      of them together, without allocation.
-
-            // Make a slice of the right length
+	    //
+            // We could:
+            //  - bring in 'alloc' and use '[addr,vs].concat()' [no]
+            //  - use a singular buffer with 'self' (overkill)
+            //  - use a local buffer, separate on each call (good; we steer the memory use)
+            //
             let out: &[u8] = {
                 buf[0..2].copy_from_slice(&index.to_be_bytes());
-                buf[2..2+n].copy_from_slice(chunk);
-                &buf[..2+n]
+                buf[2..2 + n].copy_from_slice(chunk);
+                &buf[..2 + n]
             };
 
             i2c.write(addr, &out).unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
-                panic!("I2C write to {:#06x} ({=usize} bytes; chunk {}/{}) failed: {}", index_orig, n, _round+1, _rounds, e);
+                panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
             });
 
             // Give the "written" log here, separately for each chunk (clearer to follow log).

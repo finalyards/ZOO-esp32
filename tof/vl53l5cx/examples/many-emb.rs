@@ -24,10 +24,8 @@ use embassy_sync::{
 
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Input},
-    i2c::I2c,
-    peripherals::I2C0,
-    prelude::*,
+    gpio::Input,
+    i2c::master::{Config as I2cConfig, I2c},
     time::{now, Instant, Duration},
     timer::timg::TimerGroup,
     Blocking
@@ -54,7 +52,6 @@ use vl53l5cx::{
 mod common;
 use common::{
     init_defmt,
-    //init_heap
 };
 
 include!("./pins_gen.in");  // pins!, boards!
@@ -64,32 +61,27 @@ const BOARDS: usize = boards!();
 const RESO: usize = 4;
 type FRes = FlockResults<RESO>;
 
-type I2cType<'d> = I2c<'d, I2C0,Blocking>;
+type I2cType<'d> = I2c<'d, Blocking>;
 static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     init_defmt();
-    //init_heap();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
     #[allow(non_snake_case)]
-    let (SDA, SCL, mut PWR_EN, LPns, INT) = pins!(io);
+    let (SDA, SCL, mut PWR_EN, LPns, INT) = pins!(peripherals);
 
-    let i2c_bus = I2c::new(
-        peripherals.I2C0,
-        SDA,
-        SCL,
-        400.kHz()
-    );
+    let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+        .with_sda(SDA)
+        .with_scl(SCL);
 
     let tmp = RefCell::new(i2c_bus);
-    let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
+    let i2c_shared: &'static RefCell<I2c<Blocking>> = I2C_SC.init(tmp);
 
     // Reset VL53L5CX's by pulling down their power for a moment
     {
