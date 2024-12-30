@@ -187,9 +187,17 @@ fn main() -> Result<()> {
         .expect("to be able to launch `make`")   // shown if 'make' not found on PATH
         .status;
 
-    assert!(st.success(), "[ERROR!]: Running 'make' failed. \
-        SUGGESTION: run 'make manual' on the command line to see more error information. \
-    ");
+    if !st.success() {
+        // Remove "tmp/config.h[.next]" so they will get recreated next time. This should avoid
+        // the build to get in an awkward position where the developer needs to remove them, themselves.
+        //
+        fs::remove_file("tmp/config.h")?;
+        fs::remove_file(CONFIG_H_NEXT)?;
+
+        panic!("[ERROR!]: Running 'make' failed. \
+            SUGGESTION: run 'make manual' on the command line to see more error information. \
+        ");
+    }
 
     // Link arguments
     //

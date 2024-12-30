@@ -218,6 +218,9 @@ echo:
 	@echo $(VL53L5CX_ULD_API)
 
 #--
+# Remove any targets created if a build fails.
+.DELETE_ON_ERROR:
+
 .PHONY: all bindgen clang _clean _klean echo
 
 # #hack For some reason, giving '-B' from 'build.rs' didn't work. By declaring the file '.PHONY' we make sure it's

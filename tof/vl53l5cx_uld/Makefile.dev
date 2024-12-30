@@ -69,10 +69,16 @@ _build:
 	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
+# TEMP!! Use probe-rs-remote like this, FOR NOW ONLY!! 	See 'probe-rs-remote' progress.
 _run:
-	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
+	@ssh $(PROBE_RS_REMOTE) "install -d ~/.probe-rs/elfs-cache"
+	@scp $(_OUT_EXAMPLE) $(PROBE_RS_REMOTE):.probe-rs/elfs-cache/$(notdir $(_OUT_EXAMPLE))
+	@ssh -q $(PROBE_RS_REMOTE) -t "bash -ic \"probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' ~/.probe-rs/elf-cache/$(notdir $(_OUT_EXAMPLE))\""
+
+#_run:
+#	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
-	@echo a
+	@echo $(notdir $(_OUT_EXAMPLE))
 
 .PHONY: all m3 exp plain_test _test _build _run echo
