@@ -20,22 +20,22 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dependencies]
-defmt           = { version = "0.3.8", optional = true }
+defmt           = { version = "0.3.10", optional = true }
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-anyhow          = { version = "1.0.93", default-features = false }
+anyhow          = { version = "1.0.95", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 embedded-test   = { version = "0.5.0", features = ["defmt"] }
 esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
-esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
-#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }   # also enable 'EXP_esp_hal_next' feature
-semihosting     = { version = "0.1.16" }
+#|esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }   # also enable 'EXP_esp_hal_next' feature
+semihosting     = { version = "0.1.17" }
 
 [build-dependencies]
-anyhow          = "1.0.93"
+anyhow          = "1.0.95"
 itertools       = "0.13.0"
-serde           = { version = "1.0.215", features = ["derive"] }
+serde           = { version = "1.0", features = ["derive"] }
 toml            = "0.8.19"
 
 # C compile-time features
@@ -70,10 +70,10 @@ targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
 
-# Use 'esp-hal' from GitHub 'main'; also change the dependency, above.
-#|EXP_esp_hal_next = []
+# Switch API use between latest from crates.io and latest from GitHub; also change the dependency, above.
+EXP_esp_hal_next = []
 
-default = ["target_status"]     # "EXP_esp_hal_next"
+default = ["target_status"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

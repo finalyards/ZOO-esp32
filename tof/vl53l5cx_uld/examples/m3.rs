@@ -12,8 +12,8 @@ use esp_backtrace as _;
 
 use esp_hal::{
     delay::Delay,
+    entry,
     gpio::Level,
-    prelude::*,
     time::now
 };
 use esp_hal::{
@@ -62,6 +62,7 @@ fn main2() -> Result<()> {
 
     let pl = {
         let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+            .unwrap()
             .with_sda(SDA)
             .with_scl(SCL);
 

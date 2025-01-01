@@ -66,7 +66,7 @@ _test:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt,EXP_esp_hal_next --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:
