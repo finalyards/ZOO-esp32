@@ -1,0 +1,45 @@
+[package]
+name = "devkit"
+edition = "2021"
+rust-version = "1.81"
+    # 1.81: anyhow: "With versions of Rust older than 1.81, 'no_std' mode may require..."
+    # 1.80 checks for validity of configuration names
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+codegen-units = 16
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dev-dependencies]
+anyhow          = { version = "1.0.89", default-features = false }
+defmt           = { version = "0.3.8" }
+defmt-rtt       = { version = "0.4.1" }
+embedded-io-async   = { version = "0.6.1" }
+embassy-executor    = { version = "0.6.0", features = ["task-arena-size-12288"] }
+                # tbd. does every MCU need the 'task-arena-size-12288', or just some?  // esp-hal example has it uncoditionally
+embassy-sync    = { version="0.6.0" }
+esp-alloc       = { version="0.5.0" }   # required for using 'anyhow' MCU-side
+esp-hal         = { version = "0.22.0", features = ["esp32c6", "defmt"] }
+#Resp-hal-embassy = { version = "0.4.0", features = ["esp32c6", "defmt"] }
+esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
+#Rheapless        = {  version = "0.8.0" }
+semihosting     = { version = "0.1.16", features=["stdio"] }
+    #               # "stdio":  WARN probe_rs::cmd::run: Target wanted to open file :tt with mode 114, but probe-rs does not support this operation yet. Continuing...
+    #               # "args" is NOT supported by 'probe-rs'; Oct'24
+#Rstatic_cell         = { version = "2.1.0" }
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
+# this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
+#
+[[example]]
+name = "a"
+required-features = []
