@@ -33,9 +33,14 @@ a:
 	EXAMPLE=a \
 	  $(REMAKE) --no-print-directory _build _run
 
+rgb:
+	EXAMPLE=rgb \
+	FEATURES=rgb-led \
+	  $(REMAKE) --no-print-directory _build _run
+
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:

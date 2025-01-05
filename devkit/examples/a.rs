@@ -13,15 +13,16 @@ use defmt_rtt as _;
 use esp_alloc as _;
 use esp_backtrace as _;
 use esp_hal::{
+    delay::Delay,
+    gpio::{Input, Pull},
     prelude::*,
+    time,
 };
 
 use semihosting::process;
 
 mod common;
 use common::init_defmt;
-
-use devkit::BootButton;
 
 #[entry]
 fn main() -> ! {
@@ -35,9 +36,24 @@ fn main() -> ! {
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let bb = Button::new( Input::new(peripherals.GPIO9, Pull::Down) );  // BOOT button
+    let bb = Input::new(peripherals.GPIO9, Pull::Down);  // BOOT button
 
-    info!("Current state of BOOT button: {}", bb.xxx() );
+    let mut st: bool = bb.is_high();
+    info!("{}", st );
+    loop {
+        let t0 = time::now();
+        loop {
+            if bb.is_high() == st { blocking_delay_us(100); continue }
+            else { break; }
+        }
+        st = !st;
 
-    Ok(())
+        let dt = time::now() - t0;
+        info!("{} ({})", st, dt);
+    }
+}
+
+const D_PROVIDER: Delay = Delay::new();
+fn blocking_delay_us(us: u32) {
+    D_PROVIDER.delay_micros(us);
 }
