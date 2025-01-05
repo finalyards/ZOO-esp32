@@ -1,24 +1,34 @@
-# devkit
+# `devkit`
 
-Hardware available in official (or otherwise common) devkits - but not an MCU feature.
+Hardware available in supported devkits - but not an MCU feature.
 
-- reading binary buttons (with rebounce management)
-- writing RGB led
+- multi-colored LED 🚨🟢🔵
 
+<!--
+- BOOT button
+-->
 
 ## Examples
 
+### `rgb`
+
+```
+$ cargo run --release --features=rgb-led,defmt --example rgb
+...
+```
+
+Cycles the RGB LED.
+
+
+<!--
 ### `button`
 
 ```
 $ cargo run --release --example button
 ```
 
-<!-- #whisper
+<!_-- #whisper
 Reading a button could be used for interactive prompting (since `semihosting` doesn't provide that on `probe-rs`).
+--_>
+
 -->
-
-### `rgb`
-
-...
-
