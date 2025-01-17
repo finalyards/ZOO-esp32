@@ -1,7 +1,6 @@
+use trouble_host::prelude::*;
 
 use crate::MyC;
-
-include!("config.in");
 
 // RGB service
 //

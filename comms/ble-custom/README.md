@@ -2,49 +2,56 @@
 
 Exposing an ESP32 device via the *Bluetooth Low Energy* protocol.
 
-## Some background
+## BLE vs. Bluetooth Classic
 
-The BLE protocol is independent of the "Classic" Bluetooth stack (which continues to co-exist with it). Some devices (like most Espressif's and all Nordic Semiconductor's) only support BLE, not the classic profiles.
+The BLE protocol is independent of the "Bluetooth Classic" stack (which continues to co-exist with it). It is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
 
-The "LE" stack is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
+Some devices (like most Espressif's and all Nordic Semiconductor's) only support BLE, not the classic profiles. Likewise, some libraries (e.g. [TrouBLE](https://github.com/embassy-rs/trouble) are specific to BLE only.
 
-<!-- #whisper
->With the advent of BLE 6 (not supported by ESP32 chips, yet; 2024), also home audio enters the application domain, via Bluetooth LE Audio.
--->
 
 ## Sample case
 
 ![](.images/bluetooth-human-app-80%.png)
 
-*Figure 1. Interacting with an embedded device, using a web app.*
+BLE, together with *Web Bluetooth API*<sup>`[1]`</sup> allows one to make mobile user interfaces that:
 
-Collecting information and/or controlling a device, via Bluetooth, off a web application. This allows a mobile phone user to wirelessly, and without installing any applications, to work with an embedded product.
+- directly interface with a BLE device
+- don't need any installation
 
-Since we control the ESP32 side of things, we can freely affect what kind of Bluetooth profile is used for the link.
+This is widely beneficial for embedded systems, since the UI can be completely detached from the embedded product - and done using latest web development tools. This folder (and its sister folder for the web app) aims to show, how this can be done.
+
+Before we advance, some points worth mentioning...
+
+### GATT vs. L2CAP
+
+While you don't need to master the BLE protocol, in order to make applications for it, some high level knowledge is beneficial to know *why* we do things certain way.
+
+**GATT** is the attribute level API. BLE calls these "characteristics" - they are values one can read, write, or listen to, on another device.
+
+**L2CAP** is a more stream-like tunnel between two devices. GATT events travel over L2CAP.
+
+On the embedded side, one could implement custom data sources / actuators using either level of interface. However, since Web Bluetooth API only covers GATT (not L2CAP), the choice is made for us.
+
 
 ## Requirements
 
-An ESP32-C6 or ESP32-C3 devkit ([JTAG-USB cable added](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html) for C3). No wiring required.
+- ESP32-C6 or ESP32-C3 devkit (with [JTAG/USB cable added](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html)).
 
-Test this by:
-
-```
-$ probe-rs list
-The following debug probes were found:
-[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
-```
+   No wiring required.
 
 ### Debug tooling
 
 Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play store), or a similar debugging tool on your mobile phone or tablet - and learning to use it.
 
->The Nordic Semiconductor training material mentioned in the `Recommended Training material` section covers this tool.
+The tool allows you to "see" the BLE environment and read/write/listen to GATT characteristics of your embedded device. It also gives you an idea, what kind of tools malicious users might try to use, to break into your data chain - i.e. it gives a nudge for building in security.
+
+> [!NOTE]
+>`Recommended Training material` section (below) covers how to learn to use this tool.
 
 
-## Running an example
+## Steps
 
-
-### Launching the Bluetooth device
+### Build and launch the example
 
 ```
 DEFMT_LOG=debug cargo build --release --features= --example custom-emb
@@ -72,7 +79,7 @@ That means the service is running on ESP32 and being "advertised", i.e. discover
 
 ### Confirm that the service is seen
 
-Using a Bluetooth development tool such as [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play Store):
+Using the [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) tool:
 
 - Scan the BLE neighbourhood
 - you should see the device advertising itself as `"custom example"`
@@ -84,9 +91,11 @@ Using a Bluetooth development tool such as [nRF Connect for Mobile](https://play
 
 	>![](.images/characteristics.png)
 
-	The icons show which characteristics you can write to, read, or observe (be notified).
+	The icons show which characteristics you can write to (up arrow), read from (down arrow), or be notified of changes (three down arrows).
 	
-	>Note: Ignore the "Unknown" in the titles. It simply means that the UUID's are not within the set of standardized services/characteristics of the Bluetooth specification. You cannot set titles, anyways, and `nRF Connect for Mobile` could list them as "Custom". 
+	>Note: Please ignore the "Unknown" titles. It simply means that the UUID's are not within the set of standardized services/characteristics of the Bluetooth specification. You cannot set them, anyways, and `nRF Connect for Mobile` could simply list them as "Custom". The UUID's are what matters.
+
+### Observer the data (in real time)
 
 Press the three-down-arrows (notify) icon.
 
@@ -94,12 +103,19 @@ Press the three-down-arrows (notify) icon.
 
 Note that the value keeps increasing, once a second.
 
->This could be a measurement you are observing, off the ESP32 device. :)
+This could be a measurement you are observing, off the ESP32 device. It is transmitted *on demand*, the *device* making the initiative of telling the BLE stack that something has changed. It *is* cool.
 
+### Make your mark
 
-### The log
+One of the characteristics is for steering the RGB LED on the devkit. Provide three-byte values for its red, green and blue components, to set it to different values.
 
-While this has happened, the ESP32 has provided some logs, telling how it sees the events:
+<!--
+*tbd. screenshots*
+-->
+
+### Logs
+
+While that happened, the ESP32 has provided some logs, telling how it sees the events:
 
 ```
 [...]
@@ -118,21 +134,36 @@ While this has happened, the ESP32 has provided some logs, telling how it sees t
 [...]
 ```
 
->The author does not know what the "Unknown write: 37" is.
-
 As always, logs are there to help you debug your code.
+
 
 ## Next - Web client!!! 👽🚀🎰🪗🎉
 
-There is a thing called [Bluetooth Web API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) (that basically is just a BLE API). It allows you to control *both sides* of the data exchange, by creating your own custom "application" (a web app) that can connect to, read and control your embedded product.
+As promised, we have a [Bluetooth Web API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) application that makes steering the device quite a bit more intuitive!
 
-Now. **How cool is that!**
+Leave the device running and head to: [`{some URL once deployed}`](..). 
 
-Leave the BLE service running (you can even keep your phone/tablet connected to it) and head to: [`{some URL once deployed}`](..). <!-- tbd.
- -->
-
->Oh, and please use a Chrome or Edge browser. [caniuse](https://caniuse.com/web-bluetooth)
+> [!WARN]
+>Oh, and please use a Chrome or Edge browser. Because.. [caniuse](https://caniuse.com/web-bluetooth).
 
 <p />
 
 >The source for the web app is available at [`../extras/ble-web-app`](../extras/ble-web-app/README.md).
+
+
+## References
+
+- `[1]`: [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (Chrome docs)
+
+
+### Training material
+
+- Nordic Semiconductors > DevAcademy > [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/)
+
+	The author took the course. Warmly recommended!!!
+	
+- ESP FAQ > ... > [Bluetooth LE & Bluetooth](https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/bt/ble.html) (Espressif; 2025)
+
+	66 tidbits of information - you should find one or two that are useful!
+	
+	C (esp-idf) based; not Rust.
