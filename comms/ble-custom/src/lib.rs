@@ -7,7 +7,7 @@
 #![no_std]
 
 #[cfg(feature="defmt")]
-use defmt::{error, info, debug};
+use defmt::{error, info, debug, warn};
 
 use embassy_futures::select::select;
 use esp_hal::efuse::Efuse;
@@ -16,6 +16,9 @@ use trouble_host::{
     prelude::*
 };
 
+use core::future::Future;
+
+/***R
 // tbd. Write here, when L2CAP values matter. Likely only for certain kinds of BLE services??
 //
 const L2CAP_MTU: usize = 251;           // size of L2CAP packets (ATT MTU is this - 4)
@@ -23,45 +26,46 @@ const CONNECTIONS_MAX: usize = 1;
 const L2CAP_CHANNELS_MAX: usize = 2;    // max number of L2CAP channels
 
 type Resources<C: Controller> = HostResources<C, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>;
+***/
 
-// Implement this for a service tagged with '#[gatt_service ...]'. This way, 'BleCustom::run'
-// can use it. Without the trait, '#[gatt_service ...]' just creates an ad-hoc Struct.
+/***R
+// Implement this for a server tagged with '#[gatt_server ...]'. This way, 'BleCustom::run'
+// can use it. Without the trait, '#[gatt_server ...]' just creates an ad-hoc 'struct'.
 //
-// #trouble: Would it be meaningful for '#[gatt_service ...]' to add some type for the Struct?
+// #trouble: Would it be meaningful for '#[gatt_server ...]' (and '#[gatt_service ...]') to add
+//      some commonly known trait for the struct?
 //
-trait IsAGattServer {
-    fn new_default(name: &str) -> Self;
-}
+// We wouldn't need this if #trouble had similar.
+pub trait IsGattServer: Sized {
+    fn new_default(name: &str) -> Result<Self, Error>;
 
+    // Find a service
+    fn ctic_from_handle<T: FixedGattValue>(&self, handle: u16) -> Option<Characteristic<T>>;
+}***/
+
+/***R
 /*
 * Wrap around something that wants to be a custom BLE service.
 *
 * Note: By keeping 'Self' a 'Controller', we can do without introducing '<C: Controller>' generics.
 */
 pub trait BleCustom: Controller {
-    type Server: IsAGattServer;
+    type Server: IsGattServer;
 
     // Caller-provided methods:
     fn get_peripheral_name() -> &'static str;
     fn get_brand() -> &'static str;
 
-    fn custom_tasks(server: &Self::Server, conn: &Connection<'_>);
+    fn custom_tasks(server: &Self::Server, conn: &Connection<'_>) -> impl Future;
 
     // Public
-    async fn run(&self) -> Result<(), BleHostError<Self::Error>> {
+    async fn run(self) -> Result<(), BleHostError<Self::Error>> where Self: Sized {
         let address = Efuse::mac_address();     // specific to each device
         let mut resources = Resources::new(PacketQos::None);
 
         // Note: In 'trouble's example, this is after the 'trouble_host::new', but no longer
         //  requires 'stack' from it. Can we create it already here?  (if not, 'trouble' API is not ideal)
         //
-        #[cfg(feature="defmt")]
-        debug!("Creating the Server");
-        let server = Self::Server::new_default(
-            "abc"   // tbd. where shows?    // note: max 22 chars; otherwise 'Error'
-        )
-            .unwrap();
-
         let (_stack, mut peripheral, runner) = trouble_host::new(self, &mut resources)
             .set_random_address( Address::random(address) )
             .build();
@@ -70,6 +74,11 @@ pub trait BleCustom: Controller {
         debug!("Starting advertising and GATT service");
 
         let brand: &str = Self::get_brand();
+
+        let server = Self::Server::new_default(
+            "abc"   // tbd. where shows?    // note: max 22 chars; otherwise 'Error'
+        ).unwrap();
+        info!("Server created");
 
         let app_fut = async {
             loop {
@@ -93,62 +102,52 @@ pub trait BleCustom: Controller {
             }
         };
         select(ble_task(runner), app_fut) .await;
+        unreachable!();
     }
 }
+***/
 
-// Rust note:
-//  Traits cannot have private methods, so the rest ('ble_task' etc.) are bare functions.
-//  This does mean we need to use generics on them.
+// Handle GATT events until the connection closes.
 //
-async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) {
-    loop {
-        if let Err(e) = runner.run().await {
-            #[cfg(feature = "defmt")]
-            let e = defmt::Debug2Format(&e);
-            panic!("[ble_task] error: {:?}", e);
-        }
-    }
-}
-
-// Handle Connection and Gatt events until the connection closes.
-async fn conn_task<Server: IsAGattServer>(server: &Server, conn: &Connection<'_>) -> Result<(), Error> {
-    let magic = server.my_service.magic;    // tbd. these from the enclosing entity
-    let rgb = server.my_service.rgb;
+// tbd. This should be NON-SPECIFIC TO ANY PARTICULAR SERVICES. Move those to the caller!!!
+//
+async fn conn_task<S: IsGattServer> (server: &S, conn: &Connection<'_>) -> Result<(), Error> {
 
     loop {
         match conn.next().await {
             ConnectionEvent::Disconnected { reason } => {
                 #[cfg(feature="defmt")]
-                info!("[gatt] disconnected: {:?}", reason);
+                info!("Disconnected: {:?}", reason);
                 break;
             },
-            ConnectionEvent::Gatt { event: GattEvent::Read{ value_handle } , .. } => {
-                if value_handle == magic.handle {
-                    let value = server.get(&magic);
-                    #[cfg(feature="defmt")]
-                    info!("[gatt] Read Event to 'magic' Characteristic: {:?}", value);
-                } else {
-                    #[cfg(feature="defmt")]
-                    error!("[gatt] Unknown read: {}", value_handle);
-                }
-            },
-            ConnectionEvent::Gatt { event: ev@ GattEvent::Write{ value_handle } , .. } => {
-                if value_handle == rgb.handle {
-                    let new_value = ev.data();
-
-                    #[cfg(feature="defmt")]
-                    info!("[gatt] Write Event to 'rgb' Characteristic: {:?}", new_value);
-                    server.set(&rgb, new_value).await;
-                } else {
-                    #[cfg(feature="defmt")]
-                    error!("[gatt] Unknown write: {}", value_handle);
+            ConnectionEvent::Gatt { data } = {
+                // We can choose to handle event directly without an attribute table:
+                //  <<
+                //      let req = data.request();
+                //      ..
+                //      data.reply(conn, Ok(AttRsp::Error { .. }))
+                //  <<
+                // ..but best to process it in the GATT server and act on the outcome.
+                //
+                match data.process(server).await {
+                    Ok(Some(GattEvent::Read(event))) => {
+                        unimplemented!();   //...R ctic_read_table(event.handle()).
+                    },
+                    Ok(_) => {
+                        #[cfg(feature="defmt")]
+                        warn!("Unexpected event: {:?}", &event);
+                    },
+                    Err(e) => {
+                        #[cfg(feature="defmt")]
+                        error!("Error processing event: {:?}", e);
+                    }
                 }
             },
         }
     }
 
     #[cfg(feature="defmt")]
-    info!("[gatt] task finished");
+    info!("connection task finished");
     Ok(())
 }
 
@@ -159,11 +158,9 @@ async fn advertise<'a, C: Controller>(
 ) -> Result<Connection<'a>, BleHostError<C::Error>> {
     let mut adv_data = [0; 31];
 
-    // tbd. Make that return a slice; use a buffer but get to right length right away.
     AdStructure::encode_slice(
         &[
             AdStructure::Flags(LE_GENERAL_DISCOVERABLE | BR_EDR_NOT_SUPPORTED),
-            //R AdStructure::ServiceUuids16(&[Uuid::Uuid16([0x0f, 0x18])]),     // tbd.
             AdStructure::CompleteLocalName(name.as_bytes()),
         ],
         &mut adv_data[..],
@@ -177,10 +174,11 @@ async fn advertise<'a, C: Controller>(
             },
         )
         .await?;
+
     #[cfg(feature="defmt")]
-    info!("[adv] advertising");
+    debug!("Advertising");
     let conn = advertiser.accept().await?;
     #[cfg(feature="defmt")]
-    info!("[adv] connection established");
+    debug!("Connection established");
     Ok(conn)
 }

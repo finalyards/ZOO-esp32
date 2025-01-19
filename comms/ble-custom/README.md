@@ -20,18 +20,6 @@ BLE, together with *Web Bluetooth API*<sup>`[1]`</sup> allows one to make mobile
 
 This is widely beneficial for embedded systems, since the UI can be completely detached from the embedded product - and done using latest web development tools. This folder (and its sister folder for the web app) aims to show, how this can be done.
 
-Before we advance, some points worth mentioning...
-
-### GATT vs. L2CAP
-
-While you don't need to master the BLE protocol, in order to make applications for it, some high level knowledge is beneficial to know *why* we do things certain way.
-
-**GATT** is the attribute level API. BLE calls these "characteristics" - they are values one can read, write, or listen to, on another device.
-
-**L2CAP** is a more stream-like tunnel between two devices. GATT events travel over L2CAP.
-
-On the embedded side, one could implement custom data sources / actuators using either level of interface. However, since Web Bluetooth API only covers GATT (not L2CAP), the choice is made for us.
-
 
 ## Requirements
 
@@ -160,10 +148,10 @@ Leave the device running and head to: [`{some URL once deployed}`](..).
 
 - Nordic Semiconductors > DevAcademy > [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/)
 
-	The author took the course. Warmly recommended!!!
+- [Bluetooth Classic & BLE with ESP32](https://dronebotworkshop.com/esp32-bluetooth/) (DroneBot Workshop; May 2024)	<!-- date based on associated Youtube video's timestamp -->
 	
 - ESP FAQ > ... > [Bluetooth LE & Bluetooth](https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/bt/ble.html) (Espressif; 2025)
 
 	66 tidbits of information - you should find one or two that are useful!
 	
-	C (esp-idf) based; not Rust.
+	"C" (esp-idf) based; not Rust.

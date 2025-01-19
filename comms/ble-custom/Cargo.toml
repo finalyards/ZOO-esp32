@@ -21,20 +21,20 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 #keep arrayvec        = { version="0.7.6", default-features = false }
 defmt           = { version = "0.3.10", optional = true }
 embassy-futures = { version = "0.1.1" }
-esp-hal         = { version = "0.22.0", features = ["esp32c3"] }   # "defmt"
+esp-hal         = { version = "0.23.1", features = ["esp32c3"] }   # "defmt"
 trouble-host    = { version = "0", features = ["peripheral"], default-features = false } # "defmt"
 
 [dev-dependencies]
-bt-hci          = { version = "0.1.2", features = ["defmt"] }
+#R bt-hci          = { version = "0.2.0", features = ["defmt"] }
 defmt           = { version = "0.3.10" }
 defmt-rtt       = { version = "0.4.1" }
 embassy-executor = { version = "0.7.0", features=["task-arena-size-65536"] }     # task area size can be overridden by an env.var.
 embassy-sync    = { version = "0.6.1" }    # used via '#[gatt_server]'
-embassy-time    = { version = "0.3.2", features = ["generic-queue-8", "defmt"] }
-esp-alloc       = { version = "0.5.0" }
-esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
-esp-hal-embassy = { version = "0.5.0", features = ["defmt", "esp32c3"] }
-esp-wifi        = { version = "0.11.0" , features = ["ble", "esp32c3", "defmt"]}
+embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt"] }
+esp-alloc       = { version = "0.6.0" }
+esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
+esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c3"] }
+esp-wifi        = { version = "0.12.0" , features = ["ble", "esp32c3", "defmt"]}
 static_cell     = { version = "2.1.0" }
 trouble-host    = { version = "0", features = ["derive", "peripheral", "gatt", "defmt"], default-features = false }
 
@@ -42,13 +42,13 @@ trouble-host    = { version = "0", features = ["derive", "peripheral", "gatt", "
 defmt = ["dep:defmt", "esp-hal/defmt", "trouble-host/defmt"]
 
 [patch.crates-io]
-trouble-host    = { git = "https://github.com/embassy-rs/trouble" }     # not yet published (just place-holders)
+trouble-host    = { git = "https://github.com/embassy-rs/trouble", rev = "c5c2eab" }     # not yet published (just place-holders)
 # 'esp-hal' progresses so fast (Jan'25), it's best to keep pulling the latest. Disable this section to use what's published.
-#|esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|#esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git" }
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #
