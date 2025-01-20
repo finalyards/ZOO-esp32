@@ -17,8 +17,10 @@ async fn main(_spawner: Spawner) {
     init_defmt();
     info!("Init!");     // see that 'defmt' output works
 
-    // No way (like 'semihosting') to exit back to command line?
-    loop {}
+    loop {
+        use semihosting::process;
+        process::exit(0);
+    }
 }
 
 /*
