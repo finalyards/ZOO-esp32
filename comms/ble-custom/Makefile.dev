@@ -4,7 +4,8 @@
 # Usage:
 #	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {abc|...}
 #
-DEFMT_LOG?=debug
+DEFMT_LOG?=esp_hal=info,debug
+	#ble_custom=debug		# did not work; why? (no 'info' level output)
 FEATURES?=
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)

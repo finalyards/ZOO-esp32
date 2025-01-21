@@ -26,21 +26,25 @@ esp-hal         = { version = "0.23.1", features = ["esp32c6"] }   # "defmt"
 
 [dev-dependencies]
 defmt-rtt       = { version = "0.4.1" }
-embassy-executor = { version = "0.7.0", features=["task-arena-size-32768"] }     # task area size can be overridden by an env.var.
-#embassy-sync    = { version = "0.6.2" }
-#embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt",
-#    #"defmt-timestamp-uptime-ms"]
-#]}
+embassy-executor = { version = "0.7.0", features=["task-arena-size-16384"] }
+    # 'task-arena-size-...' must be enough to fit all the tasks. If the app creates all tasks up-front, and succeeds
+    #       to launch, we know the value was high enough. (If not, raise it.); Nightly wouldn't need this. Can be overridden by an env.var.
+embassy-sync    = { version = "0.6.2" }
+embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}
 #esp-alloc       = { version = "0.6.0" }
 esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c6"] }
-#esp-wifi        = { version = "0.12.0" , features = ["ble", "esp32c6", "defmt"]}
-#static_cell     = { version = "2.1.0" }
+esp-wifi        = { version = "0.12.0" , features = ["ble", "esp32c6", "defmt"]}
+semihosting     = { version = "0.1.18" }
+static_cell     = { version = "2.1.0" }
 #trouble-host    = { version = "0", features = ["derive", "peripheral", "gatt", "defmt"], default-features = false }
 
 [features]
 #defmt = ["dep:defmt", "esp-hal/defmt", "trouble-host/defmt"]
 defmt = ["dep:defmt", "esp-hal/defmt"] #, "trouble-host/defmt"]
+
+# tbd. which way
+gpio9-pulled-up = []
 
 [patch.crates-io]
 #trouble-host    = { git = "https://github.com/embassy-rs/trouble" }     # not yet published (just place-holders)
@@ -50,8 +54,8 @@ defmt = ["dep:defmt", "esp-hal/defmt"] #, "trouble-host/defmt"]
 #esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-#esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }
-#esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git" }
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #
