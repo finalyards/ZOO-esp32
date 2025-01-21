@@ -1,2 +1,15 @@
+#
+# References:
+#   - Cargo Book > Configuration
+#       -> https://doc.rust-lang.org/cargo/reference/config.html
+#
+[build]
+target = "riscv32imac-unknown-none-elf"      # change this by 'set-target.sh'
+
+rustflags = [
+    "-C", "link-args=-Tlinkall.x",
+    "-C", "link-args=-Tdefmt.x"
+]
+
 [env]
 ESP_WIFI_COUNTRY_CODE = "fi"

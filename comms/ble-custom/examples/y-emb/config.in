@@ -1,0 +1,13 @@
+/*
+* Snippet to carry device specific information.
+*
+* Such '.in' _could_ be build-generated.
+*/
+const NAME: &str = "TrouBLE";
+//const BRAND: &str = "custom example";
+
+const RGB_SERVICE_UUID: &str = "438785e7-4942-4749-a072-dceb73fd6c87";
+const CHAR_RGB_VALUE_UUID: &str = "448785e7-4942-4749-a072-dceb73fd6c87";
+
+const MAGIC_SERVICE_UUID: &str = "92996405-8C0E-4FA1-A417-67D36995B563";
+const CHAR_MAGIC_COUNTER_UUID: &str = "93996405-8C0E-4FA1-A417-67D36995B563";

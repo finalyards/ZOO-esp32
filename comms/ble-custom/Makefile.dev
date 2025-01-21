@@ -33,8 +33,8 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-x:
-	EXAMPLE=x-emb \
+y:
+	EXAMPLE=y-emb \
 	  $(REMAKE) --no-print-directory _build _run
 
 # Expand the '#[gatt...]' macros
@@ -46,8 +46,8 @@ x:
 #	  $ cargo +nightly install cargo-expand
 #	<<
 #
-_expand:
-	cargo +nightly expand --features=defmt --example x-emb
+#|y-expand:
+#|	cargo +nightly expand --features=defmt --example y-emb
 
 #---
 _build:
@@ -63,4 +63,4 @@ _run:
 echo:
 	@echo $(MCU)
 
-.PHONY: all x _expand _build _run _attach echo
+.PHONY: all y y-expand _build _run _attach echo

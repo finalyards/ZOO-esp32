@@ -42,15 +42,21 @@ In addition to their value, attributes have:
 - **handle**: "index of the attribute in the [attribute] table"
 
 
+## GAP
 
+>***GAP*** *handles all of the BLE device discovery, connection, security, and advertising functions.  It is essential when establishing a connection between BLE devices.* <sub>[source](https://dronebotworkshop.com/esp32-bluetooth/)</sub>
 
 ## GATT
 
-Our focus, since the Web Bluetooth API functions on this level.
+>*[...] determines the format of the data exchanged between BLE devices.* <sub>[source](https://dronebotworkshop.com/esp32-bluetooth/)</sub>
 
-## L2CAP
+Our focus. Web Bluetooth API's are on this level.
 
-Transmission layer below the GATT protocol.
+## (L2CAP)
+
+Transmission layer below the GATT protocol. 
+
+You will face this in defining some buffer sizes, e.g. `L2CAP_MTU`.
 
 |||
 |---|---|
@@ -59,7 +65,7 @@ Transmission layer below the GATT protocol.
 |MTU|Maximum Transmission Unit. The maximum size of payload data, in octets (*aka bytes*), that the upper layer entity can accept (that is, the MTU corresponds to the maximum SDU size).|
 |MPU|Maximum PDU Payload Size. The maximum size of payload data in octets that the L2CAP layer entity can accept (that is, the MPS corresponds to the maximum PDU payload size).|
 
-<small>*Descriptions from `[TI-L2CAP]`*</small>
+<small>[source](https://software-dl.ti.com/lprf/sdg-latest/html/ble-stack-3.x/l2cap.html)</small>
 
 ## Other picks (not terminology)
 
@@ -77,7 +83,7 @@ Transmission layer below the GATT protocol.
 ## References
 
 - [Generic Attribute Profile (GATT)](https://software-dl.ti.com/lprf/sdg-latest/html/ble-stack-3.x/gatt.html) (Texas Instruments, 2016) <sub>`[TI-GATT]`</sub>
-- [Logical Link Control and Adaptation Layer Protocol (L2CAP)](https://software-dl.ti.com/lprf/sdg-latest/html/ble-stack-3.x/l2cap.html) (Texas Instruments; 2016) <sub>`[TI-L2CAP]`</sub>
+- [Logical Link Control and Adaptation Layer Protocol (L2CAP)](https://software-dl.ti.com/lprf/sdg-latest/html/ble-stack-3.x/l2cap.html) (Texas Instruments; 2016)
 
 <!-- we don't mention GAP
 - [Generic Access Profile (GAP)](https://software-dl.ti.com/lprf/sdg-latest/html/ble-stack-3.x/gap.html) (Texas Instruments, 2016)
