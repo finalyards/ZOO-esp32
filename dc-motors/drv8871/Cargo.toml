@@ -24,12 +24,10 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 defmt           = { version = "0.3.8" }
 defmt-rtt       = { version = "0.4.1" }
 esp-backtrace   = { version = "0.14.1", features = ["exception-handler", "panic-handler", "defmt", "esp32c3"] }
-esp-hal         = { version = "0.21.0", features = ["esp32c3", "defmt"] }     # "async"
-#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3", "defmt"] }     # "async"
-fugit           = { version = "0.3.7", features = ["defmt"] }
-    # merely adding this (with the 'defmt' feature), causes 'esp-hal's use of 'Instant' and 'Duration' to derive 'Format'.
+esp-hal         = { version = "0.21.0", features = ["esp32c3", "defmt"] }
+#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["esp32c3", "defmt"] }
 #nb              = { version = "1.1.0" }
-semihosting     = { version = "0.1.15" }     # "args"
+semihosting     = { version = "0.1.15" }
 
 [build-dependencies]
 anyhow          = "1.0.89"

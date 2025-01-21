@@ -1,6 +1,6 @@
 # TRACK
 
-<!-- solved
+<!-- #solved
 ## Sniffing the (ELF) output path in `cargo`
 
 - [ ] ["Need a reliable way to get the target dir from the build script"](https://github.com/rust-lang/cargo/issues/9661)
