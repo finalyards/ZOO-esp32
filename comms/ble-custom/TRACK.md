@@ -1,14 +1,8 @@
 # Track
 
-<!-- Done
-## `trouble` (and `esp-hal`) proceeding to `embassy-time` 0.4.0
+## Ability to use `u128` "straight up" as `Uuid`
 
-- [Update bt-hci, nrf-sdc, embassy.](https://github.com/embassy-rs/trouble/pull/213) (`trouble` PR; `Draft`)
-	- [Update our time driver for upcoming embassy changes](https://github.com/esp-rs/esp-hal/pull/2701) (`esp-hal` PR; `Draft`)
-
-Would be nice to get the latest.
--->
-
+- ["Proc-macros: useless conversion Clippy lint"](https://github.com/embassy-rs/trouble/issues/248)
 
 ## `trouble` 0.1.0 release
 
@@ -16,4 +10,6 @@ Would be nice to get the latest.
 - [0.1 Milestone](https://github.com/embassy-rs/trouble/milestone/1) (`embassy-rs/trouble` GitHub)
 
 	Let's track when `trouble` would reach its first real release - and if necessary/possible, try to push it past the line!!!
+
+
 

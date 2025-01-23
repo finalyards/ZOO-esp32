@@ -10,7 +10,7 @@ use embassy_sync::{
 };
 use esp_hal::gpio::{Input, Level};
 
-type MySignal = Signal<CriticalSectionRawMutex, ButtonState>;
+pub type BtnSignal = Signal<CriticalSectionRawMutex, ButtonState>;
 
 #[derive(Copy, Clone)]
 pub enum ButtonState {
@@ -18,8 +18,11 @@ pub enum ButtonState {
     Depressed
 }
 
+// Note: Once generators are available in embedded Rust, this could be one.
+//      -> https://dev-doc.rust-lang.org/beta/std/ops/trait.Generator.html
+//
 #[embassy_executor::task]
-pub async fn btn_task(mut pin: /*move*/ Input<'static> , signal: &'static MySignal) {
+pub async fn btn_task(mut pin: /*move*/ Input<'static> , signal: &'static BtnSignal) {
 
     loop {
         pin.wait_for_any_edge() .await;
