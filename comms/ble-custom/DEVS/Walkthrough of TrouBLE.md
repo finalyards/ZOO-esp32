@@ -1,3 +1,7 @@
+```
+~~ Once we have a clear grasp of TrouBLE (and our own example works), could remove this?
+```
+
 # Walkthrough of [TrouBLE](https://github.com/embassy-rs/trouble)
 
 TrouBLE is the BLE host stack that we use. Because (as of Dec'24) it doesn't have clear internal documentation, here's some guidance to what it consists of.
@@ -130,7 +134,7 @@ $ tree -I target
 
 `host` has the bulk of the TrouBLE code base.
 
-`host-macros`
+`host-macros` - you can ignore this?
 
 
 <!--

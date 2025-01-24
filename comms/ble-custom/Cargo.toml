@@ -1,0 +1,64 @@
+[package]
+name = "ble-custom"
+edition = "2021"
+rust-version = "1.81"
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+codegen-units = 16
+opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+panic       = "abort"
+lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dependencies]
+#keep arrayvec        = { version="0.7.6", default-features = false }
+defmt           = { version = "0.3.10", optional = true }
+embassy-futures = { version = "0.1.1" }
+esp-hal         = { version = "0.23.1", features = ["esp32c6"] }   # "defmt"
+trouble-host    = { version = "0", features = ["peripheral"], default-features = false } # "defmt"
+
+[dev-dependencies]
+bt-hci          = { version = "0.2" }
+defmt-rtt       = { version = "0.4.1" }
+embassy-executor = { version = "0.7.0", features=["task-arena-size-16384"] }
+    # 'task-arena-size-...' must be enough to fit all the tasks. If the app creates all tasks up-front, and succeeds
+    #       to launch, we know the value was high enough. (If not, raise it.); Nightly wouldn't need this. Can be overridden by an env.var.
+embassy-sync    = { version = "0.6.2" }
+embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}     # for the defmt time stamp; + generally useful
+esp-alloc       = { version = "0.6.0" }
+esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
+esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c6"] }
+esp-wifi        = { version = "0.12.0" , features = ["ble", "esp32c6", "defmt"]}
+static_cell     = { version = "2.1.0" }     # trouble-host macros need it
+trouble-host    = { version = "0", features = ["derive", "peripheral", "gatt", "defmt"], default-features = false }
+
+[features]
+defmt = ["dep:defmt", "esp-hal/defmt", "trouble-host/defmt"]
+
+# enable for using 'u128' as-if 'u16'; requires local branch
+trouble-uuid-parity = []
+
+[patch.crates-io]
+trouble-host    = { path = "../../../trouble.fork/host" }    # a local branch: 'uuid-equal-processing-16-128'
+#trouble-host    = { git = "https://github.com/embassy-rs/trouble" }     # not yet published (just place-holders)
+    #trouble-host    = { git = "https://github.com/embassy-rs/trouble", rev = "c5c2eab" }
+
+# 'esp-hal' progresses so fast (Jan'25), it's best to keep pulling the latest. Disable this section to use what's published.
+esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-wifi        = { git = "https://github.com/esp-rs/esp-hal.git" }
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared.
+#
+[[example]]
+name = "y-emb"
+required-features = ["defmt"]

@@ -4,8 +4,9 @@
 # Usage:
 #	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {abc|...}
 #
-DEFMT_LOG?=debug
-FEATURES?=
+DEFMT_LOG?=esp_hal=info,debug
+	#ble_custom=debug		# did not work; why? (no 'info' level output)
+FEATURES?=trouble-uuid-parity
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
@@ -33,22 +34,25 @@ _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAM
 all:
 	@false
 
-bas:
-	EXAMPLE=bas-emb \
+y:
+	EXAMPLE=y-emb \
 	  $(REMAKE) --no-print-directory _build _run
 
-custom:
-	EXAMPLE=custom-emb \
-	  $(REMAKE) --no-print-directory _build _run
-
-#|attach a:
-#|	EXAMPLE=x-emb \
-#|	  $(REMAKE) --no-print-directory _attach
-#|
+# Expand the '#[gatt...]' macros
+#
+# Before using this:
+#	<<
+#	  $ rustup toolchain install nightly
+#	  $ rustup +nightly target add riscv32imc-unknown-none-elf
+#	  $ cargo +nightly install cargo-expand
+#	<<
+#
+#|y-expand:
+#|	cargo +nightly expand --features=defmt --example y-emb
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_EXAMPLE} || (echo >&2 "Did not produce ${_OUT_EXAMPLE}"; false)
 
 _run:
@@ -60,4 +64,4 @@ _run:
 echo:
 	@echo $(MCU)
 
-.PHONY: all x-emb x attach _build _run _attach echo
+.PHONY: all y y-expand _build _run _attach echo
