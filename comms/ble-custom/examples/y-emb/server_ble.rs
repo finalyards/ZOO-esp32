@@ -1,7 +1,6 @@
 /*
 * BLE server
 */
-use core::future::Future;
 #[allow(unused_imports)]
 use defmt::{info, debug, warn, error};
 
@@ -9,11 +8,10 @@ use embassy_futures::{join, select};
 use esp_hal::efuse::Efuse;
 use trouble_host::prelude::*;
 
-use crate::boot_btn_ble::{BtnService, boot_btn_feed};
+use crate::boot_btn_ble::BtnService;
 
 const CONNECTIONS_MAX: usize = 1;   // max nbr of connections
 const L2CAP_CHANNELS_MAX: usize = 2; // max nbr of L2CAP channels (Signal + att)
-//R const MAX_ATTRIBUTES: usize = 10;
 
 const L2CAP_MTU: usize = 255;   // all ESP32's are fine with this length; see -> https://github.com/esp-rs/esp-hal/issues/2984
 
@@ -38,7 +36,7 @@ impl Server<'_> {
         #[cfg(all())]
         let address: Address = Address::random(Efuse::mac_address());  // 6 bytes MAC
 
-        info!("Our address = {:?}", address);
+        info!("Our address = {:?}", address.addr);   // tbd. in hex
 
         // here for the lifespan
         let mut ress;
@@ -46,7 +44,7 @@ impl Server<'_> {
 
         let Host {
             mut peripheral,
-            mut runner, ..
+            runner, ..
         } = {
             ress = HostResources::<CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>::new();
             stack = trouble_host::new(controller, &mut ress)
@@ -61,7 +59,7 @@ impl Server<'_> {
         }))
             .unwrap();
 
-        let _ = join::join(runner.run(), async {
+        let _ = join::join(ble_task(runner), async {
             loop {
                 match advertise("Trouble Example", &mut peripheral).await {
                     Ok(conn) => {
@@ -69,7 +67,8 @@ impl Server<'_> {
                         let a = gatt_events_task(&server, &conn);
 
                         let bs = select::select_array([
-                            any_notify( boot_btn_feed, &server.bb.state, &server, &conn )
+                            server.bb.notify_task(&server, &conn)
+                            //R any_notify( boot_btn_feed, &server.bb.state, &server, &conn )
                         ]);
 
                         // Run until any task ends (usually 'gatt_events_task', due to the connection
@@ -77,8 +76,6 @@ impl Server<'_> {
                         select::select(a, bs).await;
                     }
                     Err(e) => {
-                        #[cfg(feature = "defmt")]
-                        let e = defmt::Debug2Format(&e);
                         panic!("caught: {:?}", e);
                     }
                 }
@@ -88,9 +85,17 @@ impl Server<'_> {
     }
 }
 
-/*
-*
-*/
+// tbd. comment
+async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) {
+    loop {
+        if let Err(e) = runner.run().await {
+            panic!("[ble_task] error: {:?}", e);
+        }
+        debug!("[ble_task] runner gave up; launching another");     // tbd. when does this happen; gain understanding!!
+    }
+}
+
+/***R
 async fn any_notify<X, Fut>(feed: fn() -> Fut, ctic: &Characteristic<X>, server: &Server<'_>, conn: &Connection<'_>) -> !
 where X: GattValue,
     Fut: Future<Output = X>
@@ -100,7 +105,7 @@ where X: GattValue,
         ctic.notify(server, conn, &x) .await
             .expect("notification to work")
     }
-}
+}***/
 
 // An advertiser to connect to a BLE Central    <-- tbd. better comment, once works?
 async fn advertise<'a, C: Controller>(
@@ -180,29 +185,3 @@ async fn gatt_events_task(server: &Server<'_>, conn: &Connection<'_>) -> Result<
     debug!("[gatt] task finished");
     Ok(())
 }
-
-
-/***RR
-// Waits for button presses and turns them into BLE notifications.
-//
-// TO BE MOVED AWAY!!!
-//
-async fn boot_btn_ble_task<C: Controller>(signal: BtnSignal, ctic: &Characteristic<bool>, t: (&Server<'_>, &Connection<'_>, &Stack<'_, C>)) -> Result<(), Error> {
-    let (server, conn, stack) = t;
-
-    loop {
-        let v: bool = match signal.wait() .await {
-            ButtonState::Pressed => { true },
-            ButtonState::Depressed => { false }
-        };
-
-        match ctic.notify(server, conn, &v).await {
-            Err(e) => {
-                error!("failed to notify BLE connection of a value change: {:?}", e);
-                return Err(e);
-            },
-            _ => {}
-        }
-    }
-}
-***/

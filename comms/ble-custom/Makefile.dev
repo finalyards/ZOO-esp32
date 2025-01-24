@@ -6,7 +6,7 @@
 #
 DEFMT_LOG?=esp_hal=info,debug
 	#ble_custom=debug		# did not work; why? (no 'info' level output)
-FEATURES?=
+FEATURES?=trouble-uuid-parity
 
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 

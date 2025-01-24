@@ -13,3 +13,4 @@ rustflags = [
 
 [env]
 ESP_WIFI_COUNTRY_CODE = "fi"
+    # tbd. still doesn't help; launch log shows "country_code: "CN""

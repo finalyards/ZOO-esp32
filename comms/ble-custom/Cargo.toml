@@ -31,7 +31,7 @@ embassy-executor = { version = "0.7.0", features=["task-arena-size-16384"] }
     # 'task-arena-size-...' must be enough to fit all the tasks. If the app creates all tasks up-front, and succeeds
     #       to launch, we know the value was high enough. (If not, raise it.); Nightly wouldn't need this. Can be overridden by an env.var.
 embassy-sync    = { version = "0.6.2" }
-embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}
+embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}     # for the defmt time stamp; + generally useful
 esp-alloc       = { version = "0.6.0" }
 esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] }
 esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c6"] }
@@ -40,8 +40,10 @@ static_cell     = { version = "2.1.0" }     # trouble-host macros need it
 trouble-host    = { version = "0", features = ["derive", "peripheral", "gatt", "defmt"], default-features = false }
 
 [features]
-#defmt = ["dep:defmt", "esp-hal/defmt", "trouble-host/defmt"]
-defmt = ["dep:defmt", "esp-hal/defmt"] #, "trouble-host/defmt"]
+defmt = ["dep:defmt", "esp-hal/defmt", "trouble-host/defmt"]
+
+# enable for using 'u128' as-if 'u16'; requires local branch
+trouble-uuid-parity = []
 
 [patch.crates-io]
 trouble-host    = { path = "../../../trouble.fork/host" }    # a local branch: 'uuid-equal-processing-16-128'
