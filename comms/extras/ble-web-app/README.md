@@ -1,15 +1,21 @@
 # `ble-web-app`
 
-A web application for interacting with a nearby Bluetooth device, advertising a custom service.
+A web application for interacting with the [`../../ble-custom/examples/y-emb`](../../ble-custom/examples/y-emb) Bluetooth Low Energy service. 
 
-Like... the one in [`../ble/examples/custom-emb.rs`](../ble/examples/custom-emb.rs). 
 
-## Small preface
+>*TL;DR* The application is [deployed here]() - you can try it out and read the page, later! 🐇
 
-"Bluetooth Web API" (which we'll use) really is a BLE API. It doesn't cover the "classic" side of Bluetooth and we are really, really fine by this (also the Nordic Semiconductor and ESP32 MCUs only provide BLE, not classic Bluetooth).
+
+## Bluetooth Web API
+
+**Bluetooth Web API** (which we use) is not a standard. It's still a "draft", since ca. 2014, and likely remains to be so. However, it's [implemented in the Chrome and Edge browsers](https://caniuse.com/mdn-api_bluetooth), and is likely to remain available. On iOS devices, you can [use it with third party applications](https://apps.apple.com/us/app/bluefy-web-ble-browser/id1492822055) that implement it (Safari doesn't, and... might never..).
+
+Because of this weird status, the best introductions for the API come as Chrome for Developers articles ([here from 2015](https://developer.chrome.com/docs/capabilities/bluetooth)).
+
+Having said that, the API is really simple. Despite its wider name, it *doesn't* cover Bluetooth "classic" - only the BLE GATT abstraction of servers > services > characteristics. But that's enough! We can create either standard or custom BLE peripherals, and have direct control over them, from a web app!!!
 
 <details><summary>So.. why didn't they call it BLE Web API?</summary>
-That choice BLEW! 💥
+That choice BLEW up! 💥
 ></details>
 
 ## Requirements
@@ -19,16 +25,24 @@ That choice BLEW! 💥
 - `wrangler` (optional)
 
 	>If you wish a ready package for these, see `mp` > [`web+cf`](https://github.com/akauppi/mp/tree/main/web+cf) (GitHub).
+	>
+	>```
+	>$ web+cf/prep.sh
+	>[...]
+	>$ mp stop web-cf
+	>$ mp mount --type=native {..path to..}/comms/extras/ble-web-app web-cf:
+	>$ mp shell web-cf
+	>```
 
-## Pre-read (optional)
+The author uses two different VM's when developing this stuff: one for embedded Rust; another for the web application.
 
-- [How To Use The Web Bluetooth API](https://confidence.sh/blog/how-to-use-the-web-bluetooth-api/) (blog; Jan'24)
+<!-- 
+Developed with:
 
-	`Megaconfidence`'s write is really concise, diving right into the API without needing *any frameworks* - bare HTML, CSS and JS. 
-	
-	The author claims it would work with the wrist watch you are wearing!! (but this author failed to see his listed).
-
-	>Hint: Complete repo is at [megaconfidence/bt-heart-monitor](https://github.com/megaconfidence/bt-heart-monitor).
+- macOS 15.2
+- Multipass 15.0
+   - node XXX
+-->
 
 ## Steps
 
@@ -43,14 +57,14 @@ $ npm run dev
 [...]
 Forced re-optimization of dependencies
 
-  VITE v5.4.11  ready in 27092 ms
+  VITE v6.0.11  ready in 27092 ms
 
   ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
+  ➜  Network: http://192.168.64.175:5173/
   ➜  press h + enter to show help
 ```
 
-If you are using Multipass for virtualization, that `localhost` is within your VM, unreachable. Either:
+If you are using virtualization, that `localhost` is within your VM, unreachable. Either:
 
 **A. Use your VM's IP**
 
@@ -63,12 +77,14 @@ IPv4:           192.168.64.149
 
 With that IP, open [`http://192.168.64.149:5173`](http://192.168.64.149:5173).
 
+>Hint: On macOS, you can *Cmd-double-click* on *any* URL in a terminal window, to open it!  Try with the one listed by `npm run dev`.
+
 This approach is easier, but you need to remember to use the VM's IP. Also, the IP is bound to change at times.
 
 
 **B. Port forward**
 
-This approach makes the port `5173` usable - as `localhost:5173` - from your host. However, it requires you to:
+This approach maps the port `5173` (of the VM) to `localhost:5173` on your development host. However, it requires you to:
 
 - run `sudo` on the host
 - leave a window open for the duration of the port forward
@@ -76,12 +92,20 @@ This approach makes the port `5173` usable - as `localhost:5173` - from your hos
 Follow the instructions [within the `mp` repo](https://github.com/akauppi/mp/tree/main/web#using-installing-a-cli):
 
 ```
-$ sudo ssh -i /var/root/Library/Application\ Support/multipassd/ssh-keys/id_rsa -L 5173:localhost:5173 ubuntu@192.168.64.149
+$ mp info web-cf | grep IPv4: | cut -w -f2
+192.168.64.175
+
+$ sudo ssh -i /var/root/Library/Application\ Support/multipassd/ssh-keys/id_rsa -L 5173:localhost:5173 ubuntu@192.168.64.175
 
 # keep the terminal open
 ```
 
 Open [`localhost:5173`](http://localhost:5173).
+
+
+## Using the web app
+
+*tbd. Screen shot.*
 
 
 ## Deployment (optional)
@@ -165,10 +189,6 @@ The URL you get is for the particular deployment.
 
 If you don't need to share these things, nothing prevents you from just copy-pasting that and using it as such.
 
->macOS hint:
->
->Cmd-double-click on such a URL. :)
-
 
 ## What this means
 
@@ -189,26 +209,23 @@ If there should be access restrictions, the same authentication mechanisms that 
 
 ## ..for security (take 2!)
 
-But what about the BLE security? Forget about the web page - if the BLE interface is unprotected, people can just use a suitable monitoring software and steer your device.
+But what about the BLE security? Forget about the web page - if the BLE interface is unprotected, people can just use a suitable [monitoring software](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) and steer your device.
 
 True.
 
-For pairing, you can require certain numbers to be entered. You can likely hide the device. But this is something the author is only approaching. Browsing the web, you'll likely get answers (after all, BLE is already 14 years old!) - and ideally, you'd write something about it *right here*. :)
+*tbd. Discuss different approaches to BLE level security; showcase those.*
 
+<!-- #hidden
+For pairing, you can require certain numbers to be entered. You can likely hide the device. But this is something the author is only approaching. Browsing the web, you'll likely get answers (after all, BLE is already 14 years old!) - and ideally, you'd write something about it *right here*. :)
+-->
 
 ## References
 
 - [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (blog-like doc; "Last updated 2015-07-21")
 
-	>Note the date
 
-- ["Bluetooth Web API Guide Based on Our Experience With BLE Device Connection"](https://stormotion.io/blog/web-ble-implementation/) (Stormotion, Jul'24)
 
-- [Web Bluetooth](https://webbluetoothcg.github.io/web-bluetooth) (spec draft, last edit Oct'24)
-
-	Mostly on how to implement a User Agent (in a browser); security and such. Can be an interesting read, though. Though it's marked as "Oct'24", some references within the text itself date from 2014.
-
-<!-- #LeaveOut, since:
+<!-- #LeftOut, since
 >>Not /quite/ good enough for us... Verbose, and some opinions are a bit shaky ("limited range" as a con, when it can also be seen as a pro, and frankly... it's relative to what your aims are!!
 
 - [Bluetooth Web API Guide Based on Our Experience With BLE Device Connection](https://stormotion.io/blog/web-ble-implementation/) (article, Jul'24)
