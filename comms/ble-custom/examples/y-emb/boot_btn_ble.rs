@@ -9,9 +9,6 @@ use trouble_host::{
     prelude::{gatt_service, descriptors}
 };
 
-#[cfg(not(feature = "trouble-uuid-parity"))]
-use trouble_host::prelude::Uuid;
-
 use crate::{
     boot_btn_task::ButtonState,
     server_ble::Server,
@@ -27,21 +24,12 @@ include!("./config.in");
 // An observable value (0 = depressed; 1 = pressed). This _could_ be a measurement that is received
 // by your code, and exposed to the BLE central.
 //
-#[cfg(not(feature = "trouble-uuid-parity"))]
-#[gatt_service(uuid = Uuid::Uuid128(BB_SERVICE_UUID.to_be_bytes()))]    // |!|
-pub(crate) struct BtnService {
-    #[characteristic(uuid = Uuid::Uuid128(BB_STATE_CTIC_UUID.to_be_bytes()), read, notify)]
-    #[descriptor(uuid = descriptors::MEASUREMENT_DESCRIPTION, read, value = "State of the BOOT button (1 = pressed)")]
-    #[descriptor(uuid = descriptors::VALID_RANGE, read, value = [0, 1])]
-    pub(crate) /*<-- for now*/ state: bool,
-}
-#[cfg(feature = "trouble-uuid-parity")]
 #[gatt_service(uuid = BB_SERVICE_UUID)]
 pub(crate) struct BtnService {
     #[characteristic(uuid = BB_STATE_CTIC_UUID, read, notify)]
         #[descriptor(uuid = descriptors::MEASUREMENT_DESCRIPTION, read, value = "State of the BOOT button (1 = pressed)")]
         #[descriptor(uuid = descriptors::VALID_RANGE, read, value = [0, 1])]
-    pub(crate) /*<-- for now*/ state: bool,
+    state: bool,
 }
     // |!| CONVERSIONS:
     //

@@ -5,18 +5,18 @@
 use defmt::{info, debug, warn, error};
 
 use embassy_futures::{join, select};
-use esp_hal::efuse::Efuse;
 use trouble_host::prelude::*;
 
 use crate::boot_btn_ble::BtnService;
 
-const CONNECTIONS_MAX: usize = 1;   // max nbr of connections
-const L2CAP_CHANNELS_MAX: usize = 2; // max nbr of L2CAP channels (Signal + att)
+const CONNECTIONS_MAX: usize = 1;       // max nbr of connections
+const L2CAP_CHANNELS_MAX: usize = 3;    // max nbr of L2CAP channels    // tbd. pls explain...
 
 const L2CAP_MTU: usize = 255;   // all ESP32's are fine with this length; see -> https://github.com/esp-rs/esp-hal/issues/2984
 
 include!("./config.in");
     // AD_NAME
+    // AD_NAME2
 
 #[gatt_server]
 pub struct Server {
@@ -26,20 +26,11 @@ pub struct Server {
 impl Server<'_> {
     // Run the BLE stack.
     //
-    pub async fn run<C>(controller: C) -> !
+    pub async fn run<C>(controller: C, addr: Address) -> !
     where
         C: Controller,
     {
-        // Using a fixed address can be useful for testing.
-        #[cfg(not(all()))]
-        let address: Address = Address::random(b"rand0m".into());
-        #[cfg(all())]
-        let address: Address = Address::random(Efuse::mac_address());  // 6 bytes MAC
-
-        info!("Our address = {:?}", address.addr);   // tbd. in hex
-
-        // here for the lifespan
-        let mut ress;
+        let mut ress;   // here for the lifespan
         let stack;
 
         let Host {
@@ -48,11 +39,12 @@ impl Server<'_> {
         } = {
             ress = HostResources::<CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>::new();
             stack = trouble_host::new(controller, &mut ress)
-                .set_random_address(address);
+                .set_random_address(addr);
             stack.build()
         };
 
-        info!("Starting advertising and GATT service");
+        debug!("Starting GATT server");
+
         let server = Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
             name: AD_NAME,
             appearance: &appearance::UNKNOWN,
@@ -61,18 +53,18 @@ impl Server<'_> {
 
         let _ = join::join(ble_task(runner), async {
             loop {
-                match advertise("Trouble Example", &mut peripheral).await {
+                debug!("Starting advertising");
+
+                match advertise(AD_NAME2, &mut peripheral).await {
                     Ok(conn) => {
-                        // These tasks are only run while there is a connection.
                         let a = gatt_events_task(&server, &conn);
 
                         let bs = select::select_array([
                             server.bb.notify_task(&server, &conn)
-                            //R any_notify( boot_btn_feed, &server.bb.state, &server, &conn )
                         ]);
 
-                        // Run until any task ends (usually 'gatt_events_task', due to the connection
-                        // being closed); then return to advertising state.
+                        // Run until one task ends (usually 'gatt_events_task', due to the connection
+                        // being closed); then return to advertising.
                         select::select(a, bs).await;
                     }
                     Err(e) => {
@@ -80,8 +72,9 @@ impl Server<'_> {
                     }
                 }
             }
-        });
-        unreachable!()
+        }).await;
+
+        unreachable!();
     }
 }
 
@@ -94,18 +87,6 @@ async fn ble_task<C: Controller>(mut runner: Runner<'_, C>) {
         debug!("[ble_task] runner gave up; launching another");     // tbd. when does this happen; gain understanding!!
     }
 }
-
-/***R
-async fn any_notify<X, Fut>(feed: fn() -> Fut, ctic: &Characteristic<X>, server: &Server<'_>, conn: &Connection<'_>) -> !
-where X: GattValue,
-    Fut: Future<Output = X>
-{
-    loop {
-        let x: X = feed() .await;
-        ctic.notify(server, conn, &x) .await
-            .expect("notification to work")
-    }
-}***/
 
 // An advertiser to connect to a BLE Central    <-- tbd. better comment, once works?
 async fn advertise<'a, C: Controller>(
@@ -145,7 +126,6 @@ async fn advertise<'a, C: Controller>(
 // Stream BLE(?) events until the connection closes.
 //
 async fn gatt_events_task(server: &Server<'_>, conn: &Connection<'_>) -> Result<(), Error> {
-    let ctic_bb = server.bb.state;
 
     loop {
         match conn.next().await {
@@ -155,25 +135,9 @@ async fn gatt_events_task(server: &Server<'_>, conn: &Connection<'_>) -> Result<
             }
             ConnectionEvent::Gatt { data } => {
 
-                // To simplify things, process the event in the GATT server; match on its output.
+                // Process the event in the GATT server.
                 match data.process(server).await {
-                    // Server processing emits
-                    Ok(Some(GattEvent::Read(event))) => {
-                        if event.handle() == ctic_bb.handle {
-                            let value = server.get(&ctic_bb);
-                            debug!("[gatt] Read event of BB Characteristic: {:?}", value);
-                        }
-                    }
-                    /***
-                    Ok(Some(GattEvent::Write(event))) => {
-                        if event.handle() == level.handle {
-                            info!("[gatt] Write event to BB Characteristic: {:?}", event.data());
-                        }
-                    }
-                    ***/
-                    Ok(_) => {
-                        warn!("[gatt] unexpected event (skipped)");
-                    }
+                    Ok(_) => {}
                     Err(e) => {
                         error!("[gatt] error processing event: {:?}", e);
                         break;
