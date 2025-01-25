@@ -4,6 +4,7 @@
 #[allow(unused_imports)]
 use defmt::{info, debug};
 use defmt_rtt as _;
+use embassy_time as _;  // so IDE shows it as active; we want the time stamp for 'defmt' logs
 
 use esp_alloc as _;
 use esp_backtrace as _;
@@ -16,10 +17,12 @@ use embassy_sync::{
 };
 use esp_hal::{
     clock::CpuClock,
+    efuse::Efuse,
     gpio::{Input, Pull},
     timer::timg::TimerGroup
 };
 use esp_wifi::ble::controller::BleConnector;
+use trouble_host::Address;
 
 mod boot_btn_task;
 mod boot_btn_ble;
@@ -72,5 +75,13 @@ async fn main(spawner: Spawner) -> ! {
 
     //---
 
-    Server::run(controller) .await
+    // Using a fixed address can be useful for testing.
+    #[cfg(not(all()))]
+    let address: Address = Address::random(b"rand0m".into());
+    #[cfg(all())]
+    let a: Address = Address::random(Efuse::mac_address());  // 6 bytes MAC
+
+    info!("Our address = {:02x}", a.addr.raw());    // output as: "10:15:07:04:32:54" tbd.!!
+
+    Server::run(controller, a) .await
 }
