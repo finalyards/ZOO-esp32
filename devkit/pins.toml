@@ -1,0 +1,20 @@
+#
+# pins.toml
+#
+# Pins configuration for the project's examples. An include is generated, based on information in this file.
+#
+# Note: Devkits would have different pins: |1|
+#       - ESP32:                        GPIO33
+#       - ESP32C3, ESP32C6, ESP32H2:    GPIO8
+#       - ESP32S2:                      GPIO18
+#       - ESP32S3:                      GPIO48
+#
+# |1|: https://github.com/esp-rs/esp-hal-community/blob/main/esp-hal-smartled/examples/hello_rgb.rs#L11-L20
+#
+generate = "examples/pins_gen.in"
+
+[boards.esp32c3]
+LED = 8
+
+[boards.esp32c6]
+LED = 8

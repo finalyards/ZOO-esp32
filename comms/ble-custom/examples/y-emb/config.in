@@ -1,0 +1,22 @@
+/*
+* Snippet to carry device specific information.
+*
+* Such '.in' _could_ be build-generated.
+*
+* Note: 128-bit UUID's can be created on macOS by: |1|
+*       <<
+*           $ uuidgen | tr '[:upper:]' '[:lower:]'
+*           719ba6d4-6bad-4ed5-bd4d-7e64d184d8bf
+*       <<
+*       |1|: https://stackoverflow.com/a/65670536/14455
+*/
+
+#[allow(dead_code)]
+const AD_NAME: &str = "ZOO";    // tbd. where does this show?
+#[allow(dead_code)]
+const AD_NAME2: &str = "ZOO sample";    // Server name visible in BLE sniffer
+
+#[allow(dead_code)]
+const BB_SERVICE_UUID: u128 = 0x_92996405_8C0E_4FA1_A417_67D36995B563;      // "92996405-8C0E-4FA1-A417-67D36995B563";
+#[allow(dead_code)]
+const BB_STATE_CTIC_UUID: u128 = 0x_719ba6d4_6bad_4ed5_bd4d_7e64d184d8bf;
