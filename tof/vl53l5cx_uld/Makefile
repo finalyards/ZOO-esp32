@@ -46,9 +46,6 @@ else
   $(error Unexpected TARGET: ${_T})
 endif
 
-# in anticipation for Xtensa (needs us to use a custom 'clang')
-#_CLANG:=clang
-
 all:
 	@false
 
@@ -182,7 +179,7 @@ EXP_x: tmp/uld_raw.rs
 
 	#grep -q 'pub enum PowerMode' $<
 
-# 'build.rs' writes 'tmp/config.h.next' on every build.
+# 'build.rs' writes 'tmp/config.h.next' on _every_ build.
 # If the contents differ, update 'tmp/config.h'.
 #
 # Note: Keep the 'tmp/config.h.next' around - if we were to remove it, running 'make manual' repeatedly (for debugging?)

@@ -12,13 +12,12 @@ use esp_backtrace as _;
 
 use esp_hal::{
     delay::Delay,
-    entry,
-    gpio::Level,
+    gpio::{Input, InputConfig, Output, OutputConfig, Level, Pull},
+    i2c::master::{Config as I2cConfig, I2c},
+    main,
     time::now
 };
-use esp_hal::{
-    i2c::master::{Config as I2cConfig, I2c},
-};
+use esp_hal::gpio::AnyPin;
 
 const D_PROVIDER: Delay = Delay::new();
 
@@ -38,7 +37,7 @@ use uld::{
     units::*,
 };
 
-#[entry]
+#[main]
 fn main() -> ! {
     init_defmt();
 
@@ -54,11 +53,30 @@ fn main() -> ! {
     }
 }
 
+#[allow(non_snake_case)]
+struct Pins<const LPNS_COUNT: usize>{
+    SDA: AnyPin,
+    SCL: AnyPin,
+    PWR_EN: AnyPin,
+    LPns: [AnyPin;LPNS_COUNT],
+    INT: AnyPin
+}
+
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
+    let o_low_cfg = OutputConfig::default().with_level(Level::Low);
+    let i_pull_none_cfg = InputConfig::default().with_pull(Pull::None);
+
     #[allow(non_snake_case)]
-    let (SDA, SCL, mut PWR_EN, mut LPns, INT) = pins!(peripherals);
+    let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
+
+    #[allow(non_snake_case)]
+    let mut PWR_EN = Output::new(PWR_EN, o_low_cfg).unwrap();
+    #[allow(non_snake_case)]
+    let mut LPns = LPns.map(|n| { Output::new(n, o_low_cfg).unwrap() });
+    #[allow(non_snake_case)]
+    let INT = Input::new(INT, i_pull_none_cfg).unwrap();
 
     let pl = {
         let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
@@ -80,7 +98,7 @@ fn main2() -> Result<()> {
         info!("Target powered off and on again.");
     }
 
-    // Leave only one board comms-enabled.
+    // Leave only one board comms-enabled (the pins are initialized to low).
     LPns[0].set_high();
 
     let vl = VL53L5CX::new_with_ping(pl)?.init()?;
@@ -148,6 +166,8 @@ fn main2() -> Result<()> {
 *       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
 */
 fn init_defmt() {
+    use esp_hal::time::now;
+
     defmt::timestamp!("{=u64:us}", {
         now().duration_since_epoch().to_micros()
     });

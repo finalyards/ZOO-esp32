@@ -1,8 +1,8 @@
 # `v53l5cx_uld`
 
-The `uld` part for the VL53L5CX time-of-flight sensor takes care of C/Rust adaptation and translation of the results from 1D vectors to 2D matrices, and enums in favor of integer values.
+The `uld` part for the VL53L5CX time-of-flight sensor takes care of C/Rust adaptation and translation of the results from 1D vectors to 2D matrices, and enums instead of integer values.
 
-YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can build this, as a dependency.
+YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx/README.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can be built.
 
 
 ## Pre-reading
@@ -45,11 +45,12 @@ $ cargo install bindgen-cli
 
 The `VL53L5CX_ULD_API` (ULD C driver) is a separate download.
 
-1. [Fetch it](https://www.st.com/en/embedded-software/stsw-img023.html) from the vendor
+1. [Fetch it](https://www.st.com/en/embedded-software/stsw-img023.html) from the vendor (`Get software` > `Get latest` > check the license > ...)
+
+	>Note: You can "Download as a guest", after clicking the license.
+
 2. Unzip it to a suitable location
 3. `export VL53L5CX_ULD_API={your-path}/VL53L5CX_ULD_API`
-
-	Note: You can download the driver "as guest".
 
 
 ### Supported dev kits
@@ -59,13 +60,25 @@ The workflow has been tested on these MCUs:
 |||
 |---|---|
 |`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
-|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added|
+|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
 
-ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.
+### Connection to the devkit
+
+In order to run the example(s), you need:
+
+- a devkit connected:
+
+	```
+	$ probe-rs list
+	The following debug probes were found:
+	[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
+	```
+
+- at least one SATEL board
 
 ## Wiring
 
-Same as in [`../vl53l5cx/WIRING.md`](../vl53l5cx/WIRING.md).
+Same as in [`../vl53l5cx/README.md`](../vl53l5cx/README.md).
 
 Only one device is needed.
 
@@ -78,7 +91,7 @@ $ cargo build --release --lib
 
 This compiles the library, and is a good place to start. 
 
->One thing to note about the library is that it's fully hardware agnostic; this is something we inherit from the approach of the vendor ULD C API. *Your code* brings in, for example, how to drive the I2C bus. This means only `tests` is MCU specific.
+>The library is fully hardware agnostic. This is something we inherit from the approach of the vendor ULD C API. *Your code* brings in, for example, how to drive the I2C bus. This means only `tests` is MCU specific.
 
 <span />
 
@@ -88,39 +101,6 @@ This compiles the library, and is a good place to start.
 >$ make manual
 >```
 
-<!-- disabled; going for tests
-Likely you are more interested in the runnable samples, though. Let's have a look!
--->
-
-<!-- tbd. should we have examples???
-## Running examples
-
-Example are explorational code checking some driver / hardware interactions. They are run manually, one at a sime.
--->
-
-## Running tests
-
-The tests are used to establish certain presumptions about how the hardware works. In order to run them, you need:
-
-- a devkit connected:
-
-	```
-	$ probe-rs list
-	The following debug probes were found:
-	[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
-	```
-
-- at least one SATEL board wired to it (according to the instructions in `../vl53l5cx/README.md`)
-
-Then:
-
-```
-$ cargo test
-...
-test tests::time_stamp_test ... 1.094964 [INFO ] Running test: Test { name: "tests::time_stamp_test", function: 0x420012a0, should_panic: false, ignored: false, timeout: None }  embedded_test src/fmt.rs:36
-1.095982 [INFO ] Test exited with () or Ok(..)  embedded_test src/fmt.rs:36
-ok
-```
 
 ## Running examples
 
@@ -146,58 +126,9 @@ $ make -f Makefile.dev m3
 
 ```
 
-
 ## Troubleshooting
 
-### [ESP32-C3] I2C `TimeOut`
-
-```
-0.956520 [INFO ] Target powered off and on again.
-0.960236 [DEBUG] Ping succeeded: 0xf0,0x02
-1.522238 [ERROR] panicked at 'I2C write to 0x0bd0 (252 bytes) failed: TimeOut'
-1.522361 [ERROR] ====================== PANIC ======================
-```
-
-This happens with latest versions of `probe-rs`.
-
-- the problem is [wont-fix](https://github.com/probe-rs/probe-rs/issues/2818#issuecomment-2358791448), unless they get news from Espressif
-
-If you need to work on ESP32-C3, you can install commit `6fee4b6` of `probe-rs`. That should work, but you won't get updates to the tool.
-
->More details in -> [`../../TROUBLES.md`](../../TROUBLES.md).
-
-### `VL53L5CX_Configuration` size dispute
-
->This *is* a bug of the build system, but happens rather rarely and therefore the author hasn't been able to fix it. Please try! :)
-
-```
-$ make -f Makefile.dev m3
-EXAMPLE=m3 \
-  FEATURES=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent \
-  make -f Makefile.dev --no-print-directory _build _run
-DEFMT_LOG=debug cargo build --release --features=targets_per_zone_2,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent,defmt --example m3
-   [...]
-error[E0080]: evaluation of constant value failed
-  --> src/uld_raw.rs:38:10
-   |
-38 |         [::core::mem::size_of::<VL53L5CX_Configuration>() - 3248usize];
-   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ attempt to compute `3240_usize - 3248_usize`, which would overflow
-
-For more information about this error, try `rustc --explain E0080`.
-error: could not compile `vl53l5cx_uld` (lib) due to 1 previous error
-[...]
-```
-
-The reason is something's gotten confused with the `tmp/config.h[.next]` files. Remove them, and retry the build:
-
-```
-$ rm tmp/config.h*
-$ cargo build		# might be neede
-$ make manual
-$ make -f Makefile.dev m3
-```
-
-That should fix it.
+See [`TROUBLES.md`](./TROUBLES.md).
 
 	
 ## References

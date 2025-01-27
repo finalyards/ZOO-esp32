@@ -5,7 +5,7 @@
 #	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {m3|...}
 #		# builds and runs a certain sample
 #
-DEFMT_LOG?=debug
+DEFMT_LOG?=esp_hal=info,debug
 FEATURES?=
 LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
 
@@ -51,19 +51,6 @@ m3:
 	  FEATURES=targets_per_zone_2,$(ALL_FEATURES) \
 	  $(REMAKE) --no-print-directory _build _run
 
-exp:
-	EXAMPLE=explore_lpn \
-	  FEATURES=targets_per_zone_2,distance_mm \
-	  $(REMAKE) --no-print-directory _build _run
-
-# Tests
-plain_test pt:
-	TEST=plain_test \
-	  $(REMAKE) --no-print-directory _test
-
-_test:
-	$(LOG_ENV) cargo test --features=defmt --test $(TEST)
-
 #---
 _build:
 	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt,EXP_esp_hal_next --example $(EXAMPLE)
@@ -75,4 +62,4 @@ _run:
 echo:
 	@echo $(notdir $(_OUT_EXAMPLE))
 
-.PHONY: all m3 exp plain_test _test _build _run echo
+.PHONY: all m3 _build _run echo

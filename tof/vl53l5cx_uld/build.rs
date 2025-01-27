@@ -208,9 +208,6 @@ fn main() -> Result<()> {
         ] {
             println!("cargo::rustc-link-arg={}", s);
         }
-
-        // tbd. ideally, have this line only for 'cargo test' runs (check by env.variables)
-        println!("cargo::rustc-link-arg-tests=-Tembedded-test.x");
     }
 
     println!("cargo:rustc-link-search=tmp");

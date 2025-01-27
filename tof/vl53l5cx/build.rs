@@ -7,14 +7,7 @@
 */
 use anyhow::*;
 
-use std::{
-    env,
-    fs,
-    process::Command
-};
-
 // Snippets need to be read in here (cannot do in "statement position")
-//
 include!("build_snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
 
 /*
@@ -59,6 +52,8 @@ fn main() -> Result<()> {
     //  esp32c3
     //
     let board_id: String = {
+        use std::process::Command;
+
         let output = Command::new("sh")
             .arg("-c")
             .arg("grep -oE -m 1 '\"esp32(c3|c6)\"' Cargo.toml | cut -d '\"' -f2")
@@ -82,6 +77,7 @@ fn main() -> Result<()> {
 
     // Expose 'OUT_DIR' to an external (Makefile) build system
     {
+        use std::{fs, env};
         const TMP: &str = ".OUT_DIR";
 
         let out_dir = env::var("OUT_DIR")

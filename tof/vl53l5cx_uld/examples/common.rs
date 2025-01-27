@@ -3,9 +3,9 @@ use defmt::{info, debug, error, warn, trace, panic};
 
 use esp_hal::{
     delay::Delay,
+    i2c::master::I2c,
     Blocking,
 };
-use esp_hal::i2c::master::Instance;
 
 extern crate vl53l5cx_uld as uld;
 use uld::{
@@ -14,33 +14,31 @@ use uld::{
     Platform,
 };
 
-#[allow(non_camel_case_types)]
-type I2c_Blocking<'a,T /*: Instance*/> = esp_hal::i2c::master::I2c<'a,Blocking,T>;
+//R #[allow(non_camel_case_types)]
+//R type I2c_Blocking<'a,T /*: Instance*/> = esp_hal::i2c::master::I2c<'a,Blocking,T>;
 
 /*
 */
-pub struct MyPlatform<'a, T: Instance> {
-    i2c: I2c_Blocking<'a,T>
+pub struct MyPlatform {
+    //R i2c: I2c_Blocking<'a,T>
+    i2c: I2c<'static, Blocking>
 }
 
 // Rust note: for the lifetime explanation, see:
 //  - "Lost in lifetimes" (answer)
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
-impl<'a,T> MyPlatform<'a,T> where T: Instance {
+impl MyPlatform {
     #[allow(non_snake_case)]
-    pub fn new(i2c: I2c_Blocking<'a,T>) -> Self {
+    pub fn new(i2c: I2c<'static,Blocking>) -> Self {
         Self{
             i2c,
         }
     }
 }
 
-impl<T> Platform for MyPlatform<'_,T> where T: Instance
-{
+impl Platform for MyPlatform {
     /*
-    * Reads can be in sizes of 492 bytes (or more). The 'esp-hal' requires these to be handled
-    * in multiple parts.
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
@@ -52,7 +50,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             },
             Ok(()) => {
                 // There should be 1.2ms between transactions, by the VL spec.
-                blocking_delay_ms(1);
+                blocking_delay_us(1200);
             }
         };
 
@@ -89,7 +87,6 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
         // (However, we can now chunk in longer pieces than with 0.21.1).
         //
         const BUF_SIZE: usize = 10*1024;   // can be anything (1..32k)
-        //const BUF_SIZE: usize = MAX_WR_LEN;   // prior (0.21.x)
 
         let mut index = index;    // rolled further with the chunks
 
@@ -136,7 +133,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            blocking_delay_ms(1);
+            blocking_delay_us(1300);
         }
 
         Ok(())
@@ -144,7 +141,7 @@ impl<T> Platform for MyPlatform<'_,T> where T: Instance
 
     fn delay_ms(&mut self, ms: u32) {
         trace!("🔸 {}ms", ms);
-        blocking_delay_ms(ms);
+        blocking_delay_us(ms*1000);
     }
 
     fn addr_changed(&mut self, _: &I2cAddr) {
@@ -159,6 +156,6 @@ fn slice_head(vs: &[u8],n_max: usize) -> &[u8] {
 
 const D_PROVIDER: Delay = Delay::new();
 
-fn blocking_delay_ms(ms: u32) {
-    D_PROVIDER.delay_millis(ms);
+fn blocking_delay_us(us: u32) {
+    D_PROVIDER.delay_micros(us);
 }
