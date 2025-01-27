@@ -5,9 +5,9 @@
 #	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {m3|...}
 #		# builds and runs a certain sample
 #
-DEFMT_LOG?=esp_hal=info,debug
+DEFMT_LOG?=debug
 FEATURES?=
-LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
+LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 

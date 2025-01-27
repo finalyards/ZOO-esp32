@@ -54,11 +54,11 @@ fn main() -> ! {
 }
 
 #[allow(non_snake_case)]
-struct Pins<const LPNS_COUNT: usize>{
+struct Pins<const BOARDS: usize>{
     SDA: AnyPin,
     SCL: AnyPin,
     PWR_EN: AnyPin,
-    LPns: [AnyPin;LPNS_COUNT],
+    LPns: [AnyPin;BOARDS],
     INT: AnyPin
 }
 
@@ -110,22 +110,24 @@ fn main2() -> Result<()> {
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(),HzU8(10)))
         .with_target_order(CLOSEST);
-
+    debug!("A");
     let mut ring = vl.start_ranging(&c)
         .expect("to start ranging");
+    debug!("B");
+    // #BUG: DOES NOT REACH
 
     for round in 0..3 {
         let t0= now();
 
         // wait for 'INT' to fall
         loop {
-            let v= INT.level();
-            if v == Level::Low {
+            if INT.is_low() {
                 debug!("INT after: {}ms", (now()-t0).to_micros() as f32 / 1000.0);
                 break;
-            } else {
-                delay_us(20);   // < 100us
+            } else if (now()-t0).to_millis() > 1000 {
+                panic!("No INT detected");
             }
+            delay_us(20);   // < 100us
         }
 
         let (res, temp_degc) = ring.get_data()

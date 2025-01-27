@@ -9,7 +9,8 @@ DEFMT_LOG?=debug
 BUILD_MODE?=--release
 
 FEATURES?=
-LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
+LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
+	# otherwise, 'esp-hal' dumps all kinds of DEBUG
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 

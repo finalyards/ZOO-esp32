@@ -14,13 +14,9 @@ use uld::{
     Platform,
 };
 
-//R #[allow(non_camel_case_types)]
-//R type I2c_Blocking<'a,T /*: Instance*/> = esp_hal::i2c::master::I2c<'a,Blocking,T>;
-
 /*
 */
 pub struct MyPlatform {
-    //R i2c: I2c_Blocking<'a,T>
     i2c: I2c<'static, Blocking>
 }
 

@@ -10,7 +10,8 @@ use defmt::{info, debug, error, warn, trace, panic};
 
 use esp_hal::{
     delay::Delay,
-    i2c::master::Instance,
+    i2c::master::I2c,
+    Blocking
 };
 
 use vl53l5cx_uld::{
@@ -20,15 +21,14 @@ use vl53l5cx_uld::{
 };
 
 use core::cell::RefCell;
-use crate::I2c_Blocking;
 
 #[cfg(feature = "defmt")]
 const TRACE_HEAD_N:usize=20;        // Number of first bytes to show
 
 /*
 */
-pub(crate) struct Pl<'a, T: Instance> {
-    i2c_shared: &'a RefCell<I2c_Blocking<'a,T>>,
+pub(crate) struct Pl<'a> {
+    i2c_shared: &'a RefCell<I2c<'static, Blocking>>,
     i2c_addr: I2cAddr
 }
 
@@ -36,10 +36,8 @@ pub(crate) struct Pl<'a, T: Instance> {
 //  - "Lost in lifetimes" (answer)
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
-impl<'a,T> Pl<'a,T>
-    where T: Instance
-{
-    pub fn new(i2c_shared: &'a RefCell<I2c_Blocking<'a,T>>) -> Self {
+impl<'a> Pl<'a> {
+    pub fn new(i2c_shared: &'a RefCell<I2c<'static, Blocking>>) -> Self {
         Self{
             i2c_shared,
             i2c_addr: DEFAULT_I2C_ADDR     // every board starts with the default address
@@ -47,8 +45,7 @@ impl<'a,T> Pl<'a,T>
     }
 }
 
-impl<T> Platform for Pl<'_,T> where T: Instance
-{
+impl Platform for Pl<'_> {
     // Note: With Rust Edition 2024 out, try '!' or 'Infallible' as the return type (we don't provide
     //      errors). In Edition 2021, Rust 1.82, 'Infallible' doesn't coerce to '()' (it could),
     //      so cannot use it now. //2-Nov-24

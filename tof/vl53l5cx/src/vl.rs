@@ -8,7 +8,8 @@ use core::cell::RefCell;
 
 use esp_hal::{
     gpio::Input,
-    i2c::master::Instance,
+    i2c::master::I2c,
+    Blocking
 };
 #[cfg(feature = "flock")]
 use esp_hal::gpio::Output;
@@ -23,7 +24,6 @@ use vl53l5cx_uld::{
 
 use crate::{
     I2cAddr,
-    I2c_Blocking,
     uld_platform::Pl,
 };
 
@@ -39,7 +39,7 @@ pub struct VL {
 impl VL {
     // tbd. make so that caller can give either 'I2cAddr' or a reference
     //
-    pub fn new_and_setup<T: Instance + 'static>(i2c_shared: &'static RefCell<I2c_Blocking<'static, T>>,
+    pub fn new_and_setup(i2c_shared: &'static RefCell<I2c<'static, Blocking>>,
         i2c_addr: &I2cAddr
     ) -> Result<Self> {
 
@@ -83,9 +83,11 @@ impl VL {
     }
 
     #[cfg(feature = "flock")]
-    pub fn new_flock<T, const BOARDS: usize>(LPns: [Output;BOARDS], i2c_shared: &'static RefCell<I2c_Blocking<'static, T>>, i2c_addr_gen: impl Fn(usize) -> I2cAddr) -> Result<[Self;BOARDS]>
-        where T: Instance + 'static
-    {
+    pub fn new_flock<const BOARDS: usize>(
+        LPns: [Output;BOARDS],
+        i2c_shared: &'static RefCell<I2c<'static, Blocking>>,
+        i2c_addr_gen: impl Fn(usize) -> I2cAddr
+    ) -> Result<[Self;BOARDS]> {
         fn array_try_map_mut_enumerated<A,B, const N: usize>(mut aa: [A;N], f: impl FnMut((usize,&mut A)) -> Result<B>) -> Result<[B;N]> {
             use arrayvec::ArrayVec;
             let bs_av = aa.iter_mut().enumerate().map(f)

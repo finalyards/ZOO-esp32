@@ -10,10 +10,6 @@ mod ranging_flock;
 mod uld_platform;
 mod vl;
 
-use esp_hal::{
-    i2c::master::I2c,
-    Blocking
-};
 #[cfg(feature = "single")]
 pub use ranging::{SoloResults, Ranging};
 
@@ -40,7 +36,4 @@ pub use vl53l5cx_uld::{
     units,
 };
 
-pub type Instant = esp_hal::time::Instant;
-
-#[allow(non_camel_case_types)]
-pub(crate) type I2c_Blocking<'a,T /*: Instance*/> = I2c<'a,Blocking,T>;
+//R pub type Instant = esp_hal::time::Instant;
