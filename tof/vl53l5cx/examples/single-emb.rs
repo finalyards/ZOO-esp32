@@ -26,6 +26,7 @@ use esp_hal::{
     Blocking
 };
 use esp_hal::gpio::{AnyPin, InputConfig, Level, Output, OutputConfig, Pull};
+use fugit::RateExtU32;
 use static_cell::StaticCell;
 
 extern crate vl53l5cx;
@@ -75,7 +76,11 @@ async fn main(spawner: Spawner) {
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+    let i2c_cfg = I2cConfig::default()
+        .with_frequency(50.kHz())
+        ;
+
+    let i2c_bus = I2c::new(peripherals.I2C0, i2c_cfg)
         .unwrap()
         .with_sda(SDA)
         .with_scl(SCL);
@@ -106,12 +111,12 @@ async fn main(spawner: Spawner) {
 #[embassy_executor::task]
 #[allow(non_snake_case)]
 async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
-
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),HzU8(10)))  // 10.Hz() - but don't want to use 'fugit::Rate' in ULD project
+        .with_mode(AUTONOMOUS(5.ms(),HzU8(10)))  // 10.Hz() with 'fugit::Rate'
         .with_target_order(CLOSEST);
 
-    let mut ring = vl.start_ranging(&c, pinINT).unwrap();
+    let mut ring = vl.start_ranging(&c, pinINT)
+        .unwrap();
 
     let t0 = now();
     let mut _t = Timings::new();

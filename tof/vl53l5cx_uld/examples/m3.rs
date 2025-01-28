@@ -12,20 +12,19 @@ use esp_backtrace as _;
 
 use esp_hal::{
     delay::Delay,
-    gpio::{Input, InputConfig, Output, OutputConfig, Level, Pull},
+    gpio::{AnyPin, Input, InputConfig, Output, OutputConfig, Level, Pull},
     i2c::master::{Config as I2cConfig, I2c},
     main,
-    time::now
+    time::{now, RateExtU32}
 };
-use esp_hal::gpio::AnyPin;
 
 const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
-mod common;
 
 include!("./pins_gen.in");  // pins!
 
+mod common;
 use common::MyPlatform;
 
 use uld::{
@@ -98,7 +97,7 @@ fn main2() -> Result<()> {
         info!("Target powered off and on again.");
     }
 
-    // Leave only one board comms-enabled (the pins are initialized to low).
+    // Have only one board comms-enabled (the pins are initially low).
     LPns[0].set_high();
 
     let vl = VL53L5CX::new_with_ping(pl)?.init()?;
@@ -108,7 +107,7 @@ fn main2() -> Result<()> {
     //--- ranging loop
     //
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),HzU8(10)))
+        .with_mode(AUTONOMOUS(5.ms(),HzU8::try_from(10.Hz()).unwrap() /*HzU8(10)*/))    // tbd.!!!!!!!
         .with_target_order(CLOSEST);
     debug!("A");
     let mut ring = vl.start_ranging(&c)
@@ -166,6 +165,9 @@ fn main2() -> Result<()> {
 * Reference:
 *   - defmt book > ... > Hardware timestamp
 *       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
+*
+* Note: If you use Embassy, a better way is to depend on 'embassy-sync' and enable its
+*       "defmt-timestamp-uptime" feature.
 */
 fn init_defmt() {
     use esp_hal::time::now;

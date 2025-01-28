@@ -5,7 +5,7 @@
 *   'State_Ranging':  handle to the sensor once ranging is ongoing
 */
 #[cfg(feature = "defmt")]
-use defmt::{assert, panic, trace};
+use defmt::{assert, panic, trace, debug};
 
 use crate::uld_raw::{
     VL53L5CX_Configuration,
@@ -244,6 +244,7 @@ impl<const DIM: usize> State_Ranging<DIM> {
     pub(crate) fn transition_from(/*move*/ mut st: State_HP_Idle, cfg: &RangingConfig<DIM>) -> Result<Self> {
         let vl: &mut VL53L5CX_Configuration = st.borrow_uld_mut();
         cfg.apply(vl)?;
+        debug!("xxx");
 
         match unsafe { vl53l5cx_start_ranging(vl) } {
             ST_OK => {

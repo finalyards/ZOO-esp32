@@ -21,6 +21,8 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
+fugit           = { version = "0.3.7", optional = true }
+    # fugit is available for 'esp_hal' users, but our core ULD library is MCU agnostic
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
@@ -67,9 +69,7 @@ targets_per_zone_3=["nb_targets_detected"]
 targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
-
-# Switch API use between latest from crates.io and latest from GitHub; also change the dependency, above.
-EXP_esp_hal_next = []
+fugit = ["dep:fugit"]
 
 default = ["target_status"]
 
@@ -78,7 +78,7 @@ default = ["target_status"]
 #
 [[example]]
 name = "m3"
-required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
+required-features = ["defmt", "fugit", "distance_mm"]   # + "targets_per_zone_{2..4}"
 
 [patch.crates-io]
 esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }

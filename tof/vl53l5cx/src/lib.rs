@@ -35,5 +35,3 @@ pub use vl53l5cx_uld::{
     TargetOrder,
     units,
 };
-
-//R pub type Instant = esp_hal::time::Instant;

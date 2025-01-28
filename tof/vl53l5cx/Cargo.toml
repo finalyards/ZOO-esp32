@@ -28,10 +28,11 @@ defmt-rtt       = { version = "0.4.1" }
 embassy-executor = { version = "0.7.0", features=["task-arena-size-16384"] }
     # task area size must be enough for tasks to start
 embassy-sync    = { version = "0.6.2" }
-embassy-time    = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }  # time stamps to log
+embassy-time    = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }
 esp-alloc       = { version = "0.6.0", default-features = false }   # needed by 'single-emb'; see 'init_heap()'
 esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c6"] }
+fugit           = { version = "0.3.7" }
 static_cell     = { version = "2.1.0" }
 
 [build-dependencies]

@@ -65,7 +65,7 @@ macro_rules! pins {{
 "#)
     };
 
-    fs::write(fn_, contents).with_context(
+    std::fs::write(fn_, contents).with_context(
         || format!("Unable to write {fn_}")
     )?;
 

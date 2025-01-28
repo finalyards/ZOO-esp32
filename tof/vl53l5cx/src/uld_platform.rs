@@ -94,16 +94,16 @@ impl Platform for Pl<'_> {
     fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
         use core::{iter::zip, mem::MaybeUninit};
 
-        // 'esp-hal' has autochunking since 0.22.0. It doesn't, however,
-        // have a 'I2c::write_write()' that would allow us to give two slices, to be written
-        // consecutively (or using an iterator, which would also solve the case). VL53L5CX needs
-        // this, because it takes the writing index as the first two bytes.
+        // 'esp-hal' has autochunking since 0.22.0. It doesn't, however, have a 'I2c::write_write()'
+        // that would allow us to give two slices, to be written consecutively (or using an iterator,
+        // which would also solve the case). VL53L5CX needs this, because it takes the writing
+        // index as the first two bytes.
         //
         // Concatenating slices using 'ArrayVec' (or 'MaybeUninit') is an option. If we do that,
         // we might just as well explicitly chunk the whole payload, to keep RAM consumption small.
         // This is not a criticism of the esp-hal API. The VL53L5CX use of the I2C (in uploading
-        // its firmware) is likely unusual - and it's not a bit trouble to keep the chunking in.
-        // (However, we can now chunk in longer pieces than with 0.21.1).
+        // its firmware) is likely unusual - and it's not a big trouble to keep the chunking in.
+        // (However, we can now chunk in longer pieces than with esp-hal 0.21.1).
         //
         const BUF_SIZE: usize = 10*1024;   // can be anything (1..32k)
         //const BUF_SIZE: usize = MAX_WR_LEN;   // prior (0.21.x)
