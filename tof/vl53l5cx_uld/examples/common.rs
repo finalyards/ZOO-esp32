@@ -47,7 +47,6 @@ impl Platform for MyPlatform {
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
 
-        trace!("Reading... {}", buf.len());  // TEMP
         match self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf) {
             Err(e) => {
                 // If we get an error, let's stop right away.
