@@ -22,14 +22,14 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
 fugit           = { version = "0.3.7", optional = true }
-    # fugit is available for 'esp_hal' users, but our core ULD library is MCU agnostic
+    # available for users of 'esp_hal', but since our ULD layer is MCU agnostic, placing it behind a feature
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 anyhow          = { version = "1.0.95", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
-esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
-esp-hal         = { version = "0.23.1", features = ["defmt", "esp32c6"] }
+esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
 semihosting     = { version = "0.1.18" }
 
 [build-dependencies]
@@ -73,6 +73,10 @@ fugit = ["dep:fugit"]
 
 default = ["target_status"]
 
+# Enable if wanting to use 'main' branch; also enable the '[patch.crates-io]' section, below.
+esp-hal-next = []
+esp-hal-0_22 = []   # 0.22.0
+
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
 #
@@ -81,5 +85,9 @@ name = "m3"
 required-features = ["defmt", "fugit", "distance_mm"]   # + "targets_per_zone_{2..4}"
 
 [patch.crates-io]
-esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+
+# Local checkout
+esp-backtrace   = { path = "../../../esp-hal/esp-backtrace" }
+esp-hal         = { path = "../../../esp-hal/esp-hal" }

@@ -1,18 +1,29 @@
 # Troubles
 
-<!-- #hidden; not seen recently (Jan'25)
 ## "Driver or hardware level error (66)"
 
 ```
 Failed with ULD error code: Driver or hardware level error (66)
 ```
 
-This means the ULD vendor driver has a problem.
+Reason: 
 
-The author saw this once, after started to use a pull-up for `PWR_EN` pin, instead of actively pulling it up - and back down again.
+- unknown
+
+Work-around:
+
+- ```make _clean``` + retry
+
+<!-- #hidden; earlier
+The author saw this once (in 2024), after started to use a pull-up for `PWR_EN` pin, instead of actively pulling it up - and back down again.
 
 If you see this repeatedly, consider driving the `PWR_EN` pin before your application.
 -->
+
+<!--
+seen: 28-Jan-25
+-->
+
 
 ## [ESP32-C3] I2C `TimeOut`
 

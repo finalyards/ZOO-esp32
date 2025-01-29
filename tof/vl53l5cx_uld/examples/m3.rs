@@ -5,17 +5,36 @@
 #![no_main]
 
 #[allow(unused_imports)]
-use defmt::{info, debug, error, warn};
+use defmt::{info, debug, error, warn, panic};
 use defmt_rtt as _;
 
 use esp_backtrace as _;
 
+#[cfg(not(feature = "esp-hal-0_22"))]
 use esp_hal::{
     delay::Delay,
-    gpio::{AnyPin, Input, InputConfig, Output, OutputConfig, Level, Pull},
+    gpio::{AnyPin, Input, /*InputConfig,*/ Output, /*OutputConfig,*/ Level},
     i2c::master::{Config as I2cConfig, I2c},
+    //main,
+    time::{now, /*RateExtU32*/}
+};
+#[cfg(feature="esp-hal-next")]
+use esp_hal::gpio::{InputConfig, OutputConfig};
+#[cfg(not(feature="esp-hal-next"))]
+use esp_hal::gpio::Pull;
+
+#[cfg(not(feature="esp-hal-0_22"))]
+use esp_hal::{
     main,
-    time::{now, RateExtU32}
+    time::RateExtU32
+};
+#[cfg(feature = "esp-hal-0_22")]
+use esp_hal::{
+    delay::Delay,
+    gpio::{AnyPin, Input, Output, Level},
+    i2c::master::{Config as I2cConfig, I2c},
+    entry as main,
+    time::now
 };
 
 const D_PROVIDER: Delay = Delay::new();
@@ -64,22 +83,38 @@ struct Pins<const BOARDS: usize>{
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
-    let o_low_cfg = OutputConfig::default().with_level(Level::Low);
-    let i_pull_none_cfg = InputConfig::default().with_pull(Pull::None);
-
     #[allow(non_snake_case)]
     let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
 
     #[allow(non_snake_case)]
-    let mut PWR_EN = Output::new(PWR_EN, o_low_cfg).unwrap();
+    #[cfg(feature = "esp-hal-next")]
+    let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
     #[allow(non_snake_case)]
-    let mut LPns = LPns.map(|n| { Output::new(n, o_low_cfg).unwrap() });
+    #[cfg(not(feature = "esp-hal-next"))]
+    let mut PWR_EN = Output::new(PWR_EN, Level::Low);
+
     #[allow(non_snake_case)]
-    let INT = Input::new(INT, i_pull_none_cfg).unwrap();
+    #[cfg(feature = "esp-hal-next")]
+    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low, OutputConfig::default()) });
+    #[allow(non_snake_case)]
+    #[cfg(not(feature = "esp-hal-next"))]
+    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low) });
+
+    #[allow(non_snake_case)]
+    #[cfg(feature = "esp-hal-next")]
+    let INT = Input::new(INT, InputConfig::default() /*no pull*/);
+    #[allow(non_snake_case)]
+    #[cfg(not(feature = "esp-hal-next"))]
+    let INT = Input::new(INT, Pull::None);
 
     let pl = {
+        #[cfg(not(feature = "esp-hal-0_22"))]
         let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
             .unwrap()
+            .with_sda(SDA)
+            .with_scl(SCL);
+        #[cfg(feature = "esp-hal-0_22")]
+        let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
             .with_sda(SDA)
             .with_scl(SCL);
 
@@ -100,20 +135,30 @@ fn main2() -> Result<()> {
     // Have only one board comms-enabled (the pins are initially low).
     LPns[0].set_high();
 
-    let vl = VL53L5CX::new_with_ping(pl)?.init()?;
+    let mut vl = VL53L5CX::new_with_ping(pl)?.init()?;
 
     info!("Init succeeded");
 
+    // Extra test, to see basic comms works     // BUG: GETS STUCK
+    {
+        vl.i2c_no_op()
+            .expect("to pass");
+        info!("I2C no-op (get power mode) succeeded");
+    }
+
     //--- ranging loop
     //
+    #[cfg(not(feature = "esp-hal-0_22"))]
+    let freq = HzU8::try_from( 10.Hz() ).unwrap();  // tbd. make so we could 'just' give '10.Hz' (if '#fugit' feature is given)
+    #[cfg(feature = "esp-hal-0_22")]
+    let freq = HzU8(10);
+
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),HzU8::try_from(10.Hz()).unwrap() /*HzU8(10)*/))    // tbd.!!!!!!!
+        .with_mode(AUTONOMOUS(5.ms(),freq /*HzU8::try_from( 10.Hz() ).unwrap()*/))    // tbd.!!!!!!!
         .with_target_order(CLOSEST);
-    debug!("A");
+
     let mut ring = vl.start_ranging(&c)
         .expect("to start ranging");
-    debug!("B");
-    // #BUG: DOES NOT REACH
 
     for round in 0..3 {
         let t0= now();

@@ -2,7 +2,7 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {m3|...}
+#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=esp-hal-next|esp-hal-0_22|...] make -f Makefile.dev {m3|...}
 #		# builds and runs a certain sample
 #
 DEFMT_LOG?=debug
@@ -48,7 +48,7 @@ all:
 
 m3:
 	EXAMPLE=m3 \
-	  FEATURES=targets_per_zone_2,$(ALL_FEATURES) \
+	  FEATURES=$(FEATURES),targets_per_zone_2,$(ALL_FEATURES) \
 	  $(REMAKE) --no-print-directory _build _run
 
 #---

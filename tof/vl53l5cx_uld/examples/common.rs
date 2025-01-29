@@ -3,16 +3,24 @@ use defmt::{info, debug, error, warn, trace, panic};
 
 use esp_hal::{
     delay::Delay,
-    i2c::master::I2c,
+    i2c::master::{I2c, /*I2cAddress*/},
     Blocking,
 };
+#[cfg(not(feature = "esp-hal-0_22"))]
+use esp_hal::i2c::master::I2cAddress;
 
 extern crate vl53l5cx_uld as uld;
 use uld::{
-    DEFAULT_I2C_ADDR as I2C_ADDR,
+    DEFAULT_I2C_ADDR,
     I2cAddr,
     Platform,
 };
+
+#[cfg(not(feature = "esp-hal-0_22"))]
+const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );    // esp-hal address type
+
+#[cfg(feature = "esp-hal-0_22")]
+const I2C_ADDR: u8 = DEFAULT_I2C_ADDR.as_7bit();
 
 /*
 */
@@ -39,14 +47,15 @@ impl Platform for MyPlatform {
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
 
-        match self.i2c.write_read(I2C_ADDR.as_7bit(), &index.to_be_bytes(), buf) {
+        trace!("Reading... {}", buf.len());  // TEMP
+        match self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf) {
             Err(e) => {
                 // If we get an error, let's stop right away.
                 panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index_orig, buf.len(), e);
             },
             Ok(()) => {
                 // There should be 1.2ms between transactions, by the VL spec.
-                blocking_delay_us(1200);
+                blocking_delay_us(1000);    // 1200
             }
         };
 
@@ -114,7 +123,11 @@ impl Platform for MyPlatform {
                 &buf[..2 + n]
             };
 
-            self.i2c.write(I2C_ADDR.as_7bit(), &out).unwrap_or_else(|e| {
+            {   // TEMP
+                trace!("Writing: {:#06x} <- {:#04x}", index, chunk);    // TEMP
+            }
+
+            self.i2c.write(I2C_ADDR, &out).unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
                 panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
             });
@@ -129,7 +142,7 @@ impl Platform for MyPlatform {
             index = index + n as u16;
 
             // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            blocking_delay_us(1300);
+            blocking_delay_us(1000);    // 1300
         }
 
         Ok(())

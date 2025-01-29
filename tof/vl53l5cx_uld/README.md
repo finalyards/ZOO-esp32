@@ -25,7 +25,7 @@ This build is relatively complex. You can just follow the instructions below, bu
 ### `clang`
 
 ```
-$ sudo apt install llvm-dev libclang-dev clang
+$ sudo apt install libclang-dev clang
 ```
 
 ### `bindgen`

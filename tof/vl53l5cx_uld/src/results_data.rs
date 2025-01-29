@@ -13,11 +13,9 @@
 *   - vendor's UM2884 > Chapter 5 ("Ranging results"); Rev 5, Feb'24; PDF 18pp.
 *       -> https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf
 */
-use core::convert::identity;
-
 #[cfg(feature = "defmt")]
 #[allow(unused_imports)]
-use defmt::{assert};
+use defmt::{assert, panic};
 
 use crate::uld_raw::{
     VL53L5CX_ResultsData,
@@ -69,6 +67,7 @@ impl<const DIM: usize> ResultsData<DIM> {
     /*
     * Provide an empty buffer-like struct; owned usually by the application and fed via 'feed()'.
     */
+    #[cfg(not(all()))]
     fn empty() -> Self {
 
         Self {
@@ -95,15 +94,21 @@ impl<const DIM: usize> ResultsData<DIM> {
     }
 
     pub(crate) fn from(raw_results: &VL53L5CX_ResultsData) -> (Self,TempC) {
+        use core::mem::MaybeUninit;
+
         //validate_raw(raw_results);  // panics if input not according to expectations
 
-        // tbd. Implement using 'MaybeUninit'; started but left..wasn't as easy as hoped.
-        let mut x = Self::empty();
+        let mut x: Self = {
+            let un = MaybeUninit::<Self>::uninit();
+            unsafe { un.assume_init() }
+        };
+
         let tempC = x.feed(raw_results);
         (x, tempC)
     }
 
     fn feed(&mut self, rr: &VL53L5CX_ResultsData) -> TempC {
+        use core::convert::identity;
 
         // helpers
         //

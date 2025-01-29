@@ -117,9 +117,8 @@ impl VL53L5CX_Configuration {
 
         #[allow(unused_unsafe)]
         let ret: Result<VL53L5CX_Configuration> = unsafe {
-            let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::uninit();
+            let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::zeroed();
                 // note: use '::zeroed()' in place of '::uninit()' to get more predictability
-
             let up = uninit.as_mut_ptr();
 
             // Get a '&mut dyn Platform' reference to 'p'. Converting '*c_void' to a templated 'P'
@@ -130,22 +129,29 @@ impl VL53L5CX_Configuration {
             // (16 and 8 bytes), remain constant for the C side.
             //
             let dd: &mut dyn Platform = &mut p;
+                // tbd. 20 in 29-Jan-25 (rustc 1.84), not 16
 
             // Make a bitwise copy of 'dd' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
             // and pass back to us (Rust) once platform calls (I2C/delays) are needed.
             //
-            // This is what allows multiple VL boards to be utilized, at once; they each will get
-            // their own, opaque 'Platform'.
+            // BTW: This is what allows multiple VL boards to be utilized, at once; each get
+            //      their own, opaque 'Platform'.
             {
                 let pp = addr_of_mut!((*up).platform);
 
-                /*** disabled; gives _zero_ for the 'size_of_val(dd)'; WHY????
                 // Check size and alignment
-                let (sz_c,sz_rust) = (field_size!(VL53L5CX_Configuration::platform), size_of_val(dd));
-                assert_eq!(sz_rust,sz_c, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
-                ***/
+                //
+                // Note: It's difficult (it seems) to make the C side both 8-aligned and 20-wide.
+                //      The compiler makes the struct 24-wide, in that case. So we allow the gap.
+                //
+                let sz_c = size_of_val(&(*up).platform);
+                let sz_rust = size_of_val(dd);
+                //assert_eq!(sz_c,sz_rust, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
+
+                assert!(sz_c >= sz_rust, "Tunnel C side isn't wide enough");   // edit 'platform.h' to adjust
+
                 let al_rust = align_of_val(dd);
-                assert!( (pp as usize)%al_rust == 0, "bad alignment on C side (needs {})", al_rust );
+                assert!( (pp as usize)%al_rust == 0 ||false, "bad alignment on C side (needs {})", al_rust );
 
                 *(pp as *mut &mut dyn Platform) = dd;
             }
@@ -233,7 +239,7 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
 /*
 * Wrapper to eliminate 8-bit vs. 7-bit I2C address misunderstandings.
 */
-#[derive(Clone,Eq,PartialEq)]
+#[derive(Copy,Clone,Eq,PartialEq)]
 pub struct I2cAddr(u8);     // stored as 7-bit (internal detail)
 
 impl I2cAddr {
@@ -245,7 +251,7 @@ impl I2cAddr {
         assert!(v < 0x80, "not 7-bit");
         Self(v)
     }
-    pub fn as_7bit(&self) -> u8 { self.0 }      // used by platform code (needs to be 'pub')
+    pub const fn as_7bit(&self) -> u8 { self.0 }      // used by platform code (needs to be 'pub')
     //fn as_8bit(&self) -> u8 { self.0 << 1 }
 }
 

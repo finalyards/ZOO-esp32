@@ -4,7 +4,10 @@
 *   'RangingConfig':  how the ranging should be done
 *   'State_Ranging':  handle to the sensor once ranging is ongoing
 */
+#![allow(for_loops_over_fallibles)]     // tbd. how to make this project-wide?  // just say NO! to 'if let' :)
+
 #[cfg(feature = "defmt")]
+#[allow(unused_imports)]
 use defmt::{assert, panic, trace, debug};
 
 use crate::uld_raw::{
@@ -44,10 +47,10 @@ use {
 * limits.
 */
 // Rust note: 'const fn' gets evaluated at compile time.
-const fn reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*integration time*/, HzU8 /*max freq*/) {
+const fn reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*integration timeS (N)*/, HzU8 /*max freq*/) {
     match DIM {
-        4 => { (Resolution_R::_4X4, 1, HzU8(15)) },
-        8 => { (Resolution_R::_8X8, 4, HzU8(60)) },
+        4 => { (Resolution_R::_4X4, 1, HzU8(60)) },
+        8 => { (Resolution_R::_8X8, 4, HzU8(15)) },
         _ => unreachable!()
     }
 }
@@ -90,10 +93,10 @@ impl TargetOrder {
 }
 
 /*
-* We provide a setup for each separate 'Ranging' session. This encloses the resolution as a type,
-* and also helps ensure that the C ULD API functions get called in a specific order (some vendor
-* docs recommend certain orders.. anyways, it makes things more predictable). Other demands,
-* according to vendor docs are:
+* A setup for each separate 'Ranging' session. This encloses the resolution as a type, and also
+* helps ensure that the C ULD API functions get called in a specific order (some vendor docs
+* recommend certain orders.. anyways, it makes things more predictable). Other demands, according
+* to vendor docs are:
 *
 *   - "Integration time must be [...] lower than the ranging period, for a selected resolution."
 *       = Integration happens within each ranging period. In fact, there should be a 1ms margin
@@ -105,7 +108,7 @@ impl TargetOrder {
 *   - Sharpener range is [0..99]; inclusive; (0 = disabled)
 */
 #[derive(Clone)]
-pub struct RangingConfig<const DIM: usize /*= 4*/> {    // |*|
+pub struct RangingConfig<const DIM: usize> {    // |*|
     mode: Mode,      // also carries ranging frequency and integration time for 'AUTONOMOUS'
     sharpener: Option<PrcU8>,       // value range: 1..=99
     target_order: TargetOrder,
@@ -142,12 +145,13 @@ impl<const DIM: usize> RangingConfig<DIM> {
         match self.mode {
             AUTONOMOUS(MsU16(integration_time_ms), HzU8(freq)) => {
                 assert!((2..=1000).contains(&integration_time_ms), "Integration time out of range");
+                    // Source: comment in (and code of) vendor ULD C sources
 
                 // "The sum of all integration times + 1 ms overhead must be lower than the measurement
                 // period. Otherwise, the ranging period is automatically increased." (src: UM2884 - Rev 5 p.9)
                 //
-                // "4x4 is composed of one integration time"
-                // "8x8 is composed of four integration times" (same src)
+                // "4x4 is composed of ONE integration time"
+                // "8x8 is composed of FOUR integration times" (same src)
                 //
                 let n = R_INTEGRATION_TIMES_N;  // 1 (4x4); 4 (8x8)
 
@@ -168,14 +172,11 @@ impl<const DIM: usize> RangingConfig<DIM> {
             Some(PrcU8(v)) => { assert!((1..=99).contains(&v), "Sharpener out of range (1..=99)") },
             None => {}
         }
-
-        // "Integration time must be [...] lower than the ranging period, for a selected resolution." (source: C ULD sources)
-        //  tbd. Uncypher what that means, check it as well.
     }
 
     fn apply(&self, vl: &mut VL53L5CX_Configuration) -> Result<()> {
         self.validate();    // may panic
-        let ULD_RESO: Resolution_R = reso_details::<DIM>().0;
+        let /*const*/ ULD_RESO: Resolution_R = reso_details::<DIM>().0;
 
         // Set the resolution first. UM2884 (Rev 5) says:
         //  "['..._set_resolution()'] must be used before updating the ranging frequency"
@@ -237,20 +238,17 @@ pub struct State_Ranging<const DIM: usize> {    // DIM: 4|8
     // Access to 'VL53L5CX_Configuration'.
     // The 'Option' is needed to have both explicit '.stop()' and an implicit 'Drop'.
     outer_state: Option<State_HP_Idle>,
-    //R rbuf: ResultsData<DIM>      // Rust-side results store
 }
 
 impl<const DIM: usize> State_Ranging<DIM> {
     pub(crate) fn transition_from(/*move*/ mut st: State_HP_Idle, cfg: &RangingConfig<DIM>) -> Result<Self> {
         let vl: &mut VL53L5CX_Configuration = st.borrow_uld_mut();
         cfg.apply(vl)?;
-        debug!("xxx");
 
         match unsafe { vl53l5cx_start_ranging(vl) } {
             ST_OK => {
                 let x = Self{
                     outer_state: Some(st),
-                    //R rbuf: ResultsData::empty()
                 };
                 Ok(x)
             },
@@ -259,8 +257,10 @@ impl<const DIM: usize> State_Ranging<DIM> {
     }
 
     /*
-    * Used by the app-level, together with interrupts (and/or timer) and '.await', to see which
-    * board(s) have fresh data.
+    * Used by the app-level, to see which of multiple boards (potentially all sharing an 'INT' line)
+    * have data available.
+    *
+    * ASSUMPTION: When getting such data, the 'is_ready()' is no longer giving 'true'.
     */
     pub fn is_ready(&mut self) -> Result<bool> {
         let mut tmp: u8 = 0;
@@ -272,7 +272,7 @@ impl<const DIM: usize> State_Ranging<DIM> {
 
     /*
     * Collect results from the last successful scan.
-    //tbd. Try and describe what happens, if you call here before a scan is ready.  tbd. Make a test/example
+    //tbd. Try and describe what happens, if you call here before a scan is ready.
     */
     pub fn get_data(&mut self) -> Result<(ResultsData<DIM>, TempC)> {
         use core::mem::MaybeUninit;
@@ -289,7 +289,6 @@ impl<const DIM: usize> State_Ranging<DIM> {
                 un.assume_init()
             }
         };
-        //unsafe { MaybeUninit::zeroed().assume_init() }        // the easy way :)
 
         match unsafe { vl53l5cx_get_ranging_data(self.borrow_uld_mut(), &mut buf) } {
             ST_OK => {
@@ -338,13 +337,10 @@ impl<const DIM: usize> Drop for State_Ranging<DIM> {
         #[cfg(feature = "defmt")]
         trace!("Drop handler called");
 
-        match self.outer_state {
-            None => (),
-            Some(ref mut outer) => {
-                match Self::_stop(outer) {
-                    Ok(_) => {},
-                    Err(Error(e)) => { panic!("Stop ranging failed; st={}", e) }
-                }
+        for mut outer in self.outer_state.as_mut() {
+            match Self::_stop(&mut outer) {
+                Ok(_) => {},
+                Err(Error(e)) => { panic!("Stop ranging failed; st={}", e) }
             }
         }
     }
