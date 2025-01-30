@@ -47,16 +47,10 @@ impl Platform for MyPlatform {
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
 
-        match self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf) {
-            Err(e) => {
-                // If we get an error, let's stop right away.
-                panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index_orig, buf.len(), e);
-            },
-            Ok(()) => {
-                // There should be 1.2ms between transactions, by the VL spec.
-                blocking_delay_us(1000);    // 1200
-            }
-        };
+        self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf).unwrap_or_else(|e| {
+            // If we get an error, let's stop right away.
+            panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index_orig, buf.len(), e);
+        });
 
         // Whole 'buf' should now have been read in.
         //
@@ -65,6 +59,9 @@ impl Platform for MyPlatform {
         } else {
             trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index_orig, slice_head(buf,20), buf.len());
         }
+
+        // There should be 1.3ms between transmissions, by the VL spec. (see 'tBUF', p.15)
+        blocking_delay_us(1000);    // 1200
 
         Ok(())
     }
@@ -140,7 +137,7 @@ impl Platform for MyPlatform {
 
             index = index + n as u16;
 
-            // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
+            // There should be 1.3ms between transmissions, by the VL spec. (see 'tBUF', p.15)
             blocking_delay_us(1000);    // 1300
         }
 

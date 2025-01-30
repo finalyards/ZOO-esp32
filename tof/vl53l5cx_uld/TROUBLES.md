@@ -14,15 +14,11 @@ Work-around:
 
 - ```make _clean``` + retry
 
-<!-- #hidden; earlier
-The author saw this once (in 2024), after started to use a pull-up for `PWR_EN` pin, instead of actively pulling it up - and back down again.
+Seen:
 
-If you see this repeatedly, consider driving the `PWR_EN` pin before your application.
--->
-
-<!--
-seen: 28-Jan-25
--->
+- 28-Jan-25; `make _clean` cured it
+- 30-Jan-25; **DID NOT GET CURED**; tried `make _clean`, `cargo clean`, power off/on (USB cable)
+- ~once in 2024 <!--, after started to use a pull-up for `PWR_EN` pin, instead of actively pulling it up - and back down again. // might be irrelevant???-->
 
 
 ## [ESP32-C3] I2C `TimeOut`
@@ -68,3 +64,46 @@ $ make -f Makefile.dev m3
 ```
 
 That should fix it.
+
+
+## Stuck, reading `0x2c00`
+
+Without tracing:
+
+```
+$ FEATURES=esp-hal-0_22 DEFMT_LOG=debug make -f Makefile.dev m3
+[...]
+13.879729 [ERROR] ====================== PANIC ======================
+13.879756 [ERROR] panicked at examples/m3.rs:161:10:
+```
+
+With tracing:
+
+```
+$ FEATURES=esp-hal-0_22 DEFMT_LOG=trace make -f Makefile.dev m3
+[…]
+23.669357 [TRACE] I2C read: 0x2c00 -> [0x00, 0x00, 0x00, 0x00]
+23.669405 [TRACE] 🔸 10ms
+23.681221 [TRACE] I2C read: 0x2c00 -> [0x00, 0x00, 0x00, 0x00]
+23.681269 [TRACE] 🔸 10ms
+23.693085 [TRACE] I2C read: 0x2c00 -> [0x00, 0x00, 0x00, 0x00]
+23.693133 [TRACE] 🔸 10ms
+23.706749 [TRACE] I2C read: 0x2c04 -> [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]... (24 bytes)
+23.706865 [ERROR] ====================== PANIC ======================
+23.706889 [ERROR] panicked at examples/m3.rs:161:10:
+to start ranging: Error(255)
+<<
+```
+
+The VL firmware tries to read `0x2c00` and doesn't get the values it wants.
+
+Reason unknown.
+
+Workaround: none??
+
+**TO BE STUDIED**
+
+**EDIT:**
+
+Just relaunching seems to *sometimes* avoid this!
+

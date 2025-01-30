@@ -15,7 +15,8 @@ debug = 2
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
 codegen-units = 16
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
+panic         = "abort"
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
@@ -34,20 +35,16 @@ defmt-rtt       = { version = "0.4.1" }
 #esp-hal         = { version = "0.23.0", features = ["defmt", "esp32c6"] }
 
 # WORKS!!! MUST USE 0.22.0; I2C gets stuck on 0.23.{01} -> https://github.com/lure23/ZOO-esp32/issues/20
-esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
-esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
-
-# local copy; I2C GETS STUCK (merged with latest 'main' from esp-rs):
-#esp-backtrace   = { path = "../../../esp-hal.bugadani/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
-#esp-hal         = { path = "../../../esp-hal.bugadani/esp-hal", features = ["defmt", "esp32c6"] }
+#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
 
 # NEXT:
 #esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
 #esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }
 
 # local copy:
-#esp-backtrace   = { path = "../../../esp-hal/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
-#esp-hal         = { path = "../../../esp-hal/esp-hal", features = ["defmt", "esp32c6"] }
+esp-backtrace   = { path = "../../../esp-hal/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+esp-hal         = { path = "../../../esp-hal/esp-hal", features = ["defmt", "esp32c6"] }
 
 semihosting     = { version = "0.1.18" }
 

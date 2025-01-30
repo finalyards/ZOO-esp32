@@ -10,7 +10,6 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;
 
-#[cfg(not(feature = "esp-hal-0_22"))]
 use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Input, /*InputConfig,*/ Output, /*OutputConfig,*/ Level},
@@ -30,14 +29,8 @@ use esp_hal::{
 };
 #[cfg(feature = "esp-hal-0_22")]
 use esp_hal::{
-    delay::Delay,
-    gpio::{AnyPin, Input, Output, Level},
-    i2c::master::{Config as I2cConfig, I2c},
     entry as main,
-    time::now
 };
-
-const D_PROVIDER: Delay = Delay::new();
 
 extern crate vl53l5cx_uld as uld;
 
@@ -108,26 +101,21 @@ fn main2() -> Result<()> {
     let INT = Input::new(INT, Pull::None);
 
     let pl = {
+        let x = I2c::new(peripherals.I2C0, I2cConfig::default());
         #[cfg(not(feature = "esp-hal-0_22"))]
-        let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
-            .unwrap()
-            .with_sda(SDA)
-            .with_scl(SCL);
-        #[cfg(feature = "esp-hal-0_22")]
-        let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+        let x = x.unwrap();
+
+        let i2c_bus = x
             .with_sda(SDA)
             .with_scl(SCL);
 
         MyPlatform::new(i2c_bus)
     };
 
-    let delay_ms = |ms| D_PROVIDER.delay_millis(ms);
-    let delay_us = |us| D_PROVIDER.delay_micros(us);
-
     // Reset VL53L5CX(s) by pulling down their power for a moment
     {
         PWR_EN.set_low();
-        delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
+        blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
         PWR_EN.set_high();
         info!("Target powered off and on again.");
     }
@@ -171,7 +159,7 @@ fn main2() -> Result<()> {
             } else if (now()-t0).to_millis() > 1000 {
                 panic!("No INT detected");
             }
-            delay_us(20);   // < 100us
+            blocking_delay_us(20);   // < 100us
         }
 
         let (res, temp_degc) = ring.get_data()
@@ -200,6 +188,11 @@ fn main2() -> Result<()> {
 
     Ok(())
 }
+
+const D_PROVIDER: Delay = Delay::new();
+
+fn blocking_delay_ms(ms: u32) { D_PROVIDER.delay_millis(ms); }
+fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 
 /*
 * Tell 'defmt' how to support '{t}' (timestamp) in logging.
