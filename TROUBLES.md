@@ -20,7 +20,9 @@ Sometimes, one also needs to detach the USB cable physically.
 This has been observed on both ESP32-C3 and ESP32-C6 devkits.
 -->
 
-## [ESP32-C3] Problem with certain time critical hardware situations, and the JTAG interface
+## [ESP32-C3] Problem with certain time critical hardware situations, and the JTAG interface, and `defmt` / other RTT 😊
+
+The development tools we use (`probe-rs` and `defmt`) bring up a tooling issue that affects ESP32-C3 (but not e.g. ESP32-C6).
 
 There's a specific case where ESP32-C3 seems to work against its spec, and while `probe-rs` had a fix for this, it won't be kept around. [Details here](https://github.com/probe-rs/probe-rs/issues/2818#issuecomment-2358791448). That is quite fair.
 
