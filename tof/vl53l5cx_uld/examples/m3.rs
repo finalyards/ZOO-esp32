@@ -25,7 +25,7 @@ use esp_hal::gpio::Pull;
 #[cfg(not(feature="esp-hal-0_22"))]
 use esp_hal::{
     main,
-    time::RateExtU32
+    time::RateExtU32,
 };
 #[cfg(feature = "esp-hal-0_22")]
 use esp_hal::{
@@ -73,6 +73,9 @@ struct Pins<const BOARDS: usize>{
     INT: AnyPin
 }
 
+//#[cfg(not(feature = "esp-hal-0_22"))]
+//tbd. some day: const I2C_SPEED: HertzU32 = 1000.kHz();  // non-const; doesn't compile
+
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
@@ -101,9 +104,12 @@ fn main2() -> Result<()> {
     let INT = Input::new(INT, Pull::None);
 
     let pl = {
-        let x = I2c::new(peripherals.I2C0, I2cConfig::default());
         #[cfg(not(feature = "esp-hal-0_22"))]
-        let x = x.unwrap();
+        let x = I2c::new(peripherals.I2C0, I2cConfig::default()
+            .with_frequency( 1000.kHz() )       // tbd. I2C_SPEED
+        ).unwrap();
+        #[cfg(feature = "esp-hal-0_22")]
+        let x = I2c::new(peripherals.I2C0, I2cConfig::default());   // there was a way to set speed, right..?
 
         let i2c_bus = x
             .with_sda(SDA)

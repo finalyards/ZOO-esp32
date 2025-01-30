@@ -31,19 +31,19 @@ anyhow          = { version = "1.0.95", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 
 # last released; I2C GETS STUCK
-#esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 #esp-hal         = { version = "0.23.0", features = ["defmt", "esp32c6"] }
 
 # WORKS!!! MUST USE 0.22.0; I2C gets stuck on 0.23.{01} -> https://github.com/lure23/ZOO-esp32/issues/20
-#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 #esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
 
 # NEXT:
-#esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 #esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }
 
 # local copy:
-esp-backtrace   = { path = "../../../esp-hal/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+esp-backtrace   = { path = "../../../esp-hal/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 esp-hal         = { path = "../../../esp-hal/esp-hal", features = ["defmt", "esp32c6"] }
 
 semihosting     = { version = "0.1.18" }

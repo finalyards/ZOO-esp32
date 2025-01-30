@@ -22,10 +22,49 @@ const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );
 #[cfg(feature = "esp-hal-0_22")]
 const I2C_ADDR: u8 = DEFAULT_I2C_ADDR.as_7bit();
 
+// If the same 'read' gets repeatedly called, it's a sign of problems. Instead of letting it go
+// on, best to panic.
+//
+// This is in response to:
+//  <<
+//      20.624089 [TRACE] I2C read: 0x2c00 -> [0x00, 0x90, 0x63, 0x21]
+//      20.625146 [TRACE] 🔸 10ms
+//      20.635959 [TRACE] I2C read: 0x2c00 -> [0x00, 0x90, 0x63, 0x21]
+//      20.637016 [TRACE] 🔸 10ms
+//      20.647828 [TRACE] I2C read: 0x2c00 -> [0x00, 0x90, 0x63, 0x21]
+//      20.648885 [TRACE] 🔸 10ms
+//      20.659698 [TRACE] I2C read: 0x2c00 -> [0x00, 0x90, 0x63, 0x21]
+//      20.660754 [TRACE] 🔸 10ms
+//      20.671567 [TRACE] I2C read: 0x2c00 -> [0x00, 0x90, 0x63, 0x21]
+//  <<
+//
+struct LastReads {
+    index: u16,
+    count: u16      // 1..MAX_REPEATS-1 | 0: last was not a read
+}
+impl LastReads {
+    const MAX_REPEATS: u16 = 299;
+
+    fn empty() -> Self { Self{ index: 0, count: 0 } }
+    fn read_inc(&mut self, i: u16) {
+        if self.count==0 || self.index != i {
+            self.index = i;
+            self.count = 1;     // start counting
+        } else if self.count >= Self::MAX_REPEATS {
+            panic!("Too many repeated reads ({}x to index {:#06x})", Self::MAX_REPEATS, self.index);
+        } else {
+            self.count += 1;
+        }
+    }
+    fn reset(&mut self) { /*self.index = 0;*/ self.count = 0; }
+}
+
 /*
 */
 pub struct MyPlatform {
-    i2c: I2c<'static, Blocking>
+    i2c: I2c<'static, Blocking>,
+
+    last_reads: LastReads,
 }
 
 // Rust note: for the lifetime explanation, see:
@@ -37,6 +76,7 @@ impl MyPlatform {
     pub fn new(i2c: I2c<'static,Blocking>) -> Self {
         Self{
             i2c,
+            last_reads: LastReads::empty(),
         }
     }
 }
@@ -46,6 +86,8 @@ impl Platform for MyPlatform {
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
         let index_orig = index;
+
+        self.last_reads.read_inc(index);    // may panic
 
         self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf).unwrap_or_else(|e| {
             // If we get an error, let's stop right away.
@@ -75,6 +117,8 @@ impl Platform for MyPlatform {
     */
     fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
         use core::{iter::zip, mem::MaybeUninit};
+
+        self.last_reads.reset();
 
         // 'esp-hal' has autochunking since 0.22.0. It doesn't, however, have a 'I2c::write_write()'
         // that would allow us to give two slices, to be written consecutively (or using an iterator,
