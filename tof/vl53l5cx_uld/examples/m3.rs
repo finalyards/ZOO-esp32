@@ -133,7 +133,7 @@ fn main2() -> Result<()> {
 
     info!("Init succeeded");
 
-    // Extra test, to see basic comms works     // BUG: GETS STUCK
+    // Extra test, to see basic comms work      // BUG: GETS STUCK
     {
         vl.i2c_no_op()
             .expect("to pass");

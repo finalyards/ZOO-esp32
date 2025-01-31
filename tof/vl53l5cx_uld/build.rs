@@ -208,6 +208,10 @@ fn main() -> Result<()> {
         ] {
             println!("cargo::rustc-link-arg={}", s);
         }
+
+        if std::env::var("TEST").is_ok() {  // 'cargo test' run
+            println!("cargo::rustc-link-arg-tests=-Tembedded-test.x");
+        }
     }
 
     println!("cargo:rustc-link-search=tmp");

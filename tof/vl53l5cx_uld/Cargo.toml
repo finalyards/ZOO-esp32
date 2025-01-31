@@ -30,6 +30,8 @@ strum           = { version = "0.26.3", default-features = false, features = ["d
 anyhow          = { version = "1.0.95", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
 
+embedded-test   = { version = "0.6.0", features = ["defmt"] }
+
 # last released; I2C GETS STUCK
 #esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
 #esp-hal         = { version = "0.23.0", features = ["defmt", "esp32c6"] }
@@ -99,6 +101,11 @@ esp-hal-0_22 = []   # 0.22.0
 [[example]]
 name = "m3"
 required-features = ["defmt", "fugit", "distance_mm"]   # + "targets_per_zone_{2..4}"
+
+[[test]]
+name = "plain_test"
+harness = false
+required-features = ["defmt"]
 
 [patch.crates-io]
 #|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
