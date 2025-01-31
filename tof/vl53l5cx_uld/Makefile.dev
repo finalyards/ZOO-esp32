@@ -51,6 +51,14 @@ m3:
 	  FEATURES=$(FEATURES),targets_per_zone_2,$(ALL_FEATURES) \
 	  $(REMAKE) --no-print-directory _build _run
 
+# Tests
+plain_test pt:
+	TEST=plain_test \
+	  $(REMAKE) --no-print-directory _test
+
+_test:
+	$(LOG_ENV) cargo test --features=defmt --test $(TEST)
+
 #---
 _build:
 	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt,fugit --example $(EXAMPLE)
@@ -62,4 +70,4 @@ _run:
 echo:
 	@echo $(notdir $(_OUT_EXAMPLE))
 
-.PHONY: all m3 _build _run echo
+.PHONY: all m3 _test _build _run echo
