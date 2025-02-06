@@ -43,6 +43,7 @@ struct LastReads {
     count: u16      // 1..MAX_REPEATS-1 | 0: last was not a read
 }
 impl LastReads {
+    // Vendor C API lets read repeat 200 rounds ("2s", in there comments, though is not time based), before timeout.
     const MAX_REPEATS: u16 = 299;
 
     fn empty() -> Self { Self{ index: 0, count: 0 } }

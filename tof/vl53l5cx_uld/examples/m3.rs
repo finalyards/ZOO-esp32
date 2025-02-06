@@ -98,7 +98,7 @@ fn main2() -> Result<()> {
 
     #[allow(non_snake_case)]
     #[cfg(feature = "esp-hal-next")]
-    let INT = Input::new(INT, InputConfig::default() /*no pull*/);
+    let INT = Input::new(INT, InputConfig::default());  // no pull
     #[allow(non_snake_case)]
     #[cfg(not(feature = "esp-hal-next"))]
     let INT = Input::new(INT, Pull::None);

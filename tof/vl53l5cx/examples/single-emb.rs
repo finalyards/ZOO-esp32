@@ -19,13 +19,18 @@ use embassy_executor::Spawner;
 
 use esp_hal::{
     delay::Delay,
-    gpio::Input,
+    gpio::{AnyPin, Input, Level, Output},
     i2c::master::{Config as I2cConfig, I2c},
     time::{now, Instant, Duration},
     timer::timg::TimerGroup,
     Blocking
 };
-use esp_hal::gpio::{AnyPin, InputConfig, Level, Output, OutputConfig, Pull};
+#[cfg(feature = "esp-hal-next")]
+use esp_hal::gpio::{InputConfig, OutputConfig};
+#[cfg(not(feature = "esp-hal-next"))]
+use esp_hal::gpio::{Pull};
+
+#[cfg(feature = "esp-hal-next")]
 use fugit::RateExtU32;
 use static_cell::StaticCell;
 
@@ -60,28 +65,48 @@ async fn main(spawner: Spawner) {
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
-    let o_low_cfg = OutputConfig::default().with_level(Level::Low);
-    let i_pull_none_cfg = InputConfig::default().with_pull(Pull::None);
-
     #[allow(non_snake_case)]
     let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
 
     #[allow(non_snake_case)]
-    let mut PWR_EN = Output::new(PWR_EN, o_low_cfg).unwrap();
+    #[cfg(feature="esp-hal-next")]
+    let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
     #[allow(non_snake_case)]
-    let mut LPns = LPns.map(|n| { Output::new(n, o_low_cfg).unwrap() });
+    #[cfg(not(feature="esp-hal-next"))]
+    let mut PWR_EN = Output::new(PWR_EN, Level::Low);
+
     #[allow(non_snake_case)]
-    let INT = Input::new(INT, i_pull_none_cfg).unwrap();
+    #[cfg(feature="esp-hal-next")]
+    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low, OutputConfig::default()) });
+    #[allow(non_snake_case)]
+    #[cfg(not(feature="esp-hal-next"))]
+    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low) });
+
+    #[allow(non_snake_case)]
+    #[cfg(feature="esp-hal-next")]
+    let INT = Input::new(INT, InputConfig::default());     // no 'Pull'
+    #[allow(non_snake_case)]
+    #[cfg(not(feature="esp-hal-next"))]
+    let INT = Input::new(INT, Pull::None);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
+    #[cfg(feature = "esp-hal-next")]
     let i2c_cfg = I2cConfig::default()
-        .with_frequency(50.kHz())
+        .with_frequency(50.kHz())   // WAS _THIS_ THAT MADE IT???? !===!?!?!?!?!?!??!?! tbd.tbd.-
         ;
+    #[cfg(not(feature = "esp-hal-next"))]
+    let i2c_cfg = I2cConfig::default();     // was there a way to steer frequency? doesn't matter
 
+    #[cfg(feature = "esp-hal-next")]
     let i2c_bus = I2c::new(peripherals.I2C0, i2c_cfg)
         .unwrap()
+        .with_sda(SDA)
+        .with_scl(SCL);
+
+    #[cfg(not(feature = "esp-hal-next"))]
+    let i2c_bus = I2c::new(peripherals.I2C0, i2c_cfg)
         .with_sda(SDA)
         .with_scl(SCL);
 
@@ -116,7 +141,7 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
         .with_target_order(CLOSEST);
 
     let mut ring = vl.start_ranging(&c, pinINT)
-        .unwrap();
+        .expect("ranging to start");
 
     let t0 = now();
     let mut _t = Timings::new();

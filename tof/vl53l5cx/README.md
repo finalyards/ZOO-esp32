@@ -4,10 +4,12 @@ Higher level abstraction for the ST.com [VL53L5CX](https://www.st.com/en/imaging
 
 APIs for using either a single, or multiple such sensors at once.
 
+>Note: Unlike the `../vl53l5cx_uld` subproject, this one is ESP32-family specific (like rest of the repo is).
+
 
 ## Requirements
 
-- Follow the steps in the `../vl53l5cx_uld/README.md` 
+Follow the steps in the `../vl53l5cx_uld/README.md`. That folder needs to be compilable (`cargo build --release --lib`) before you should attempt build this one.
 
 
 ## Running examples
