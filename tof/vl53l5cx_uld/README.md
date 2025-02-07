@@ -1,8 +1,14 @@
 # `v53l5cx_uld`
 
-The `uld` part for the VL53L5CX time-of-flight sensor takes care of C/Rust adaptation and translation of the results from 1D vectors to 2D matrices, and enums instead of integer values.
+The `uld` part for the VL53L5CX time-of-flight sensor takes care of
+
+- C/Rust adaptation
+- translation of results from 1D vectors to 2D matrices
+- and enums instead of integer values.
 
 YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx/README.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can be built.
+
+>**@ST.com**: It would be really nice if you can provide the ULD C libraries without a "click through" license. A downloadable URL with checksum for tamper-resistance would do, just fine.
 
 
 ## Pre-reading
@@ -41,13 +47,22 @@ $ cargo install bindgen-cli
 
 >Note: Bindgen docs recommend using it as a library, but we prefer to use it as a command line tool.
 
+<!-- Developed with:
+$ clang --version
+Ubuntu clang version 18.1.3 (1ubuntu1)
+[...]
+
+$ bindgen --version
+bindgen 0.71.1
+-->
+
 ### The vendor C libary
 
 The `VL53L5CX_ULD_API` (ULD C driver) is a separate download.
 
 1. [Fetch it](https://www.st.com/en/embedded-software/stsw-img023.html) from the vendor (`Get software` > `Get latest` > check the license > ...)
 
-	>Note: You can "Download as a guest", after clicking the license.
+	>Note: You can `"Download as a guest"`, after clicking the license.
 
 2. Unzip it to a suitable location
 3. `export VL53L5CX_ULD_API={your-path}/VL53L5CX_ULD_API`
@@ -59,8 +74,14 @@ The workflow has been tested on these MCUs:
 
 |||
 |---|---|
-|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
+|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|
+|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html) ❗️ Currently broken!!!|
+
+>NOTE! The author is struggling with I2C access on the `esp-hal` library / and/or the sensors. See [summary in a MRE repo](https://github.com/lure23/vl53l5-c2rust.fork?tab=readme-ov-file#summary). TL;DR: C3 with `esp-println` works; C6 or `defmt-rtt` logging doesn't. THE AUTHOR WOULD REALLY, REALLY LIKE TO HAVE ALL THE COMBINATIONS WORK IN A STABLE MANNER.
+
+<!-- #hidden
 |`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
+-->
 
 ### Connection to the devkit
 

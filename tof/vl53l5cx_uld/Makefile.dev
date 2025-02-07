@@ -61,7 +61,7 @@ _test:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt,fugit --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:

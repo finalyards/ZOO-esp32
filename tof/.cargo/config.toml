@@ -4,4 +4,4 @@
 #       -> https://doc.rust-lang.org/cargo/reference/config.html
 #
 [build]
-target = "riscv32imac-unknown-none-elf"      # change this by 'set-target.sh'
+target = "riscv32imc-unknown-none-elf"      # change this by 'set-target.sh'

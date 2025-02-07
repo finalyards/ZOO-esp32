@@ -55,23 +55,13 @@ impl Platform for Pl<'_> {
     * in multiple parts.
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
-        let index_orig = index;
-
         let mut i2c = self.i2c_shared.borrow_mut();
 
-        match i2c.write_read(self.i2c_addr.as_7bit(), &index.to_be_bytes(), buf) {
-            Err(e) => {
-                // If we get an error, let's stop right away.
-                panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index_orig, buf.len(), e);
-            },
-            Ok(()) => {
-                // There should be 1.2ms between transactions, by the VL spec.
-                blocking_delay_ms(1);
-            }
-        };
+        i2c.write_read(self.i2c_addr.as_7bit(), &index.to_be_bytes(), buf)
+        .unwrap_or_else(|e| {
+            panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
+        });
 
-        // Whole 'buf' should now have been read in.
-        //
         #[cfg(feature = "defmt")]
         {
             if buf.len() <= TRACE_HEAD_N {
@@ -80,6 +70,9 @@ impl Platform for Pl<'_> {
                 trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index_orig, slice_head(buf,TRACE_HEAD_N), buf.len());
             }
         }
+
+        // There should be 1.2ms between transactions, by the VL spec.
+        blocking_delay_us(1000);
 
         Ok(())
     }
@@ -92,75 +85,28 @@ impl Platform for Pl<'_> {
     * to recover.
     */
     fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
-        use core::{iter::zip, mem::MaybeUninit};
-
-        // 'esp-hal' has autochunking since 0.22.0. It doesn't, however, have a 'I2c::write_write()'
-        // that would allow us to give two slices, to be written consecutively (or using an iterator,
-        // which would also solve the case). VL53L5CX needs this, because it takes the writing
-        // index as the first two bytes.
-        //
-        // Concatenating slices using 'ArrayVec' (or 'MaybeUninit') is an option. If we do that,
-        // we might just as well explicitly chunk the whole payload, to keep RAM consumption small.
-        // This is not a criticism of the esp-hal API. The VL53L5CX use of the I2C (in uploading
-        // its firmware) is likely unusual - and it's not a big trouble to keep the chunking in.
-        // (However, we can now chunk in longer pieces than with esp-hal 0.21.1).
-        //
-        const BUF_SIZE: usize = 10*1024;   // can be anything (1..32k)
-        //const BUF_SIZE: usize = MAX_WR_LEN;   // prior (0.21.x)
-
-        let mut index = index;    // rolled further with the chunks
-
-        let chunks = vs.chunks(BUF_SIZE-2);
-        let _rounds = (&chunks).len();   // needs taking before we move 'chunks' as an iterator
-
-        let mut buf: [u8; BUF_SIZE] = {
-            let un = MaybeUninit::zeroed();
-            unsafe { un.assume_init() }
-        };
-
         let mut i2c = self.i2c_shared.borrow_mut();
         let addr: u8 = self.i2c_addr.as_7bit();
 
-        for (_round, chunk) in zip(1.., chunks) {
-            let n: usize = chunk.len();
+        // 'esp-hal' doesn't have '.write_write()', but it's easy to make one.
+        //
+        i2c.transaction(addr, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)])
+        .unwrap_or_else(|e| {
+            panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, vs.len(), e);
+        });
 
-            // Writing needs to be done in one block, where the first two bytes are the address.
-            //
-            // Rust note:
-            //      Since slices are *continuous memory blocks*, there's no way to concatenate two
-            //      of them together, without allocation.
-	    //
-            // We could:
-            //  - bring in 'alloc' and use '[addr,vs].concat()' [no]
-            //  - use a singular buffer with 'self' (overkill)
-            //  - use a local buffer, separate on each call (good; we steer the memory use)
-            //
-            let out: &[u8] = {
-                buf[0..2].copy_from_slice(&index.to_be_bytes());
-                buf[2..2 + n].copy_from_slice(chunk);
-                &buf[..2 + n]
-            };
-
-            i2c.write(addr, &out).unwrap_or_else(|e| {
-                // If we get an error, let's stop right away.
-                panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, n, e);
-            });
-
-            // Give the "written" log here, separately for each chunk (clearer to follow log).
-            #[cfg(feature = "defmt")]
-            {
-                if n <= TRACE_HEAD_N {
-                    trace!("I2C written: {:#06x} <- {:#04x}", index, chunk);
-                } else {
-                    trace!("I2C written: {:#06x} <- {:#04x}... ({=usize} bytes)", index, slice_head(chunk,TRACE_HEAD_N), n);
-                }
+        #[cfg(feature = "defmt")]
+        {
+            let n = vs.len();
+            if n <= TRACE_HEAD_N {
+                trace!("I2C written: {:#06x} <- {:#04x}", index, vs);
+            } else {
+                trace!("I2C written: {:#06x} <- {:#04x}... ({=usize} bytes)", index, slice_head(vs,TRACE_HEAD_N), n);
             }
-
-            index = index + n as u16;
-
-            // There should be 1.3ms between transactions, by the VL spec. (see 'tBUF', p.15)
-            blocking_delay_ms(1);
         }
+
+        // There should be 1.3ms between transmissions, by the VL spec. (see 'tBUF', p.15)
+        blocking_delay_us(1000);    // 1300
 
         Ok(())
     }
@@ -190,4 +136,7 @@ const D_PROVIDER: Delay = Delay::new();
 
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
+}
+fn blocking_delay_us(us: u32) {
+    D_PROVIDER.delay_micros(us);
 }

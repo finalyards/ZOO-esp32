@@ -15,16 +15,22 @@ use esp_hal::{
     gpio::{AnyPin, Input, /*InputConfig,*/ Output, /*OutputConfig,*/ Level},
     i2c::master::{Config as I2cConfig, I2c},
     //main,
-    time::{now, /*RateExtU32*/}
+    //time::{/*Instant::now,*/ /*RateExtU32*/}
 };
 #[cfg(feature="esp-hal-next")]
-use esp_hal::gpio::{InputConfig, OutputConfig};
+use esp_hal::{
+    gpio::{InputConfig, OutputConfig},
+    time::{Instant, Rate}
+};
 #[cfg(not(feature="esp-hal-next"))]
 use esp_hal::gpio::Pull;
 
 #[cfg(not(feature="esp-hal-0_22"))]
 use esp_hal::{
     main,
+};
+#[cfg(not(any(feature="esp-hal-0_22", feature="esp-hal-next")))]
+use esp_hal::{
     time::RateExtU32,
 };
 #[cfg(feature = "esp-hal-0_22")]
@@ -73,8 +79,9 @@ struct Pins<const BOARDS: usize>{
     INT: AnyPin
 }
 
-//#[cfg(not(feature = "esp-hal-0_22"))]
-//tbd. some day: const I2C_SPEED: HertzU32 = 1000.kHz();  // non-const; doesn't compile
+#[allow(non_upper_case_globals)]
+#[cfg(feature="esp-hal-next")]
+const I2C_SPEED: Rate = Rate::from_khz(1000);
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
@@ -106,7 +113,7 @@ fn main2() -> Result<()> {
     let pl = {
         #[cfg(not(feature = "esp-hal-0_22"))]
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()
-            .with_frequency( 1000.kHz() )       // tbd. I2C_SPEED
+            .with_frequency(I2C_SPEED)
         ).unwrap();
         #[cfg(feature = "esp-hal-0_22")]
         let x = I2c::new(peripherals.I2C0, I2cConfig::default());   // there was a way to set speed, right..?
@@ -133,7 +140,7 @@ fn main2() -> Result<()> {
 
     info!("Init succeeded");
 
-    // Extra test, to see basic comms work      // BUG: GETS STUCK
+    // Extra test, to see basic comms work
     {
         vl.i2c_no_op()
             .expect("to pass");
@@ -142,27 +149,24 @@ fn main2() -> Result<()> {
 
     //--- ranging loop
     //
-    #[cfg(not(feature = "esp-hal-0_22"))]
-    let freq = HzU8::try_from( 10.Hz() ).unwrap();  // tbd. make so we could 'just' give '10.Hz' (if '#fugit' feature is given)
-    #[cfg(feature = "esp-hal-0_22")]
-    let freq = HzU8(10);
+    let freq = HzU8(10);    // tbd. later, have this as 'Rate::from_hz(10)'
 
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),freq /*HzU8::try_from( 10.Hz() ).unwrap()*/))    // tbd.!!!!!!!
+        .with_mode(AUTONOMOUS(5.ms(),freq))
         .with_target_order(CLOSEST);
 
     let mut ring = vl.start_ranging(&c)
         .expect("to start ranging");
 
     for round in 0..3 {
-        let t0= now();
+        let t0= Instant::now();
 
         // wait for 'INT' to fall
         loop {
             if INT.is_low() {
-                debug!("INT after: {}ms", (now()-t0).to_micros() as f32 / 1000.0);
+                debug!("INT after: {}", t0.elapsed());
                 break;
-            } else if (now()-t0).to_millis() > 1000 {
+            } else if t0.elapsed().as_millis() > 1000 {
                 panic!("No INT detected");
             }
             blocking_delay_us(20);   // < 100us
@@ -214,9 +218,10 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 *       "defmt-timestamp-uptime" feature.
 */
 fn init_defmt() {
-    use esp_hal::time::now;
+    use esp_hal::time::Instant;
 
     defmt::timestamp!("{=u64:us}", {
-        now().duration_since_epoch().to_micros()
+        let now = Instant::now();
+        now.duration_since_epoch().as_micros()
     });
 }
