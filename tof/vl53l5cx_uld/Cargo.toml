@@ -16,29 +16,35 @@ debug = 2
 codegen-units = 16
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
 #panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
-panic         = "abort"
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
-fugit           = { version = "0.3.7", optional = true }
-    # available for users of 'esp_hal', but since our ULD layer is MCU agnostic, placing it behind a feature
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 anyhow          = { version = "1.0.95", default-features = false }
-defmt-rtt       = { version = "0.4.1" }
 
 embedded-test   = { version = "0.6.0", features = ["defmt"] }
 
 # 0.23.1; XXX
-esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c3", "semihosting"] }
-esp-hal         = { version = "0.23.1", features = ["defmt", "esp32c3"] }
+esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "esp32c3", "defmt"] }   # "semihosting"
+    # 7-Feb-25: 'esp-backtrace' didn't act well with 'esp-println' and 'semihosting'; it keeps looping instead of terminating
+    #           after a panic. (thus, "semihosting" disabled)
+
+esp-hal         = { version = "0.23.0", features = ["defmt", "esp32c3"] }
+esp-println     = { version = "0.13.0", features = [
+    "esp32c3",
+    "defmt-espflash",   # adds "framming bytes"; see https://docs.esp-rs.org/no_std-training/03_7_defmt.html#defmt-ecosystem
+    "log"               # "If you want to use any of the logging macros like info, debug [...] enable [this.]"
+]}
 
 # 0.22.0; XXX
 #esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c3", "semihosting"] }
 #esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c3"] }
+
+#defmt-rtt       = { version = "0.4.1" }
 
 semihosting     = { version = "0.1.18" }
 
@@ -79,7 +85,6 @@ targets_per_zone_3=["nb_targets_detected"]
 targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
-fugit = ["dep:fugit"]
 
 default = ["target_status"]
 
@@ -99,6 +104,7 @@ name = "plain_test"
 harness = false
 required-features = ["defmt"]
 
-[patch.crates-io]
-esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }

@@ -17,6 +17,7 @@ use defmt::{Format, Formatter};
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct HzU8(pub u8);      // Vendor ULD needs max 15 and 60
 
+/*** #consider what to do with fugit/esp-hal 'Rate'
 // Allow applications to use '15.Hz()'
 //
 // Note: the 'NOM' and 'DENOM' can be 1, since we're only interested in supporting full hertz.
@@ -29,7 +30,7 @@ impl TryFrom<fugit::Rate<u32,1,1>> for HzU8 {
             .map(|u8| HzU8(u8))
             .map_err(|_| "Frequency out of range")
     }
-}
+}***/
 
 // Input
 #[derive(Copy, Clone)]

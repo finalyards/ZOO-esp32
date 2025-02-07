@@ -1,12 +1,13 @@
 /*
-* Just read some data from board with 'LPns[0]'.
+* Just read some data from a Satel board.
 */
 #![no_std]
 #![no_main]
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, panic};
-use defmt_rtt as _;
+//use defmt_rtt as _;   // tbd. figure out what to do with 'defmt'
+use esp_println as _;
 
 use esp_backtrace as _;
 
@@ -23,7 +24,9 @@ use esp_hal::{
     time::{Instant, Rate}
 };
 #[cfg(not(feature="esp-hal-next"))]
-use esp_hal::gpio::Pull;
+use esp_hal::{
+    gpio::Pull
+};
 
 #[cfg(not(feature="esp-hal-0_22"))]
 use esp_hal::{
@@ -44,6 +47,11 @@ include!("./pins_gen.in");  // pins!
 
 mod common;
 use common::MyPlatform;
+
+#[cfg(not(feature="esp-hal-next"))]
+mod instant_temp;
+#[cfg(not(feature="esp-hal-next"))]
+use instant_temp::Instant;
 
 use uld::{
     Result,
@@ -71,11 +79,10 @@ fn main() -> ! {
 }
 
 #[allow(non_snake_case)]
-struct Pins<const BOARDS: usize>{
+struct Pins {
     SDA: AnyPin,
     SCL: AnyPin,
     PWR_EN: AnyPin,
-    LPns: [AnyPin;BOARDS],
     INT: AnyPin
 }
 
@@ -87,7 +94,7 @@ fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
-    let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
+    let Pins{ SDA, SCL, PWR_EN, INT } = pins!(peripherals);
 
     #[allow(non_snake_case)]
     #[cfg(feature = "esp-hal-next")]
@@ -98,17 +105,17 @@ fn main2() -> Result<()> {
 
     #[allow(non_snake_case)]
     #[cfg(feature = "esp-hal-next")]
-    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low, OutputConfig::default()) });
-    #[allow(non_snake_case)]
-    #[cfg(not(feature = "esp-hal-next"))]
-    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low) });
-
-    #[allow(non_snake_case)]
-    #[cfg(feature = "esp-hal-next")]
     let INT = Input::new(INT, InputConfig::default());  // no pull
     #[allow(non_snake_case)]
     #[cfg(not(feature = "esp-hal-next"))]
     let INT = Input::new(INT, Pull::None);
+
+    #[allow(non_snake_case)]
+    #[cfg(not(feature="esp-hal-next"))]
+    let I2C_SPEED = {       // could not be 'const'
+        //use esp_hal::time::RateExtU32;
+        1000_u32.kHz()
+    };
 
     let pl = {
         #[cfg(not(feature = "esp-hal-0_22"))]
@@ -133,13 +140,11 @@ fn main2() -> Result<()> {
         info!("Target powered off and on again.");
     }
 
-    // Have only one board comms-enabled (the pins are initially low).
-    LPns[0].set_high();
-
     let mut vl = VL53L5CX::new_with_ping(pl)?.init()?;
 
     info!("Init succeeded");
 
+    #[cfg(not(all()))]
     // Extra test, to see basic comms work
     {
         vl.i2c_no_op()
@@ -218,10 +223,18 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 *       "defmt-timestamp-uptime" feature.
 */
 fn init_defmt() {
+    #[cfg(feature="esp-hal-next")]
     use esp_hal::time::Instant;
+    #[cfg(not(feature="esp-hal-next"))]
+    use esp_hal::time::now;
 
     defmt::timestamp!("{=u64:us}", {
-        let now = Instant::now();
-        now.duration_since_epoch().as_micros()
+        #[cfg(feature="esp-hal-next")]
+        {
+            let now = Instant::now();
+            now.duration_since_epoch().as_micros()
+        }
+        #[cfg(not(feature="esp-hal-next"))]
+        now().duration_since_epoch().to_micros()
     });
 }

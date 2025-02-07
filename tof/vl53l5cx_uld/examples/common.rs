@@ -141,9 +141,7 @@ impl Platform for MyPlatform {
         // 'esp-hal' doesn't have '.write_write()', but it's easy to make one. This means we don't
         // need to concatenate the slices in a buffer.
         //
-        self.i2c.transaction(I2C_ADDR,
-            &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)]
-        ).unwrap_or_else(|e| {
+        self.i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)]).unwrap_or_else(|e| {
             panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, vs.len(), e);
         });
 
