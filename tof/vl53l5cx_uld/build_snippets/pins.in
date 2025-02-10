@@ -19,7 +19,7 @@ struct Board {
     SDA: u32,
     SCL: u32,
     PWR_EN: u32,
-    INT: u32,   // same interrupt pin for all the boards
+    INT: u32,
 }
 
 #[allow(non_snake_case)]

@@ -15,7 +15,6 @@ debug = 2
 #codegen-units = 1      # LLVM can perform better optimizations using a single thread
 codegen-units = 16
 opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-#panic         = "unwind"    # drops upper scope vars, e.g. stopping an ongoing scan, which may be nice
 lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
@@ -23,28 +22,24 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 defmt           = { version = "0.3.10", optional = true }
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
+# Rust provides no mechamism for conditional 'dev-dependencies'. Thus, we introduce them here.
+defmt-rtt       = { version = "0.4.1", optional = true }
+esp-println     = { version = "0.13.0", features = ["esp32c3", "defmt-espflash"], optional = true }
+
 [dev-dependencies]
 anyhow          = { version = "1.0.95", default-features = false }
 
 embedded-test   = { version = "0.6.0", features = ["defmt"] }
 
-# 0.23.1; XXX
-esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "esp32c3", "defmt"] }   # "semihosting"
+esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "esp32c3"] }   # "println"|"defmt", "semihosting"
     # 7-Feb-25: 'esp-backtrace' didn't act well with 'esp-println' and 'semihosting'; it keeps looping instead of terminating
     #           after a panic. (thus, "semihosting" disabled)
 
-esp-hal         = { version = "0.23.0", features = ["defmt", "esp32c3"] }
-esp-println     = { version = "0.13.0", features = [
-    "esp32c3",
-    "defmt-espflash",   # adds "framming bytes"; see https://docs.esp-rs.org/no_std-training/03_7_defmt.html#defmt-ecosystem
-    "log"               # "If you want to use any of the logging macros like info, debug [...] enable [this.]"
-]}
+esp-hal         = { version = "0.23.1", features = ["defmt", "esp32c3"] }
 
 # 0.22.0; XXX
-#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c3", "semihosting"] }
+#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "esp32c3"] } # "println"|"defmt", "semihosting"
 #esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c3"] }
-
-#defmt-rtt       = { version = "0.4.1" }
 
 semihosting     = { version = "0.1.18" }
 
@@ -88,6 +83,13 @@ defmt = ["dep:defmt"]
 
 default = ["target_status"]
 
+# Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
+# not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
+#
+# Note: 'esp-backtrace/defmt' kept here, in case we want to try 'esp-backtrace/println' on the former.
+EX_espflash = ["defmt", "dep:esp-println", "esp-backtrace/defmt"]    # run with espflash
+EX_probe_rs = ["defmt", "dep:defmt-rtt", "esp-backtrace/defmt"]    # run with probe-rs
+
 # Enable if wanting to use 'main' branch; also enable the '[patch.crates-io]' section, below.
 esp-hal-next = []
 esp-hal-0_22 = []   # 0.22.0
@@ -104,7 +106,8 @@ name = "plain_test"
 harness = false
 required-features = ["defmt"]
 
-#|[patch.crates-io]
-#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
+# Cannot make it conditional, by 'feature="esp-hal-next"': CHANGE MANUALLY
+[patch.crates-io]
+esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }

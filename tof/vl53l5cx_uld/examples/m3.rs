@@ -6,8 +6,11 @@
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, panic};
-//use defmt_rtt as _;   // tbd. figure out what to do with 'defmt'
+
+#[cfg(feature = "EX_espflash")]
 use esp_println as _;
+#[cfg(feature = "EX_probe_rs")]
+use defmt_rtt as _;
 
 use esp_backtrace as _;
 
@@ -16,7 +19,7 @@ use esp_hal::{
     gpio::{AnyPin, Input, /*InputConfig,*/ Output, /*OutputConfig,*/ Level},
     i2c::master::{Config as I2cConfig, I2c},
     //main,
-    //time::{/*Instant::now,*/ /*RateExtU32*/}
+    //time::{Instant::now, RateExtU32}
 };
 #[cfg(feature="esp-hal-next")]
 use esp_hal::{
@@ -144,7 +147,7 @@ fn main2() -> Result<()> {
 
     info!("Init succeeded");
 
-    #[cfg(not(all()))]
+    //#[cfg(not(all()))]
     // Extra test, to see basic comms work
     {
         vl.i2c_no_op()

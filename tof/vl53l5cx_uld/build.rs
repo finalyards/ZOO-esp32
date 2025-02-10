@@ -6,7 +6,6 @@
 *   - 'cargo build' (CLI); correct features
 */
 use anyhow::*;
-use itertools::Itertools;
 
 use std::{
     env,
@@ -89,6 +88,16 @@ fn main() -> Result<()> {
         println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
     }
 
+    // Config sanity checks (if 'examples/*')
+    //
+    if std::env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
+        #[cfg(not(any(feature = "EX_espflash", feature = "EX_probe_rs")))]
+        compile_error!("Must enable one of: {}, {}", "EX_espflash", "EX_probe_rs");
+
+        #[cfg(all(feature = "EX_espflash", feature = "EX_probe_rs"))]
+        compile_error!("Must enable ONLY one of: {}, {}", "EX_espflash", "EX_probe_rs");
+    }
+
     // Expose 'OUT_DIR' to an external (Makefile) build system
     {
         const TMP: &str = ".OUT_DIR";
@@ -115,6 +124,7 @@ fn main() -> Result<()> {
     // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match 
     //       what the real builds will be about.
     {
+        use itertools::Itertools;
         let mut defs: Vec<String> = vec!();
 
         macro_rules! add {

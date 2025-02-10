@@ -46,10 +46,17 @@ all:
 #|	  FEATURES=targets_per_zone_2,distance_mm,reflectance_percent \
 #|	  $(REMAKE) --no-print-directory _build _run
 
-m3:
+m3: m3-with-espflash
+
+m3-with-espflash:
 	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,$(ALL_FEATURES) \
-	  $(REMAKE) --no-print-directory _build _run_with_espflash
+	  FEATURES=$(FEATURES),targets_per_zone_2,EX_espflash,$(ALL_FEATURES) \
+	  $(REMAKE) --no-print-directory _build _run-with-espflash
+
+m3-with-probe-rs:
+	EXAMPLE=m3 \
+	  FEATURES=$(FEATURES),targets_per_zone_2,EX_probe_rs,$(ALL_FEATURES) \
+	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
 
 # Tests
 plain_test pt:
@@ -64,11 +71,11 @@ _build:
 	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
-_run:
-	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
-
-_run_with_espflash:
+_run-with-espflash:
 	espflash flash --log-format defmt --monitor $(_OUT_EXAMPLE)
+
+_run-with-probe-rs:
+	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
 	@echo $(notdir $(_OUT_EXAMPLE))
