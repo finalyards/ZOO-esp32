@@ -1,8 +1,8 @@
 /*
-* Fake the 'esp-hal-next' 'Instant' API, to keep main code simpler.
+* Fake the later 'Instant' API, to keep main code simpler.
 */
-#[cfg(feature = "esp-hal-next")]
-compile_error!("only for released <= 0.23.1");
+#[cfg(not(feature = "esp-hal-0_23"))]
+compile_error!("this module only for released 0.23.x");
 
 use esp_hal::time::{
     now as esp_hal_now,
@@ -34,3 +34,4 @@ impl Elapsed {
         self.0.to_millis()
     }
 }
+

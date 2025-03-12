@@ -7,9 +7,9 @@
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn, panic};
 
-#[cfg(feature = "EX_espflash")]
+#[cfg(feature = "run_with_espflash")]
 use esp_println as _;
-#[cfg(feature = "EX_probe_rs")]
+#[cfg(feature = "run_with_probe_rs")]
 use defmt_rtt as _;
 
 use esp_backtrace as _;
@@ -21,27 +21,23 @@ use esp_hal::{
     //main,
     //time::{Instant::now, RateExtU32}
 };
-#[cfg(feature="esp-hal-next")]
+#[cfg(not(feature="esp-hal-0_23"))]
 use esp_hal::{
     gpio::{InputConfig, OutputConfig},
     time::{Instant, Rate}
 };
-#[cfg(not(feature="esp-hal-next"))]
+#[cfg(feature="esp-hal-0_23")]
 use esp_hal::{
     gpio::Pull
 };
 
-#[cfg(not(feature="esp-hal-0_22"))]
+#[cfg(feature="esp-hal-0_23")]
 use esp_hal::{
     main,
 };
-#[cfg(not(any(feature="esp-hal-0_22", feature="esp-hal-next")))]
+#[cfg(feature="esp-hal-0_23")]
 use esp_hal::{
     time::RateExtU32,
-};
-#[cfg(feature = "esp-hal-0_22")]
-use esp_hal::{
-    entry as main,
 };
 
 extern crate vl53l5cx_uld as uld;
@@ -51,9 +47,9 @@ include!("./pins_gen.in");  // pins!
 mod common;
 use common::MyPlatform;
 
-#[cfg(not(feature="esp-hal-next"))]
+#[cfg(feature="esp-hal-0_23")]
 mod instant_temp;
-#[cfg(not(feature="esp-hal-next"))]
+#[cfg(feature="esp-hal-0_23")]
 use instant_temp::Instant;
 
 use uld::{
@@ -90,8 +86,8 @@ struct Pins {
 }
 
 #[allow(non_upper_case_globals)]
-#[cfg(feature="esp-hal-next")]
-const I2C_SPEED: Rate = Rate::from_khz(1000);
+#[cfg(not(feature="esp-hal-0_23"))]
+const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
@@ -100,33 +96,29 @@ fn main2() -> Result<()> {
     let Pins{ SDA, SCL, PWR_EN, INT } = pins!(peripherals);
 
     #[allow(non_snake_case)]
-    #[cfg(feature = "esp-hal-next")]
+    #[cfg(not(feature = "esp-hal-0_23"))]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
     #[allow(non_snake_case)]
-    #[cfg(not(feature = "esp-hal-next"))]
+    #[cfg(feature = "esp-hal-0_23")]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low);
 
     #[allow(non_snake_case)]
-    #[cfg(feature = "esp-hal-next")]
+    #[cfg(not(feature = "esp-hal-0_23"))]
     let INT = Input::new(INT, InputConfig::default());  // no pull
     #[allow(non_snake_case)]
-    #[cfg(not(feature = "esp-hal-next"))]
+    #[cfg(feature = "esp-hal-0_23")]
     let INT = Input::new(INT, Pull::None);
 
     #[allow(non_snake_case)]
-    #[cfg(not(feature="esp-hal-next"))]
+    #[cfg(feature="esp-hal-0_23")]
     let I2C_SPEED = {       // could not be 'const'
-        //use esp_hal::time::RateExtU32;
-        1000_u32.kHz()
+        400_u32.kHz()  // max 400
     };
 
     let pl = {
-        #[cfg(not(feature = "esp-hal-0_22"))]
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()
             .with_frequency(I2C_SPEED)
         ).unwrap();
-        #[cfg(feature = "esp-hal-0_22")]
-        let x = I2c::new(peripherals.I2C0, I2cConfig::default());   // there was a way to set speed, right..?
 
         let i2c_bus = x
             .with_sda(SDA)
@@ -150,10 +142,13 @@ fn main2() -> Result<()> {
     //#[cfg(not(all()))]
     // Extra test, to see basic comms work
     {
+        blocking_delay_ms(1500);
+
         vl.i2c_no_op()
             .expect("to pass");
         info!("I2C no-op (get power mode) succeeded");
     }
+    panic!();
 
     //--- ranging loop
     //
@@ -226,18 +221,18 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 *       "defmt-timestamp-uptime" feature.
 */
 fn init_defmt() {
-    #[cfg(feature="esp-hal-next")]
+    #[cfg(not(feature="esp-hal-0_23"))]
     use esp_hal::time::Instant;
-    #[cfg(not(feature="esp-hal-next"))]
+    #[cfg(feature="esp-hal-0_23")]
     use esp_hal::time::now;
 
     defmt::timestamp!("{=u64:us}", {
-        #[cfg(feature="esp-hal-next")]
+        #[cfg(not(feature="esp-hal-0_23"))]
         {
             let now = Instant::now();
             now.duration_since_epoch().as_micros()
         }
-        #[cfg(not(feature="esp-hal-next"))]
+        #[cfg(feature="esp-hal-0_23")]
         now().duration_since_epoch().to_micros()
     });
 }

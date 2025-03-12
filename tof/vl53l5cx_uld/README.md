@@ -4,11 +4,11 @@ The `uld` part for the VL53L5CX time-of-flight sensor takes care of
 
 - C/Rust adaptation
 - translation of results from 1D vectors to 2D matrices
-- and enums instead of integer values.
+- enums in place of "magic" integer values
 
-YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx/README.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can be built.
+YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx/README.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can also be built.
 
->**@ST.com**: It would be really nice if you can provide the ULD C libraries without a "click through" license. A downloadable URL with checksum for tamper-resistance would do, just fine.
+>Note: We don't automatically pull in the vendor ULD C library, because it requires a "click through" license. @ST.com if you are reading this, please consider providing a publicly accessible URL to remove this somewhat unnecessary manual step developers need to go through.
 
 
 ## Pre-reading
@@ -21,10 +21,9 @@ YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5c
 
 ![](.images/build-map.png)
 
-This build is relatively complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
+<!-- tbd. update the image-->
 
-<!-- tbd. `examples/common.rs` might get replaced by `../vl53l5cx/src/platform.rs`.
--->
+This build is relatively complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
 
 ## Requirements
 
@@ -41,7 +40,7 @@ $ cargo install bindgen-cli
 ```
 
 <!-- author's note:
-`bindgen` is available also via `apt`, but the version seems to lag behind (perhaps is special for the Linux kernel use; don't know). At the time, `cargo install` is 0.70.1 while `apt show bindgen` gives:
+`bindgen` is available also via `apt`, but the version seems to lag behind (perhaps is special for the Linux kernel use; don't know). At the time, `cargo install` is 0.71.1 while `apt show bindgen` gives:
 >Version: 0.66.1-4
 -->
 
@@ -77,50 +76,75 @@ The workflow has been tested on these MCUs:
 |`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|
 |`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html) ❗️ Currently broken!!!|
 
+<!-- TBD. FIX IT
 >NOTE! The author is struggling with I2C access on the `esp-hal` library / and/or the sensors. See [summary in a MRE repo](https://github.com/lure23/vl53l5-c2rust.fork?tab=readme-ov-file#summary). TL;DR: C3 with `esp-println` works; C6 or `defmt-rtt` logging doesn't. THE AUTHOR WOULD REALLY, REALLY LIKE TO HAVE ALL THE COMBINATIONS WORK IN A STABLE MANNER.
+-->
 
 <!-- #hidden
 |`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
 -->
 
-### Connection to the devkit
+### Supported flashers
 
-In order to run the example(s), you need:
+You can run the example/tests either with [`espflash`](https://github.com/esp-rs/espflash) or [`probe-rs`](https://github.com/probe-rs/probe-rs). 
 
-- a devkit connected:
+Both of these tools can flash a software on your device and monitor its running, but they work using very different internal approaches.
 
-	```
-	$ probe-rs list
-	The following debug probes were found:
-	[0]: ESP JTAG -- 303a:1001:54:32:04:41:7D:60 (EspJtag)
-	```
+||example `make` target|USB port(s)|use when...|
+|---|---|---|---|
+|`espflash`|`m3-with-espflash`|any: UART or JTAG|
+|`probe-rs`|`m3-with-probe-rs`|JTAG only|
 
-- at least one SATEL board
+*tbd. write when to use one over the other*
 
-## Wiring
+>[! NOTE]
+>The selection of flasher only affects running examples, not how the `vl53l5cx_uld` can be used as a library.
 
-Same as in [`../vl53l5cx/README.md`](../vl53l5cx/README.md).
+Once you have a hunch, which flasher you'll use, check that it can reach your devkit:
 
-Only one device is needed.
-
-
-## Compiling 
+<details><summary>`espflash`</summary>
 
 ```
-$ cargo build --release --lib
+$ espflash board-info
+[2025-03-11T16:22:04Z INFO ] Serial port: '/dev/ttyUSB0'
+[2025-03-11T16:22:04Z INFO ] Connecting...
+[2025-03-11T16:22:04Z INFO ] Using flash stub
+Chip type:         esp32c6 (revision v0.0)
+Crystal frequency: 40 MHz
+Flash size:        4MB
+Features:          WiFi 6, BT 5
+MAC address:       54:32:04:07:15:10
 ```
+</details>
 
-This compiles the library, and is a good place to start. 
+<details><summary>`probe-rs`</summary>
 
->The library is fully hardware agnostic. This is something we inherit from the approach of the vendor ULD C API. *Your code* brings in, for example, how to drive the I2C bus. This means only `tests` is MCU specific.
+```
+$ probe-rs list
+The following debug probes were found:
+[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
+```
+</details>
+	
+### SATEL board
 
-<span />
+One [SATEL board](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) is needed. 
 
->If there are problems with the build, you may want to run the Makefile separately:
->
->```
->$ make manual
->```
+For wiring, see [`pins.toml`](./pins.toml):
+
+```
+[boards.esp32c3]
+SDA = 4
+SCL = 5
+PWR_EN = 6
+INT=7
+
+[boards.esp32c6]
+SDA = 18
+SCL = 19
+PWR_EN = 22
+INT = 23
+```
 
 
 ## Running examples

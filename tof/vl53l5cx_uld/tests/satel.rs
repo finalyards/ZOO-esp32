@@ -9,14 +9,11 @@
 use defmt::{info, debug, error, warn, panic};
 use defmt_rtt as _;     // we do it, tests don't need to
 
-#[cfg(not(feature = "esp-hal-next"))]
-compile_error!("Tests only geared for the latest; please enable 'esp-hal-next' feature!");
-
 use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Input, InputConfig, Output, OutputConfig, Level},
     i2c::master::{Config as I2cConfig, I2c},
-    time::{now, RateExtU32}
+    time::{now, Rate}
 };
 
 extern crate vl53l5cx_uld as uld;

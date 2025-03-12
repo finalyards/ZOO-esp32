@@ -3,11 +3,9 @@ use defmt::{info, debug, error, warn, trace, panic};
 
 use esp_hal::{
     delay::Delay,
-    i2c::master::{I2c, Operation},
+    i2c::master::{I2c, I2cAddress, Operation},
     Blocking,
 };
-#[cfg(not(feature = "esp-hal-0_22"))]
-use esp_hal::i2c::master::I2cAddress;
 
 extern crate vl53l5cx_uld as uld;
 use uld::{
@@ -16,11 +14,7 @@ use uld::{
     Platform,
 };
 
-#[cfg(not(feature = "esp-hal-0_22"))]
 const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );    // esp-hal address type
-
-#[cfg(feature = "esp-hal-0_22")]
-const I2C_ADDR: u8 = DEFAULT_I2C_ADDR.as_7bit();
 
 /*
 */
@@ -49,8 +43,6 @@ impl Platform for MyPlatform {
             panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
         });
 
-        // Whole 'buf' should now have been read in.
-        //
         if buf.len() <= 20 {
             trace!("I2C read: {:#06x} -> {:#04x}", index, buf);
         } else {

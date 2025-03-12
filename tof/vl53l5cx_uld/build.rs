@@ -91,11 +91,11 @@ fn main() -> Result<()> {
     // Config sanity checks (if 'examples/*')
     //
     if std::env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
-        #[cfg(not(any(feature = "EX_espflash", feature = "EX_probe_rs")))]
-        compile_error!("Must enable one of: {}, {}", "EX_espflash", "EX_probe_rs");
+        #[cfg(not(any(feature = "run_with_espflash", feature = "run_with_probe_rs")))]
+        panic!("Must enable feature: run_with_{{espflash|probe_rs}}");
 
-        #[cfg(all(feature = "EX_espflash", feature = "EX_probe_rs"))]
-        compile_error!("Must enable ONLY one of: {}, {}", "EX_espflash", "EX_probe_rs");
+        #[cfg(all(feature = "run_with_espflash", feature = "run_with_probe_rs"))]
+        panic!("Must enable ONLY one of features: run_with_{{espflash|probe_rs}}");
     }
 
     // Expose 'OUT_DIR' to an external (Makefile) build system

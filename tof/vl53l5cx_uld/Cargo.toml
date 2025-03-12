@@ -20,34 +20,39 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
-strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
+strum           = { version = "0.27.1", default-features = false, features = ["derive"] }
 
 # Rust provides no mechamism for conditional 'dev-dependencies'. Thus, we introduce them here.
 defmt-rtt       = { version = "0.4.1", optional = true }
-esp-println     = { version = "0.13.0", features = ["esp32c3", "defmt-espflash"], optional = true }
+esp-println     = { version = "0.13.1", features = ["esp32c6", "defmt-espflash"], optional = true }
+    #
+    # use '0.13.0' for 'esp-hal' 0.23.0 ('main') compatibility
 
 [dev-dependencies]
-anyhow          = { version = "1.0.95", default-features = false }
+anyhow          = { version = "1.0.97", default-features = false }
 
 embedded-test   = { version = "0.6.0", features = ["defmt"] }
 
-esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "esp32c3"] }   # "println"|"defmt", "semihosting"
-    # 7-Feb-25: 'esp-backtrace' didn't act well with 'esp-println' and 'semihosting'; it keeps looping instead of terminating
-    #           after a panic. (thus, "semihosting" disabled)
+esp-backtrace   = { version = "0.15.1", features = ["exception-handler", "panic-handler", "esp32c6",
+    # 7-Feb-25: 'esp-backtrace' DOES NOT ACT WELL with 'esp-println' and 'semihosting'; it keeps looping instead of
+    #           terminating (thus, "semihosting" disabled).
+    # 11-Feb-25: Same with 'defmt' and 'semihosting'
+    #
+    # -[ ] repeatable with 0.15.1?
+    # -[ ] file an issue (with MRE) at @esp-rs
+    #
+    #"semihosting"
+] }   # "println"|"defmt"
 
-esp-hal         = { version = "0.23.1", features = ["defmt", "esp32c3"] }
+esp-hal         = { version = "0.23.1", features = ["defmt", "esp32c6"] }
 
-# 0.22.0; XXX
-#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "esp32c3"] } # "println"|"defmt", "semihosting"
-#esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c3"] }
-
-semihosting     = { version = "0.1.18" }
+semihosting     = { version = "0.1.19" }
 
 [build-dependencies]
-anyhow          = "1.0.95"
+anyhow          = "1.0.97"
 itertools       = "0.14.0"
 serde           = { version = "1.0", features = ["derive"] }
-toml            = "0.8.19"
+toml            = "0.8.20"
 
 # C compile-time features
 #
@@ -81,18 +86,21 @@ targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
 
-default = ["target_status"]
+default = ["target_status"
+    ,"esp-hal-0_23"
+]
+
+# Enable if wanting to use an older API (eventually remove)
+esp-hal-0_23 = []
+# Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
+#esp-hal-next = []
 
 # Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
 # not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
 #
 # Note: 'esp-backtrace/defmt' kept here, in case we want to try 'esp-backtrace/println' on the former.
-EX_espflash = ["defmt", "dep:esp-println", "esp-backtrace/defmt"]    # run with espflash
-EX_probe_rs = ["defmt", "dep:defmt-rtt", "esp-backtrace/defmt"]    # run with probe-rs
-
-# Enable if wanting to use 'main' branch; also enable the '[patch.crates-io]' section, below.
-esp-hal-next = []
-esp-hal-0_22 = []   # 0.22.0
+run_with_espflash = ["defmt", "dep:esp-println", "esp-backtrace/defmt"]
+run_with_probe_rs = ["defmt", "dep:defmt-rtt", "esp-backtrace/defmt"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
@@ -107,7 +115,7 @@ harness = false
 required-features = ["defmt"]
 
 # Cannot make it conditional, by 'feature="esp-hal-next"': CHANGE MANUALLY
-[patch.crates-io]
-esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
