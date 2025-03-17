@@ -16,24 +16,10 @@ use esp_backtrace as _;
 
 use esp_hal::{
     delay::Delay,
-    gpio::{AnyPin, Input, /*InputConfig,*/ Output, /*OutputConfig,*/ Level},
+    gpio::{AnyPin, Input, InputConfig, Output, OutputConfig, Level},
     i2c::master::{Config as I2cConfig, I2c},
     main,
-    //time::{Instant, Rate}
-};
-#[cfg(not(feature="esp-hal-0_23"))]
-use esp_hal::{
-    gpio::{InputConfig, OutputConfig},
     time::{Instant, Rate}
-};
-#[cfg(feature="esp-hal-0_23")]
-use esp_hal::{
-    gpio::Pull
-};
-
-#[cfg(feature="esp-hal-0_23")]
-use esp_hal::{
-    time::RateExtU32,
 };
 
 extern crate vl53l5cx_uld as uld;
@@ -42,11 +28,6 @@ include!("./pins_gen.in");  // pins!
 
 mod common;
 use common::MyPlatform;
-
-#[cfg(feature="esp-hal-0_23")]
-mod instant_v0_23;
-#[cfg(feature="esp-hal-0_23")]
-use instant_v0_23::Instant;
 
 use uld::{
     Result,
@@ -83,7 +64,6 @@ struct Pins {
 }
 
 #[allow(non_upper_case_globals)]
-#[cfg(not(feature="esp-hal-0_23"))]
 const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
 
 fn main2() -> Result<()> {
@@ -93,24 +73,10 @@ fn main2() -> Result<()> {
     let Pins{ SDA, SCL, PWR_EN, INT } = pins!(peripherals);
 
     #[allow(non_snake_case)]
-    #[cfg(not(feature = "esp-hal-0_23"))]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
-    #[allow(non_snake_case)]
-    #[cfg(feature = "esp-hal-0_23")]
-    let mut PWR_EN = Output::new(PWR_EN, Level::Low);
 
     #[allow(non_snake_case)]
-    #[cfg(not(feature = "esp-hal-0_23"))]
     let INT = Input::new(INT, InputConfig::default());  // no pull
-    #[allow(non_snake_case)]
-    #[cfg(feature = "esp-hal-0_23")]
-    let INT = Input::new(INT, Pull::None);
-
-    #[allow(non_snake_case)]
-    #[cfg(feature="esp-hal-0_23")]
-    let I2C_SPEED = {       // could not be 'const'
-        400_u32.kHz()  // max 400
-    };
 
     let pl = {
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()
@@ -217,18 +183,10 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 */
 #[cfg(feature="run_with_probe_rs")]
 fn init_defmt() {
-    #[cfg(not(feature="esp-hal-0_23"))]
     use esp_hal::time::Instant;
-    #[cfg(feature="esp-hal-0_23")]
-    use esp_hal::time::now;
 
     defmt::timestamp!("{=u64:us}", {
-        #[cfg(not(feature="esp-hal-0_23"))]
-        {
-            let now = Instant::now();
-            now.duration_since_epoch().as_micros()
-        }
-        #[cfg(feature="esp-hal-0_23")]
-        now().duration_since_epoch().to_micros()
+        let now = Instant::now();
+        now.duration_since_epoch().as_micros()
     });
 }

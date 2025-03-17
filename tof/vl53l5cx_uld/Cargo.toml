@@ -37,13 +37,10 @@ esp-println     = { version = "0.13.1", features = ["esp32c6"], optional = true 
 
 esp-backtrace   = { version = "0.15.1", features = ["exception-handler", "panic-handler", "esp32c6",
     # 7-Feb-25: 'esp-backtrace' DOES NOT ACT WELL with 'esp-println' and 'semihosting'; it keeps looping instead of
-    #           terminating (thus, "semihosting" disabled).
-    # 11-Feb-25: Same with 'defmt' and 'semihosting'
+    #           terminating (thus, "semihosting" disabled; can be enabled for 'probe-rs', though).
     #
-    # -[ ] file an issue (with MRE) at @esp-rs
-    #
-    "semihosting"
-] } # "defmt"
+    #   - [ ] tbd. file "somewhere"
+] } # "defmt", "semihosting"
 
 esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c6", "unstable"] }  # "defmt"
     # "unstable" needed for 'delay' module
@@ -99,8 +96,6 @@ esp_hal_api = ["dep:esp-hal"]
 
 default = ["target_status"]
 
-# Enable if wanting to use an older API (eventually remove)
-esp-hal-0_23 = []
 # Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
 esp-hal-next = []
 
