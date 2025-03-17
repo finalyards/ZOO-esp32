@@ -63,7 +63,7 @@ impl Platform for MyPlatform {
     * to recover.
     */
     fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
-        trace!("Writing: {:#06x} <- {:#04x}", index, vs);    // TEMP
+        trace!("Writing: {:#06x} <- {:#04x}", index, slice_head(vs,20));    // TEMP
 
         // 'esp-hal' doesn't have '.write_write()', but it's easy to make one. This means we don't
         // need to concatenate the slices in a buffer.

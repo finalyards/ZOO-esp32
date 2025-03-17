@@ -22,31 +22,39 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 defmt           = { version = "0.3.10", optional = true }
 strum           = { version = "0.27.1", default-features = false, features = ["derive"] }
 
+esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c6"], optional = true }  # "defmt"
+    # needed for its 'Rate' (if 'esp_hal_api')
+
+#[dev-dependencies]
 # Rust provides no mechamism for conditional 'dev-dependencies'. Thus, we introduce them here.
 defmt-rtt       = { version = "0.4.1", optional = true }
-esp-println     = { version = "0.13.1", features = ["esp32c6", "defmt-espflash"], optional = true }
-    #
-    # use '0.13.0' for 'esp-hal' 0.23.0 ('main') compatibility
+esp-println     = { version = "0.13.1", features = ["esp32c6"], optional = true }   # "defmt-espflash"
 
 [dev-dependencies]
-anyhow          = { version = "1.0.97", default-features = false }
-
-embedded-test   = { version = "0.6.0", features = ["defmt"] }
+#cfg-if = "1.0.0"
+#critical-section = "1.2.0"
+#embedded-test   = { version = "0.6.0", features = ["defmt"] }
 
 esp-backtrace   = { version = "0.15.1", features = ["exception-handler", "panic-handler", "esp32c6",
     # 7-Feb-25: 'esp-backtrace' DOES NOT ACT WELL with 'esp-println' and 'semihosting'; it keeps looping instead of
     #           terminating (thus, "semihosting" disabled).
     # 11-Feb-25: Same with 'defmt' and 'semihosting'
     #
-    # -[ ] repeatable with 0.15.1?
     # -[ ] file an issue (with MRE) at @esp-rs
     #
-    #"semihosting"
-] }   # "println"|"defmt"
+    "semihosting"
+] } # "defmt"
 
-esp-hal         = { version = "0.23.1", features = ["defmt", "esp32c6"] }
+esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c6", "unstable"] }  # "defmt"
+    # "unstable" needed for 'delay' module
 
 semihosting     = { version = "0.1.19" }
+    # "portable-atomic":
+    #   <<
+    #       To use the 'panic-unwind' feature on such targets (e.g., RISC-V without A-extension [i.e. C3]),
+    #       you need to enable this feature.
+    #   <<
+    # Reading: since we use 'panic-abort', we don't benefit from it.
 
 [build-dependencies]
 anyhow          = "1.0.97"
@@ -84,23 +92,26 @@ targets_per_zone_2=["nb_targets_detected"]
 targets_per_zone_3=["nb_targets_detected"]
 targets_per_zone_4=["nb_targets_detected"]
 
-defmt = ["dep:defmt"]
+defmt = ["dep:defmt", "esp-hal/defmt", "esp-backtrace/defmt", "esp-println?/defmt-espflash"]
 
-default = ["target_status"
-    ,"esp-hal-0_23"
-]
+# Provide interfacing to 'esp_hal::time::Rate'
+esp_hal_api = ["dep:esp-hal"]
+
+default = ["target_status"]
 
 # Enable if wanting to use an older API (eventually remove)
 esp-hal-0_23 = []
 # Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
-#esp-hal-next = []
+esp-hal-next = []
 
 # Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
 # not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
 #
 # Note: 'esp-backtrace/defmt' kept here, in case we want to try 'esp-backtrace/println' on the former.
-run_with_espflash = ["defmt", "dep:esp-println", "esp-backtrace/defmt"]
-run_with_probe_rs = ["defmt", "dep:defmt-rtt", "esp-backtrace/defmt"]
+run_with_espflash = ["defmt", "dep:esp-println"]
+run_with_probe_rs = ["defmt", "dep:defmt-rtt",
+    "esp-backtrace/semihosting"
+]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.

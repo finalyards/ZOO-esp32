@@ -1,24 +1,14 @@
 # Troubles
 
-## "Driver or hardware level error (66)"
+## Initializes, but no results
 
 ```
-Failed with ULD error code: Driver or hardware level error (66)
+0.200852 [INFO ] Target powered off and on again.
+0.204445 [DEBUG] Ping succeeded: 0xf0,0x02
+2.587365 [INFO ] Init succeeded
 ```
 
-Reason: 
-
-- unknown
-
-Work-around:
-
-- ```make _clean``` + retry
-
-Seen:
-
-- 28-Jan-25; `make _clean` cured it
-- 30-Jan-25; **DID NOT GET CURED**; tried `make _clean`, `cargo clean`, power off/on (USB cable)
-- ~once in 2024 <!--, after started to use a pull-up for `PWR_EN` pin, instead of actively pulling it up - and back down again. // might be irrelevant???-->
+Check that the `INT` pin is wired.
 
 
 ## [ESP32-C3] I2C `TimeOut`
@@ -66,6 +56,7 @@ $ make -f Makefile.dev m3
 That should fix it.
 
 
+<!-- REMOVE
 ## Stuck, reading `0x2c00`
 
 Without tracing:
@@ -106,4 +97,4 @@ Workaround: none??
 **EDIT:**
 
 Just relaunching seems to *sometimes* avoid this!
-
+-->

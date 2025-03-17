@@ -18,8 +18,8 @@ use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Input, /*InputConfig,*/ Output, /*OutputConfig,*/ Level},
     i2c::master::{Config as I2cConfig, I2c},
-    //main,
-    //time::{Instant::now, RateExtU32}
+    main,
+    //time::{Instant, Rate}
 };
 #[cfg(not(feature="esp-hal-0_23"))]
 use esp_hal::{
@@ -33,10 +33,6 @@ use esp_hal::{
 
 #[cfg(feature="esp-hal-0_23")]
 use esp_hal::{
-    main,
-};
-#[cfg(feature="esp-hal-0_23")]
-use esp_hal::{
     time::RateExtU32,
 };
 
@@ -48,9 +44,9 @@ mod common;
 use common::MyPlatform;
 
 #[cfg(feature="esp-hal-0_23")]
-mod instant_temp;
+mod instant_v0_23;
 #[cfg(feature="esp-hal-0_23")]
-use instant_temp::Instant;
+use instant_v0_23::Instant;
 
 use uld::{
     Result,
@@ -63,6 +59,7 @@ use uld::{
 
 #[main]
 fn main() -> ! {
+    #[cfg(feature="run_with_probe_rs")]
     init_defmt();
 
     match main2() {
@@ -138,24 +135,22 @@ fn main2() -> Result<()> {
     let mut vl = VL53L5CX::new_with_ping(pl)?.init()?;
 
     info!("Init succeeded");
+    blocking_delay_ms(2000);
 
-    //#[cfg(not(all()))]
     // Extra test, to see basic comms work
+    #[cfg(not(all()))]
     {
-        blocking_delay_ms(1500);
-
         vl.i2c_no_op()
             .expect("to pass");
         info!("I2C no-op (get power mode) succeeded");
     }
-    panic!();
 
     //--- ranging loop
     //
-    let freq = HzU8(10);    // tbd. later, have this as 'Rate::from_hz(10)'
+    let freq = Rate::from_hz(10);
 
     let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),freq))
+        .with_mode(AUTONOMOUS(5.ms(),HzU8(freq.as_hz() as u8)))
         .with_target_order(CLOSEST);
 
     let mut ring = vl.start_ranging(&c)
@@ -210,16 +205,17 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 /*
 * Tell 'defmt' how to support '{t}' (timestamp) in logging.
 *
-* Note: 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
-*       read operation". Out 'esp_hal::time::now' isn't, but sure seems to work.
+* Note! 'defmt' sample insists the command to be: "(interrupt-safe) single instruction volatile
+*       read operation". Our 'Instant::now' isn't, but sure seems to work.
 *
 * Reference:
 *   - defmt book > ... > Hardware timestamp
 *       -> https://defmt.ferrous-systems.com/timestamps#hardware-timestamp
 *
-* Note: If you use Embassy, a better way is to depend on 'embassy-sync' and enable its
-*       "defmt-timestamp-uptime" feature.
+* Note: If you use Embassy, a better way is to depend on 'embassy-time' and enable its
+*       "defmt-timestamp-uptime-*" feature.
 */
+#[cfg(feature="run_with_probe_rs")]
 fn init_defmt() {
     #[cfg(not(feature="esp-hal-0_23"))]
     use esp_hal::time::Instant;

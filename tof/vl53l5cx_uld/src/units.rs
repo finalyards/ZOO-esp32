@@ -7,6 +7,7 @@
 * Note:
 *   - 'fugit' has duration (ms) and rate (Hz), but it is geared towards conversion rather than
 *     carrying. It's a no.
+*   - 'esp-hal' cas 'Rate' (Hz), since 1.0, but we are otherwise MCU-independent here, so.. perhaps (as a feature)
 *   - IF there is a public library that does these, happy to start using one.
 */
 #[cfg(feature = "defmt")]
@@ -17,20 +18,34 @@ use defmt::{Format, Formatter};
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct HzU8(pub u8);      // Vendor ULD needs max 15 and 60
 
-/*** #consider what to do with fugit/esp-hal 'Rate'
-// Allow applications to use '15.Hz()'
-//
-// Note: the 'NOM' and 'DENOM' can be 1, since we're only interested in supporting full hertz.
-//
-#[cfg(feature = "fugit")]
-impl TryFrom<fugit::Rate<u32,1,1>> for HzU8 {
+/*** got complex
+impl TryFrom<u32> for HzU8 {
     type Error = &'static str;
-    fn try_from(v: fugit::Rate<u32,1,1>) -> Result<Self, Self::Error> {
-        u8::try_from(v.to_Hz())
-            .map(|u8| HzU8(u8))
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
+        u8::try_from(v)
             .map_err(|_| "Frequency out of range")
+            .map(HzU8)
+    }
+}
+impl From<u32> for HzU8 {
+    fn from(v: u32) -> Self {
+        Self::try_from(v).unwrap()
     }
 }***/
+
+#[cfg(feature = "esp_hal_api")]
+use esp_hal::time::Rate;
+
+// Allow applications to use 'esp_hal::time::Rate::from_hz()'
+#[cfg(feature = "esp_hal_api")]
+impl TryFrom<&Rate> for HzU8 {
+    type Error = &'static str;
+    fn try_from(v: &Rate) -> Result<Self, Self::Error> {
+        u8::try_from(v.as_hz())
+            .map_err(|_| "Frequency out of range")
+            .map(HzU8)
+    }
+}
 
 // Input
 #[derive(Copy, Clone)]

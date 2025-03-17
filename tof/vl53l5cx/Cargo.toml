@@ -21,8 +21,8 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 arrayvec        = { version = "0.7.6", default-features = false }   # needed until '[T;N]::try_map()' makes it to stable
 defmt           = { version = "0.3.10", optional = true }
 
-esp-hal         = { version = "0.22.0"  , features = ["esp32c3"] }  # "defmt"
-#esp-hal         = { version = "0.23.1", features = ["esp32c3"] }     # "defmt"
+esp-hal         = { version = "0.22.0"  , features = ["esp32c6"] }  # "defmt"
+#esp-hal         = { version = "0.23.1", features = ["esp32c6"] }     # "defmt"
 
 vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = [] }     # "defmt"
 
@@ -42,13 +42,13 @@ embassy-time    = { version = "0.4.0", features = ["defmt", "defmt-timestamp-upt
 
 # esp-hal 0.22.0
 #esp-alloc       = { version = "0.5.0", default-features = false }   # needed by 'single-emb'; see 'init_heap()'
-#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c3", "semihosting"] }
-#esp-hal-embassy = { version = "0.5.0", features = ["defmt", "esp32c3"] }
+#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
+#esp-hal-embassy = { version = "0.5.0", features = ["defmt", "esp32c6"] }
 
 # latest
 esp-alloc       = { version = "0.6.0", default-features = false }   # needed by 'single-emb'; see 'init_heap()'
-esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c3", "semihosting"] }
-esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c3"] }
+esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
+esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c6"] }
 
 fugit           = { version = "0.3.7" }
 static_cell     = { version = "2.1.0" }
@@ -104,9 +104,9 @@ required-features = ["single", "defmt", "distance_mm"]
 name = "many-emb"
 required-features = ["flock", "defmt", "distance_mm"]
 
-[patch.crates-io]
 # also define 'esp-hal-next' feature
-esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }

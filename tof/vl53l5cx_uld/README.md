@@ -21,8 +21,6 @@ YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5c
 
 ![](.images/build-map.png)
 
-<!-- tbd. update the image-->
-
 This build is relatively complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
 
 ## Requirements
@@ -73,34 +71,42 @@ The workflow has been tested on these MCUs:
 
 |||
 |---|---|
+|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
 |`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|
-|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html) ❗️ Currently broken!!!|
-
-<!-- TBD. FIX IT
->NOTE! The author is struggling with I2C access on the `esp-hal` library / and/or the sensors. See [summary in a MRE repo](https://github.com/lure23/vl53l5-c2rust.fork?tab=readme-ov-file#summary). TL;DR: C3 with `esp-println` works; C6 or `defmt-rtt` logging doesn't. THE AUTHOR WOULD REALLY, REALLY LIKE TO HAVE ALL THE COMBINATIONS WORK IN A STABLE MANNER.
--->
 
 <!-- #hidden
 |`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
 -->
 
-### Supported flashers
+### Flasher: `espflash` or `probe-rs`
 
-You can run the example/tests either with [`espflash`](https://github.com/esp-rs/espflash) or [`probe-rs`](https://github.com/probe-rs/probe-rs). 
+We use [defmt](https://docs.rs/defmt/latest/defmt/) for logging and there are two different flashing/monitoring ecosystems that are compatible with it:
 
-Both of these tools can flash a software on your device and monitor its running, but they work using very different internal approaches.
+- [`espflash`](https://github.com/esp-rs/espflash) from Espressif
+- [`probe-rs`](https://github.com/probe-rs/probe-rs) which is multi-target (ARM, RISC-V)
 
-||example `make` target|USB port(s)|use when...|
-|---|---|---|---|
-|`espflash`|`m3-with-espflash`|any: UART or JTAG|
-|`probe-rs`|`m3-with-probe-rs`|JTAG only|
+Both of these can flash software onto your device and monitor its running. They work using very different internal approaches, and which one to choose is mostly a matter of choice.
 
-*tbd. write when to use one over the other*
+||`espflash`|`probe-rs`|
+|---|---|---|
+|USB port|any: UART or JTAG|**JTAG only**|
+|line format customization|no|yes, with `--log-format`|
+|background / author(s)|Espressif|multi-vendor|
+|use when...|needing to support ESP32-C3|you have USB/JTAG connector available|
 
 >[! NOTE]
 >The selection of flasher only affects running examples, not how the `vl53l5cx_uld` can be used as a library.
 
 Once you have a hunch, which flasher you'll use, check that it can reach your devkit:
+
+<details><summary>`probe-rs`</summary>
+
+```
+$ probe-rs list
+The following debug probes were found:
+[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
+```
+</details>
 
 <details><summary>`espflash`</summary>
 
@@ -114,15 +120,6 @@ Crystal frequency: 40 MHz
 Flash size:        4MB
 Features:          WiFi 6, BT 5
 MAC address:       54:32:04:07:15:10
-```
-</details>
-
-<details><summary>`probe-rs`</summary>
-
-```
-$ probe-rs list
-The following debug probes were found:
-[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
 ```
 </details>
 	
@@ -142,14 +139,14 @@ INT=7
 [boards.esp32c6]
 SDA = 18
 SCL = 19
-PWR_EN = 22
-INT = 23
+PWR_EN = 21
+INT = 22
 ```
 
 
 ## Running examples
 
-There are some ULD level examples used to help development:
+Test the code with:
 
 ```
 $ make -f Makefile.dev m3
@@ -171,9 +168,45 @@ $ make -f Makefile.dev m3
 
 ```
 
+If you have an ESP32-C3 board, this will fail. Use `make -f Makefile.dev m3-with-espflash`, instead.
+
+
 ## Troubleshooting
 
 See [`TROUBLES.md`](./TROUBLES.md).
+
+
+## Power budget
+
+You can connect multiple SATEL boards to the same MCU, via the I2C bus.
+
+Let's see, how many can be powered without an external power source.
+
+**Facts**
+
+||mA|V|mW|
+|---|---|---|---|
+|**Drains**|
+|- ESP32-C6-DevKitM1|38mA (radio off) .. 189mA (BLE sending at 9.0 dBm)<sup>`|1|`</sup>|3.3|124 .. 624|
+|- SATEL board|130mA (AVDD + IOVDD; 50 + 80)|3.3|429|
+|- external pull-ups|2k2: 1.5mA x 2 = 3mA|3.3|10|
+|**Source**|
+|- Power available from a USB 2.0 port (Raspberry Pi 3B)|500mA|5|2500|
+
+For four SATEL boards:
+
+- no radio: 124 + 4*429 + 10 = 1850 mW < 2500 mW
+- BLE @ 9.0 dBm: "no radio" + 500 = 2350 mW < 2500 mW
+
+This seems to indicate we should be able to use four SATEL boards, and broadcast on BLE, while staying within the USB 2.0 port's power budget.
+
+>Note: The above calculation is based on peak values. ST.com datasheet itself marks "continuous mode" actual consumption as 313mW, and by using "autonomous mode" (as we do in the code), the value drops below 200 (depends on the scanning frequency). This means powering even up to eight boards could be a thing, from a single USB 2.0 port. It would be best to measure the actual power use.
+
+<small>
+`|1|`: [ESP32-C6-MINI-1 & MINI-1U Datasheet v1.2](https://www.espressif.com/sites/default/files/documentation/esp32-c6-mini-1_mini-1u_datasheet_en.pdf) > 5.4 "Current consumption characteristics" <br />
+`|2|`: [VL53L5CX Datasheet: DS13754 - Rev 13](https://www.st.com/resource/en/datasheet/vl53l5cx.pdf) > 6.4 "Current consumption"
+</small>
+
 
 	
 ## References

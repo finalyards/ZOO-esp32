@@ -46,17 +46,22 @@ all:
 #|	  FEATURES=targets_per_zone_2,distance_mm,reflectance_percent \
 #|	  $(REMAKE) --no-print-directory _build _run
 
+# Working solution for either C3/C6, preferring 'probe-rs' (if it works).
+ifeq ($(TARGET),riscv32imc-unknown-none-elf)	# C3
 m3: m3-with-espflash
-
-m3-with-espflash:
-	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES) \
-	  $(REMAKE) --no-print-directory _build _run-with-espflash
+else
+m3: m3-with-probe-rs
+endif
 
 m3-with-probe-rs:
 	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES) \
+	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES),esp_hal_api \
 	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
+
+m3-with-espflash:
+	EXAMPLE=m3 \
+	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api \
+	  $(REMAKE) --no-print-directory _build _run-with-espflash
 
 # Tests
 plain_test pt:
@@ -68,7 +73,7 @@ _test:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run-with-espflash:
