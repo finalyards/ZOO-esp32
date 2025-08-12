@@ -143,7 +143,6 @@ Leave the device running and head to: [`{some URL once deployed}`](..).
 
 - `[1]`: [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (Chrome docs)
 
-
 ### Training material
 
 - Nordic Semiconductors > DevAcademy > [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/)
@@ -155,3 +154,5 @@ Leave the device running and head to: [`{some URL once deployed}`](..).
 	66 tidbits of information - you should find one or two that are useful!
 	
 	"C" (esp-idf) based; not Rust.
+
+- [Trouble Book](https://embassy.dev/trouble/)

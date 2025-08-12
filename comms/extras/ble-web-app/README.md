@@ -3,7 +3,7 @@
 A web application for interacting with the [`../../ble-custom/examples/y-emb`](../../ble-custom/examples/y-emb) Bluetooth Low Energy service. 
 
 
->*TL;DR* The application is [deployed here]() - you can try it out and read the page, later! 🐇
+>*TL;DR* The application is deployed as [`https://ble-web-app.pages.dev`](ble-web-app.pages.dev). You can try it out right now!
 
 
 ## Bluetooth Web API
@@ -101,11 +101,6 @@ $ sudo ssh -i /var/root/Library/Application\ Support/multipassd/ssh-keys/id_rsa 
 ```
 
 Open [`localhost:5173`](http://localhost:5173).
-
-
-## Using the web app
-
-*tbd. Screen shot.*
 
 
 ## Deployment (optional)

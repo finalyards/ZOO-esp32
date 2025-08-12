@@ -69,6 +69,7 @@ async fn main(spawner: Spawner) -> ! {
     {
         let btn_pin = Input::new(peripherals.GPIO9, Pull::Up);  // BOOT button
 
+        esp_hal::gpio::Output::new(peripherals.GPIO22);
         spawner.spawn(btn_task(btn_pin, &BTN_SIGNAL))
             .unwrap();
     }
