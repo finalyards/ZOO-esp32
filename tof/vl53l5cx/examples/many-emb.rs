@@ -12,6 +12,7 @@ use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
 
 use esp_backtrace as _;
+use embassy_time as _;  // show it used in Cargo.toml
 
 use core::cell::RefCell;
 
@@ -24,17 +25,12 @@ use embassy_sync::{
 
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Input},
-    i2c::I2c,
-    peripherals::I2C0,
-    prelude::*,
+    gpio::{AnyPin, Input, Output, InputConfig, OutputConfig, Level, Pull},
+    i2c::master::{Config as I2cConfig, I2c},
     time::{now, Instant, Duration},
     timer::timg::TimerGroup,
     Blocking
 };
-
-#[cfg(feature = "examples_serial")]
-use esp_println::println;
 
 use static_cell::StaticCell;
 
@@ -51,12 +47,6 @@ use vl53l5cx::{
     FlockResults
 };
 
-mod common;
-use common::{
-    init_defmt,
-    //init_heap
-};
-
 include!("./pins_gen.in");  // pins!, boards!
 
 const BOARDS: usize = boards!();
@@ -64,32 +54,45 @@ const BOARDS: usize = boards!();
 const RESO: usize = 4;
 type FRes = FlockResults<RESO>;
 
-type I2cType<'d> = I2c<'d, I2C0,Blocking>;
-static I2C_SC: StaticCell<RefCell<I2cType>> = StaticCell::new();
+static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
+
+#[allow(non_snake_case)]
+struct Pins<const BOARDS: usize>{
+    SDA: AnyPin,
+    SCL: AnyPin,
+    PWR_EN: AnyPin,
+    LPns: [AnyPin;BOARDS],
+    INT: AnyPin
+}
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-    init_defmt();
-    //init_heap();
-
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+
+    let o_low_cfg = OutputConfig::default().with_level(Level::Low);
+    let i_pull_none_cfg = InputConfig::default().with_pull(Pull::None);
+
+    #[allow(non_snake_case)]
+    let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
+
+    #[allow(non_snake_case)]
+    let mut PWR_EN = Output::new(PWR_EN, o_low_cfg).unwrap();
+    #[allow(non_snake_case)]
+    let LPns = LPns.map(|n| { Output::new(n, o_low_cfg).unwrap() });
+    #[allow(non_snake_case)]
+    let INT = Input::new(INT, i_pull_none_cfg).unwrap();
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    #[allow(non_snake_case)]
-    let (SDA, SCL, mut PWR_EN, LPns, INT) = pins!(io);
-
-    let i2c_bus = I2c::new(
-        peripherals.I2C0,
-        SDA,
-        SCL,
-        400.kHz()
-    );
+    let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
+        .unwrap()
+        .with_sda(SDA)
+        .with_scl(SCL);
 
     let tmp = RefCell::new(i2c_bus);
-    let i2c_shared: &'static RefCell<I2c<I2C0,Blocking>> = I2C_SC.init(tmp);
+    let i2c_shared: &'static RefCell<I2c<Blocking>> = I2C_SC.init(tmp);
+        // tbd. wrap those?
 
     // Reset VL53L5CX's by pulling down their power for a moment
     {
@@ -120,15 +123,10 @@ async fn main(spawner: Spawner) {
 
     let snd = WATCH.dyn_sender();
     let rcv0 = WATCH.dyn_receiver().unwrap();
-    #[cfg(feature = "examples_serial")]
-    let rcv1 = WATCH.dyn_receiver().unwrap();
 
     spawner.spawn(ranging(vls, INT, snd)).unwrap();
 
     spawner.spawn(defmt_print_results(rcv0)).unwrap();
-
-    #[cfg(feature = "examples_serial")]
-    spawner.spawn(pass_on_serial(rcv1)).unwrap();
 }
 
 // Passing 'vls' to the task is a bit tricky..
@@ -203,22 +201,6 @@ async fn defmt_print_results(mut rcv: DynReceiver<'static, FRes>) {
         info!(".distance_mm:      {}", res.distance_mm);
         #[cfg(feature = "reflectance_percent")]
         info!(".reflectance:      {}", res.reflectance);
-    }
-}
-
-/*
-* Provide a stream of the results on serial output.
-*/
-#[cfg(feature = "examples_serial")]
-#[embassy_executor::task]
-async fn pass_on_serial(mut rcv: DynReceiver<'static, FRes>) {
-    use esp_println::println;
-
-    loop {
-        // FlockResults{board_index, res, temp_degc, time_stamp}
-        let fr  = rcv.changed().await;
-
-        println!("{:?}", fr);
     }
 }
 

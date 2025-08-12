@@ -29,9 +29,7 @@ What are they, really?
 
 >People shouldn't be using Rust enums unless they have complete control of the C/C++ code <sub>[source](https://github.com/rust-lang/rust-bindgen/issues/758)</sub>
 
-- &nbsp;
-
-	This seems to say that `rust` (`--rustified-enum`) has been the original method, and it's perfectly fine to use it, in our case.
+This seems to say that `rust` (`--rustified-enum`) has been the original method, and it's perfectly fine to use it, in our case.
 	
 
 ## Other reading

@@ -19,25 +19,26 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
 
 [dependencies]
 arrayvec        = { version = "0.7.6", default-features = false }   # needed until '[T;N]::try_map()' makes it to stable
-defmt           = { version = "0.3.8", optional = true }
-esp-hal         = { version = "0.21.1", features = ["esp32c6"] }     # "defmt"
+defmt           = { version = "0.3.10", optional = true }
+esp-hal         = { version = "0.23.1", features = ["esp32c6"] }     # "defmt"
 vl53l5cx_uld    = { path = "../vl53l5cx_uld", features = [] }     # "defmt"
 
 [dev-dependencies]
 defmt-rtt       = { version = "0.4.1" }
-embassy-executor = { version = "0.6.3", features=["task-arena-size-12288"] }     # task area size can be overridden by an env.var.
-#embassy-sync    = { version = "0.6.0" }    # does NOT have 'Watch'
-embassy-sync    = { git = "https://github.com/embassy-rs/embassy.git" }   # has 'Watch'
-embassy-time    = { version = "0.3.2" }
-esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
-esp-hal-embassy = { version = "0.4.0", features = ["defmt", "integrated-timers", "esp32c6"] }
-esp-println     = { version = "0.12.0", features = ["uart", "esp32c6"], default-features = false }    # for feature 'examples_serial'; 'dev-dependencies' "not allowed to be optional"
+embassy-executor = { version = "0.7.0", features=["task-arena-size-16384"] }
+    # task area size must be enough for tasks to start
+embassy-sync    = { version = "0.6.2" }
+embassy-time    = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }
+esp-alloc       = { version = "0.6.0", default-features = false }   # needed by 'single-emb'; see 'init_heap()'
+esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
+esp-hal-embassy = { version = "0.6.0", features = ["defmt", "esp32c6"] }
+fugit           = { version = "0.3.7" }
 static_cell     = { version = "2.1.0" }
 
 [build-dependencies]
-anyhow          = "1.0.93"
-itertools       = "0.13.0"
-serde           = { version = "1.0.215", features = ["derive"] }
+anyhow          = "1.0.95"
+itertools       = "0.14.0"
+serde           = { version = "1.0", features = ["derive"] }
 toml            = "0.8.19"
 
 # ULD compile-time features
@@ -80,3 +81,9 @@ required-features = ["single", "defmt", "distance_mm"]
 [[example]]
 name = "many-emb"
 required-features = ["flock", "defmt", "distance_mm"]
+
+[patch.crates-io]
+esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }

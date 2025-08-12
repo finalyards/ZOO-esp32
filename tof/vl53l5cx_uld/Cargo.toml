@@ -20,22 +20,43 @@ lto           = "thin"  # "can produce better optimized code, using whole-progra
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dependencies]
-defmt           = { version = "0.3.8", optional = true }
+defmt           = { version = "0.3.10", optional = true }
+fugit           = { version = "0.3.7", optional = true }
+    # available for users of 'esp_hal', but since our ULD layer is MCU agnostic, placing it behind a feature
 strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-anyhow          = { version = "1.0.93", default-features = false }
+anyhow          = { version = "1.0.95", default-features = false }
 defmt-rtt       = { version = "0.4.1" }
-embedded-test   = { version = "0.5.0", features = ["defmt"] }
-esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6", "semihosting"] }
-esp-hal         = { version = "0.21.1", features = ["defmt", "esp32c6"] }
-#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }   # also enable 'EXP_esp_hal_next' feature
-semihosting     = { version = "0.1.16" }
+
+embedded-test   = { version = "0.6.0", features = ["defmt"] }
+
+# last released; I2C GETS STUCK
+#esp-backtrace   = { version = "0.15.0", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-hal         = { version = "0.23.0", features = ["defmt", "esp32c6"] }
+
+# WORKS!!! MUST USE 0.22.0; I2C gets stuck on 0.23.{01} -> ...
+#esp-backtrace   = { version = "0.14.2", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-hal         = { version = "0.22.0", features = ["defmt", "esp32c6"] }
+
+# local copy; I2C GETS STUCK (merged with latest 'main' from esp-rs):
+#esp-backtrace   = { path = "../../../esp-hal.bugadani/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-hal         = { path = "../../../esp-hal.bugadani/esp-hal", features = ["defmt", "esp32c6"] }
+
+# NEXT:
+#esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+#esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git", features = ["defmt", "esp32c6"] }
+
+# local copy:
+esp-backtrace   = { path = "../../../esp-hal/esp-backtrace", features = ["exception-handler", "panic-handler", "defmt", "esp32c6"] } # "semihosting"
+esp-hal         = { path = "../../../esp-hal/esp-hal", features = ["defmt", "esp32c6"] }
+
+semihosting     = { version = "0.1.18" }
 
 [build-dependencies]
-anyhow          = "1.0.93"
-itertools       = "0.13.0"
-serde           = { version = "1.0.215", features = ["derive"] }
+anyhow          = "1.0.95"
+itertools       = "0.14.0"
+serde           = { version = "1.0", features = ["derive"] }
 toml            = "0.8.19"
 
 # C compile-time features
@@ -69,23 +90,26 @@ targets_per_zone_3=["nb_targets_detected"]
 targets_per_zone_4=["nb_targets_detected"]
 
 defmt = ["dep:defmt"]
+fugit = ["dep:fugit"]
 
-# Use 'esp-hal' from GitHub 'main'; also change the dependency, above.
-EXP_esp_hal_next = []
+default = ["target_status"]
 
-#|# 'semihosting/args' is EXPERIMENTAL. It likely works within the library, but probe-rs (0.24) doesn't support it.
-#|semihosting_args = [ "semihosting/args" ]
-
-default = ["target_status"]     # "EXP_esp_hal_next"
+# Enable if wanting to use 'main' branch; also enable the '[patch.crates-io]' section, below.
+esp-hal-next = []
+esp-hal-0_22 = []   # 0.22.0
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
 #
 [[example]]
 name = "m3"
-required-features = ["defmt", "distance_mm"]   # + "targets_per_zone_{2..4}"
+required-features = ["defmt", "fugit", "distance_mm"]   # + "targets_per_zone_{2..4}"
 
 [[test]]
 name = "plain_test"
 harness = false
 required-features = ["defmt"]
+
+[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }

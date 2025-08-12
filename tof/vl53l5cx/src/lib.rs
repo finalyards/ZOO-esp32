@@ -2,9 +2,6 @@
 #![allow(non_snake_case)]
 extern crate alloc;
 
-//R #[cfg(feature = "defmt")]
-//R use defmt::Format;
-
 #[cfg(feature = "single")]
 mod ranging;
 #[cfg(feature = "flock")]
@@ -38,5 +35,3 @@ pub use vl53l5cx_uld::{
     TargetOrder,
     units,
 };
-
-pub type Instant = esp_hal::time::Instant;

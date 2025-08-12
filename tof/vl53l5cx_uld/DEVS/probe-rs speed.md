@@ -1,5 +1,9 @@
 # `probe-rs` speed
 
+>👉 This IS solved, by using [`probe-rs-remote`](https://github.com/lure23/probe-rs-remote) instead of USB/IP over WLAN. 🍏
+
+---
+
 Speed of `probe-rs` flashing is not great:
 
 ```
@@ -28,6 +32,7 @@ Let's keep an eye on this. Below is a table of environments we know about (glad 
 
 The speed degredation when using USB/IP over the network is about 50% (~15s). It feels slower.
 
+<!-- #hidden; solved
 ## Help?
 
 If you know of ways, how to speed up the flashing, let us know!
@@ -37,4 +42,4 @@ Tried:
 - [x] `--speed` parameter 
 
    Doesn't affect (obviously, since the bottleneck is likely the USB/IP).
-
+-->

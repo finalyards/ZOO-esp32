@@ -2,12 +2,12 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [DEFMT_LOG=trace|debug|info|...] make -f Makefile.dev {m3|...}
+#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=esp-hal-next|esp-hal-0_22|...] make -f Makefile.dev {m3|...}
 #		# builds and runs a certain sample
 #
 DEFMT_LOG?=debug
 FEATURES?=
-LOG_ENV:=DEFMT_LOG=$(DEFMT_LOG)
+LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 
@@ -48,12 +48,7 @@ all:
 
 m3:
 	EXAMPLE=m3 \
-	  FEATURES=targets_per_zone_2,$(ALL_FEATURES) \
-	  $(REMAKE) --no-print-directory _build _run
-
-exp:
-	EXAMPLE=explore_lpn \
-	  FEATURES=targets_per_zone_2,distance_mm \
+	  FEATURES=$(FEATURES),targets_per_zone_2,$(ALL_FEATURES) \
 	  $(REMAKE) --no-print-directory _build _run
 
 # Tests
@@ -66,13 +61,13 @@ _test:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(FEATURES),defmt,fugit --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
-	@echo a
+	@echo $(notdir $(_OUT_EXAMPLE))
 
-.PHONY: all m3 exp plain_test _test _build _run echo
+.PHONY: all m3 _test _build _run echo

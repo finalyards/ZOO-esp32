@@ -8,13 +8,13 @@
 *   - LP Idle   // we don't (currently) support this mode
 *
 * The larger point is that the Rust API reflects the states. You can have the sensor presented
-* as 'SensorReady', but if you transit to ranging, you no longer have access to that state (unless
+* as 'State_HP_Idle', but if you transit to ranging, you no longer have access to that state (unless
 * the ranging is ended, in which case you may take it back).
 *
 *   [*]: DS13754 - Rev 12, p.9
 */
 #[cfg(feature = "defmt")]
-use defmt::error;
+use defmt::panic;
 
 use crate::{
     platform,
@@ -88,17 +88,16 @@ impl State_HP_Idle {
         // Further comms will happen to the new address. Let's still make a small access with the
         // new address, e.g. reading something.
         //
-        self.i2c_no_op().map_err(|e| {
-            #[cfg(feature = "defmt")]
-            error!("Device wasn't reached after its I2C address changed."); e
-        })?;
+        let _ = self.i2c_no_op().map_err(|_| {
+            panic!("Device wasn't reached after its I2C address changed.");
+        });
 
         Ok(())
     }
 
     /* I2C access without consequences
     */
-    fn i2c_no_op(&mut self) -> Result<()> {
+    pub /*<-- for debugging*/ fn i2c_no_op(&mut self) -> Result<()> {
         let mut tmp: u8 = 0;
         match unsafe { vl53l5cx_get_power_mode(&mut self.uld, &mut tmp) } {
             ST_OK => Ok(()),

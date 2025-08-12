@@ -26,7 +26,7 @@ const char* API_REVISION = VL53L5CX_API_REVISION;     // "VL53L5CX_2.0.0"
 
 /* disabled
 const uint16_t DEFAULT_I2C_ADDRESS = VL53L5CX_DEFAULT_I2C_ADDRESS;   // 0x52 (u16)
-    // Note: Even when some C types don't make sense (like here - this could be an 'uint8_t' - the author has restrained
+    // Note: Even when some C types don't make sense (like here - this could be an 'uint8_t' - the author has refrained
     //      from changing them. Small moves, Ellie!
 */
 

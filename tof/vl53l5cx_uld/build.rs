@@ -16,9 +16,6 @@ use std::{
 
 // Snippets need to be read in here (cannot do in "statement position")
 //
-#[cfg(feature="EXP_esp_hal_next")]
-include!("build_snippets/pins_next.in");
-#[cfg(not(feature="EXP_esp_hal_next"))]
 include!("build_snippets/pins.in");
 
 const CONFIG_H_NEXT: &str = "tmp/config.h.next";
@@ -190,9 +187,17 @@ fn main() -> Result<()> {
         .expect("to be able to launch `make`")   // shown if 'make' not found on PATH
         .status;
 
-    assert!(st.success(), "[ERROR!]: Running 'make' failed. \
-        SUGGESTION: run 'make manual' on the command line to see more error information. \
-    ");
+    if !st.success() {
+        // Remove "tmp/config.h[.next]" so they will get recreated next time. This should avoid
+        // the build to get in an awkward position where the developer needs to remove them, themselves.
+        //
+        fs::remove_file("tmp/config.h")?;
+        fs::remove_file(CONFIG_H_NEXT)?;
+
+        panic!("[ERROR!]: Running 'make' failed. \
+            SUGGESTION: run 'make manual' on the command line to see more error information. \
+        ");
+    }
 
     // Link arguments
     //
@@ -204,8 +209,9 @@ fn main() -> Result<()> {
             println!("cargo::rustc-link-arg={}", s);
         }
 
-        // tbd. ideally, have this line only for 'cargo test' runs (check by env.variables)
-        println!("cargo::rustc-link-arg-tests=-Tembedded-test.x");
+        if std::env::var("TEST").is_ok() {  // 'cargo test' run
+            println!("cargo::rustc-link-arg-tests=-Tembedded-test.x");
+        }
     }
 
     println!("cargo:rustc-link-search=tmp");

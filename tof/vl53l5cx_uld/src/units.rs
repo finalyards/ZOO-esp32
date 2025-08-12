@@ -17,16 +17,17 @@ use defmt::{Format, Formatter};
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct HzU8(pub u8);      // Vendor ULD needs max 15 and 60
 
-#[cfg(not(all()))]
-impl<const NOM: u32, const DENOM: u32> TryFrom<fugit::Rate<u32,NOM,DENOM>> for HzU8 {
+// Allow applications to use '15.Hz()'
+//
+// Note: the 'NOM' and 'DENOM' can be 1, since we're only interested in supporting full hertz.
+//
+#[cfg(feature = "fugit")]
+impl TryFrom<fugit::Rate<u32,1,1>> for HzU8 {
     type Error = &'static str;
-    fn try_from(v: fugit::Rate<u32,NOM,DENOM>) -> Result<Self, Self::Error> {
-        let v = v.raw();
-        if v<=0xff {
-            Ok(HzU8(v as u8))
-        } else {
-            Err("Percentage out of range")
-        }
+    fn try_from(v: fugit::Rate<u32,1,1>) -> Result<Self, Self::Error> {
+        u8::try_from(v.to_Hz())
+            .map(|u8| HzU8(u8))
+            .map_err(|_| "Frequency out of range")
     }
 }
 
@@ -42,14 +43,6 @@ pub struct PrcU8(pub u8);       // values 0..100
 
 pub trait ExtU32 {
     fn ms(self) -> MsU16;
-
-    // Note: This creates a "disambiguation" with 'fugit', if the end application uses, say,
-    //      'esp-hal' 'Instance' or 'Duration'. Might be better to keep this out?
-    /***
-    #[allow(non_snake_case)]
-    fn Hz(self) -> HzU8;
-    ***/
-
     fn prc(self) -> PrcU8;
 }
 
@@ -59,15 +52,6 @@ impl ExtU32 for u32 {
         assert!(self <= 0xffff);
         MsU16(self as u16)
     }
-
-    /***
-    #[inline]
-    #[allow(non_snake_case)]
-    fn Hz(self) -> HzU8 {
-        assert!(self <= 0xff);
-        HzU8(self as u8)
-    }
-    ***/
 
     #[inline]
     fn prc(self) -> PrcU8 {

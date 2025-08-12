@@ -1,21 +1,5 @@
 # TRACK
 
-<!-- #solved
-## Sniffing the (ELF) output path in `cargo`
-
-- [ ] ["Need a reliable way to get the target dir from the build script"](https://github.com/rust-lang/cargo/issues/9661)
-
-	The determination to *not make it easy* to know where `target` really is seems clear, from the above issue. It's not going to be "fixed".
-	
-	IF we had a way to sniff <sub>(not doing a `ls` runner)</sub> the path where the ELF will be built, we could:
-	
-	- alongside the `runner`, use our `Makefile.2` to "just run" (no building) the output
-
-	The current "no" approach is **restrictive** and **it's relatively easy to make a Rust tool that sniffs the ELF output path**. (call it `hound`?)
-
-	Just.. not doing it.. yet.
--->
-
 ## `type_alias_impl_trait` in nightly
 
 Once this makes it to stable, `embassy-executor` should no longer need the `task-arena-size...` features. <sub>[ref](https://docs.embassy.dev/embassy-executor/git/cortex-m/index.html#task-arena)</sub>
