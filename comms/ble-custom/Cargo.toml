@@ -29,7 +29,7 @@ bt-hci          = { version = "0.2" }
 defmt-rtt       = { version = "0.4.1" }
 embassy-executor = { version = "0.7.0", features=["task-arena-size-16384"] }
     # 'task-arena-size-...' must be enough to fit all the tasks. If the app creates all tasks up-front, and succeeds
-    #       to launch, we know the value was high enough. (If not, raise it.); Nightly wouldn't need this. Can be overridden by an env.var.
+    #       to launch, we know the value was high enough. (If not, raise it.); Can be overridden by an env.var.
 embassy-sync    = { version = "0.6.2" }
 embassy-time    = { version = "0.4.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}    # for time-stamp in logs
 esp-alloc       = { version = "0.6.0" }
