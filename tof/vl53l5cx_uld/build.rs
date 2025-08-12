@@ -7,12 +7,6 @@
 */
 use anyhow::*;
 
-use std::{
-    env,
-    fs,
-    process::Command
-};
-
 // Snippets need to be read in here (cannot do in "statement position")
 //
 include!("build_snippets/pins.in");
@@ -27,6 +21,12 @@ const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 *       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 */
 fn main() -> Result<()> {
+    use std::{
+        env,
+        fs,
+        process::Command
+    };
+
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
@@ -121,7 +121,7 @@ fn main() -> Result<()> {
     //
     // MUST BE BEFORE running the Makefile.
     //
-    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match 
+    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match
     //       what the real builds will be about.
     {
         use itertools::Itertools;

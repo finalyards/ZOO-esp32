@@ -61,7 +61,7 @@ m3-with-probe-rs:
 m3-with-espflash:
 	EXAMPLE=m3 \
 	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api \
-	  $(REMAKE) --no-print-directory _build _run-with-espflash
+	  $(REMAKE) --no-print-directory _build _run-with-espflash-v4
 
 # Tests
 plain_test pt:
@@ -78,6 +78,9 @@ _build:
 
 _run-with-espflash:
 	espflash flash --log-format defmt --monitor $(_OUT_EXAMPLE)
+
+_run-with-espflash-v4:
+	espflash flash --log-format defmt --output-format $(DEFMT_HOST_FMT) --monitor $(_OUT_EXAMPLE)
 
 _run-with-probe-rs:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)

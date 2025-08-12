@@ -41,7 +41,8 @@ pub struct State_HP_Idle {
     // "device"), in the form of the "configuration" struct. It's not really configuration;
     // more of a driver working memory area where all the state and buffers exist.
     //
-    // The good part of this arrangement is, we have separate state when handling multiple sensors. :)
+    // The good parts of this arrangement are: 1) we don't need allocations, 2) multiple sensors
+    // can immediately co-exist.
     //
     // The "state" also carries our 'Platform' struct within it. The ULD code uses it to reach back
     // to the app level, for MCU hardware access.
@@ -104,11 +105,6 @@ impl State_HP_Idle {
             e => Err(Error(e))
         }
     }
-
-    /*R not needed
-    pub(crate) fn borrow_uld(&self) -> &VL53L5CX_Configuration {
-        &self.uld
-    }*/
 
     pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL53L5CX_Configuration {
         &mut self.uld

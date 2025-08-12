@@ -121,8 +121,16 @@ Flash size:        4MB
 Features:          WiFi 6, BT 5
 MAC address:       54:32:04:07:15:10
 ```
+
+>[! NOTE]
+>Since `espflash` 4.0, both tools can use the same output formatting. We utilize this. If, however, you have `espflash` 3.3 (and are not willing to update), change:
+>
+>- `examples/m3.rs`: comment out the line `init_defmt();`
+>- `Makefile.dev`: remove `--output-format $(DEFMT_HOST_FMT)` from the targets having to do with `espflash`.
+>
+>Currently (Apr'25), installing `espflash` 4.0 means you will need to clone the sources and build it from there. <!--tbd. track https://github.com/esp-rs/espflash/releases -->
 </details>
-	
+
 ### SATEL board
 
 One [SATEL board](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) is needed. 

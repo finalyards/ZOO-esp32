@@ -23,12 +23,6 @@ use esp_hal::{
 };
 
 extern crate vl53l5cx_uld as uld;
-
-include!("./pins_gen.in");  // pins!
-
-mod common;
-use common::MyPlatform;
-
 use uld::{
     Result,
     VL53L5CX,
@@ -38,9 +32,13 @@ use uld::{
     units::*,
 };
 
+include!("./pins_gen.in");  // pins!
+
+mod common;
+use common::MyPlatform;
+
 #[main]
 fn main() -> ! {
-    #[cfg(feature="run_with_probe_rs")]
     init_defmt();
 
     match main2() {
@@ -50,9 +48,12 @@ fn main() -> ! {
 
         Ok(()) => {
             info!("End of ULD demo");
+            #[cfg(feature = "_semihosting")]
             semihosting::process::exit(0);      // back to developer's command line
         }
     }
+
+    loop {}
 }
 
 #[allow(non_snake_case)]
@@ -98,10 +99,9 @@ fn main2() -> Result<()> {
         info!("Target powered off and on again.");
     }
 
-    let mut vl = VL53L5CX::new_with_ping(pl)?.init()?;
+    let /*mut*/ vl = VL53L5CX::new_with_ping(pl)?.init()?;
 
     info!("Init succeeded");
-    blocking_delay_ms(2000);
 
     // Extra test, to see basic comms work
     #[cfg(not(all()))]
@@ -181,7 +181,6 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 * Note: If you use Embassy, a better way is to depend on 'embassy-time' and enable its
 *       "defmt-timestamp-uptime-*" feature.
 */
-#[cfg(feature="run_with_probe_rs")]
 fn init_defmt() {
     use esp_hal::time::Instant;
 

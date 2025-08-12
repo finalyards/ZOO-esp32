@@ -73,10 +73,6 @@ const uint8_t ST_ERROR = VL53L5CX_STATUS_ERROR;	                // |255
     //const uint8_t MCU_ERROR = VL53L5CX_MCU_ERROR;                       // |66 (0x42)
     //const uint8_t INVALID_PARAM = VL53L5CX_STATUS_INVALID_PARAM;    // |127 (0x7f)
 
-/* tbd. do we need this?
-const size_t MAX_RESULTS_SIZE = VL53L5CX_MAX_RESULTS_SIZE;
-*/
-
 // This comes from Rust 'targets_per_zone_{1..4}' features -> built into #define -> here back to Rust.
 //
 // There IS an argument using this, over Rust 'features' (which we currently do):

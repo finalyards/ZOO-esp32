@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use defmt::{info, debug, error, warn, trace, panic};
+use defmt::{assert, info, debug, error, warn, trace, panic};
 
 use esp_hal::{
     delay::Delay,
@@ -7,8 +7,7 @@ use esp_hal::{
     Blocking,
 };
 
-extern crate vl53l5cx_uld as uld;
-use uld::{
+use crate::uld::{
     DEFAULT_I2C_ADDR,
     I2cAddr,
     Platform,
@@ -17,7 +16,7 @@ use uld::{
 const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );    // esp-hal address type
 
 /*
-*/
+*/  // tbd. instead of 'static, make 'MyPlatform' gulp the i2c ("B" has a sample)
 pub struct MyPlatform {
     i2c: I2c<'static, Blocking>,
 }
@@ -37,20 +36,20 @@ impl Platform for MyPlatform {
     /*
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
+        const TRACE_SLICE_HEAD: usize = 20;
 
-        self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf).unwrap_or_else(|e| {
-            // If we get an error, let's stop right away.
-            panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
-        });
+        self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf)
+            .unwrap_or_else(|e| {
+                // If we get an error, let's stop right away.
+                panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
+            }
+        );
 
-        if buf.len() <= 20 {
+        if buf.len() <= TRACE_SLICE_HEAD {
             trace!("I2C read: {:#06x} -> {:#04x}", index, buf);
         } else {
-            trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index, slice_head(buf,20), buf.len());
+            trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index, slice_head(buf,TRACE_SLICE_HEAD), buf.len());
         }
-
-        // There should be 1.3ms between transmissions, by the VL spec. (see 'tBUF', p.15)
-        blocking_delay_us(1000);    // 1300
 
         Ok(())
     }
@@ -63,24 +62,27 @@ impl Platform for MyPlatform {
     * to recover.
     */
     fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
+        const TRACE_SLICE_HEAD: usize = 20;
+
         trace!("Writing: {:#06x} <- {:#04x}", index, slice_head(vs,20));    // TEMP
 
         // 'esp-hal' doesn't have '.write_write()', but it's easy to make one. This means we don't
         // need to concatenate the slices in a buffer.
         //
-        self.i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)]).unwrap_or_else(|e| {
-            panic!("I2C write to {:#06x} ({=usize} bytes) failed: {}", index, vs.len(), e);
-        });
+        trace!("A");
+        // BUG: GETS STUCK (FIRST WRITE AFTER INIT) HERE:
+        self.i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)])
+            .unwrap_or_else(|e| {
+                panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);
+            }
+        );
 
         let n = vs.len();
-        if n <= 20 {
+        if n <= TRACE_SLICE_HEAD {
             trace!("I2C written: {:#06x} <- {:#04x}", index, vs);
         } else {
-            trace!("I2C written: {:#06x} <- {:#04x}... ({=usize} bytes)", index, slice_head(vs,20), n);
+            trace!("I2C written: {:#06x} <- {:#04x}... ({=usize} bytes)", index, slice_head(vs,TRACE_SLICE_HEAD), n);
         }
-
-        // There should be 1.3ms between transmissions, by the VL spec. (see 'tBUF', p.15)
-        blocking_delay_us(1000);    // 1300
 
         Ok(())
     }
