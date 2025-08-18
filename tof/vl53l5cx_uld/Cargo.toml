@@ -1,8 +1,9 @@
 [package]
 name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
 edition = "2024"
-rust-version = "1.85"
-    # 1.85.0: stable support for edition "2024"
+rust-version = "1.86"
+    # 1.86: 'esp-{println|backtrace|...}' uses that, so..
+    # 1.85: stable support for edition "2024"
 publish = false
 
 # 'esp-hal' recommends only using 'release', so...
