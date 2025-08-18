@@ -26,7 +26,7 @@
 #
 # Note: Unconditional (manual) make with 'make -B' MAY BE CURRENTLY BROKEN. Just run 'make _clean', instead. #tbd.
 #
-VL53L5CX_ULD_API?=./VL53L5CX_ULD_API
+VL53L5CX_ULD_API?=~/VL53L5CX_ULD_API
 
 _TMP:=./tmp/
 _C_SRC:=tmp/c_src
