@@ -139,7 +139,7 @@ async fn gatt_events_task(server: &Server<'_>, conn: &Connection<'_>) -> Result<
                 match data.process(server).await {
                     Ok(_) => {}
                     Err(e) => {
-                        error!("[gatt] error processing event: {:?}", e);
+                        error!("[gatt] error processing: {:?}", e);
                         break;
                     }
                 }

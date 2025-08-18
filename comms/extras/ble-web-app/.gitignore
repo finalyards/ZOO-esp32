@@ -16,3 +16,7 @@
 .dev.vars
 
 /package-lock.json
+
+# Saw this
+/vite.config.js.timestamp*
+
