@@ -41,7 +41,8 @@ impl Platform for MyPlatform {
         self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf)
             .unwrap_or_else(|e| {
                 // If we get an error, let's stop right away.
-                panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
+                //panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);   // tbd. requires 'esp-hal' to have 'defmt' feature enabled
+                core::panic!("I2C read at {:#06x} ({} bytes) failed: {}", index, buf.len(), e);
             }
         );
 
@@ -70,10 +71,10 @@ impl Platform for MyPlatform {
         // need to concatenate the slices in a buffer.
         //
         trace!("A");
-        // BUG: GETS STUCK (FIRST WRITE AFTER INIT) HERE:
         self.i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)])
             .unwrap_or_else(|e| {
-                panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);
+                //panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);
+                core::panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);
             }
         );
 

@@ -3,8 +3,6 @@
 #
 # Pins configuration for the project's examples. An include is generated, based on information in this file.
 #
-generate = "examples/pins_gen.in"
-
 [boards.esp32c3]
 SDA = 4
 SCL = 5

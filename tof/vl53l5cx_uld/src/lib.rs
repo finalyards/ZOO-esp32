@@ -115,7 +115,9 @@ impl VL53L5CX_Configuration {
             // also unnecessary. '&mut dyn Platform' is just within doable!
             //
             // Nice part of using '&mut dyn Platform' is also that the size and alignment requirements
-            // (20 and 8 bytes), remain constant for the C side.
+            // (48 and 8 bytes), remain constant for the C side.
+            //
+            // NOTE! Until 18-Aug-25, the Rust side size was 20. Not sure what changed it to 48.
             //
             let dd: &mut dyn Platform = &mut p;
             let pp = addr_of_mut!((*up).platform);
@@ -126,7 +128,7 @@ impl VL53L5CX_Configuration {
                 //      The compiler makes the struct 24-wide, in that case. So we allow the gap.
                 let sz_c = size_of_val(&(*up).platform);
                 let sz_rust = size_of_val(dd);
-                assert!(sz_c >= sz_rust, "Tunnel C side isn't wide enough");   // edit 'platform.h' to adjust
+                assert!(sz_c >= sz_rust, "Tunnel C side isn't wide enough: {} < {}", sz_c, sz_rust);   // edit 'platform.h' to adjust
 
                 let al_rust = align_of_val(dd);
                 assert!( (pp as usize)%al_rust == 0 ||false, "bad alignment on C side (needs {})", al_rust );

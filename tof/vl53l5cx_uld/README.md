@@ -8,16 +8,10 @@ The `uld` part for the VL53L5CX time-of-flight sensor takes care of
 
 YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx/README.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can also be built.
 
->Note: We don't automatically pull in the vendor ULD C library, because it requires a "click through" license. @ST.com if you are reading this, please consider providing a publicly accessible URL to remove this somewhat unnecessary manual step developers need to go through.
+>Note: We don't automatically pull in the vendor ULD C library, because it requires a "click through" license. You can download it as a guest, though, and you can use a non-traceable (temporary) email address.
 
 
-## Pre-reading
-
-- ["Using C Libraries in Rust"](https://medium.com/dwelo-r-d/using-c-libraries-in-rust-13961948c72a) (blog, Aug '19)
-
-   A bit old, but relevant (C API's don't age!).
-   
-## The build
+## Overview
 
 ![](.images/build-map.png)
 
@@ -25,10 +19,11 @@ This build is relatively complex. You can just follow the instructions below, bu
 
 ## Requirements
 
-### `clang`
+### `clang` and `make`
 
 ```
 $ sudo apt install libclang-dev clang
+$ sudo apt install make
 ```
 
 ### `bindgen`
@@ -50,29 +45,31 @@ Ubuntu clang version 18.1.3 (1ubuntu1)
 [...]
 
 $ bindgen --version
-bindgen 0.71.1
+bindgen 0.72.0
 -->
 
 ### The vendor C libary
 
 The `VL53L5CX_ULD_API` (ULD C driver) is a separate download.
 
-1. [Fetch it](https://www.st.com/en/embedded-software/stsw-img023.html) from the vendor (`Get software` > `Get latest` > check the license > ...)
+1. [Fetch it from the vendor](https://www.st.com/en/embedded-software/stsw-img023.html) (`Get software` > `Get latest` > check the license > ...)
 
 	>Note: You can `"Download as a guest"`, after clicking the license.
 
 2. Unzip it to a suitable location
 3. `export VL53L5CX_ULD_API={your-path}/VL53L5CX_ULD_API`
 
+	>We only need that subfolder, not the whole unzipped contents which has examples, docs etc.
+
 
 ### Supported dev kits
 
 The workflow has been tested on these MCUs:
 
-|||
-|---|---|
-|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|
-|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|
+|||`L5CX`|`L8CX`|
+|---|---|---|---|
+|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|&check;|*tbd.*|
+|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|&check;|*tbd.*|
 
 <!-- #hidden
 |`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
@@ -90,9 +87,10 @@ Both of these can flash software onto your device and monitor its running. They 
 ||`espflash`|`probe-rs`|
 |---|---|---|
 |USB port|any: UART or JTAG|**JTAG only**|
-|line format customization|no|yes, with `--log-format`|
 |background / author(s)|Espressif|multi-vendor|
-|use when...|needing to support ESP32-C3|you have USB/JTAG connector available|
+|line format customization|yes, since version 4.0|yes, with `--log-format`|
+|`semihosting::process::exit` compatible|not (v4-dev)|yes|
+|use when...|needing to support ESP32-C3|you have USB/JTAG port (ESP32-C6)|
 
 >[! NOTE]
 >The selection of flasher only affects running examples, not how the `vl53l5cx_uld` can be used as a library.
@@ -122,13 +120,13 @@ Features:          WiFi 6, BT 5
 MAC address:       54:32:04:07:15:10
 ```
 
+<!-- #hidden
 >[! NOTE]
 >Since `espflash` 4.0, both tools can use the same output formatting. We utilize this. If, however, you have `espflash` 3.3 (and are not willing to update), change:
 >
 >- `examples/m3.rs`: comment out the line `init_defmt();`
 >- `Makefile.dev`: remove `--output-format $(DEFMT_HOST_FMT)` from the targets having to do with `espflash`.
->
->Currently (Apr'25), installing `espflash` 4.0 means you will need to clone the sources and build it from there. <!--tbd. track https://github.com/esp-rs/espflash/releases -->
+-->
 </details>
 
 ### SATEL board

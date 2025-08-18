@@ -4,13 +4,15 @@
 * Processes the 'pins.toml', injecting its contents - as a Rust snippet - into the given path.
 */
 use anyhow::{Context, Result};
+use std::{collections, fs};
+
+const OUTPUT_FN: &str = "examples/pins_gen.in";
 
 // TOML objects
 //
 #[derive(Debug, serde::Deserialize)]
 struct PinsToml {
-    generate: String,
-    boards: std::collections::HashMap<String,Board>
+    boards: collections::HashMap<String,Board>
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -29,9 +31,6 @@ fn process_pins(toml: &str, board_id: &str) -> Result<()> {
     let board = c.boards.get(board_id).with_context(
         || format!("No section '[boards.{}]' found in 'pins.toml'", board_id)
     )?;
-
-    let fn_ = &c.generate;
-    assert!(fn_.len() > 0);
 
     // unpack, because "field access not supported [...] in a format string"
     let (SDA, SCL, PWR_EN, INT) = (board.SDA, board.SCL, board.PWR_EN, board.INT);
@@ -54,7 +53,9 @@ macro_rules! pins {{
 "#)
     };
 
-    std::fs::write(fn_, contents).with_context(
+    let fn_ = OUTPUT_FN;
+
+    fs::write(fn_, contents).with_context(
         || format!("Unable to write {fn_}")
     )?;
 

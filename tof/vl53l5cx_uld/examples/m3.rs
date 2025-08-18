@@ -53,19 +53,21 @@ fn main() -> ! {
         }
     }
 
+    #[cfg(not(feature = "_semihosting"))]
     loop {}
 }
 
 #[allow(non_snake_case)]
-struct Pins {
-    SDA: AnyPin,
-    SCL: AnyPin,
-    PWR_EN: AnyPin,
-    INT: AnyPin
+struct Pins<'a> {
+    SDA: AnyPin<'a>,
+    SCL: AnyPin<'a>,
+    PWR_EN: AnyPin<'a>,
+    INT: AnyPin<'a>
 }
 
 #[allow(non_upper_case_globals)]
-const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
+//const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
+const I2C_SPEED: Rate = Rate::from_khz(1000);        // TEMP; works also with this! (C6)
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
@@ -99,12 +101,12 @@ fn main2() -> Result<()> {
         info!("Target powered off and on again.");
     }
 
-    let /*mut*/ vl = VL53L5CX::new_with_ping(pl)?.init()?;
+    let mut vl = VL53L5CX::new_with_ping(pl)?.init()?;
 
     info!("Init succeeded");
 
     // Extra test, to see basic comms work
-    #[cfg(not(all()))]
+    //#[cfg(not(all()))]
     {
         vl.i2c_no_op()
             .expect("to pass");
@@ -128,7 +130,8 @@ fn main2() -> Result<()> {
         // wait for 'INT' to fall
         loop {
             if INT.is_low() {
-                debug!("INT after: {}", t0.elapsed());
+                //debug!("INT after: {}", t0.elapsed());  // tbd. needs 'esp-hal' to have 'defmt' feature enabled
+                debug!("INT after: {}ms", t0.elapsed().as_millis());
                 break;
             } else if t0.elapsed().as_millis() > 1000 {
                 panic!("No INT detected");
