@@ -16,7 +16,7 @@ use crate::uld::{
 const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );    // esp-hal address type
 
 /*
-*/  // tbd. instead of 'static, make 'MyPlatform' gulp the i2c ("B" has a sample)
+*/
 pub struct MyPlatform {
     i2c: I2c<'static, Blocking>,
 }
@@ -32,10 +32,12 @@ impl MyPlatform {
     }
 }
 
+type NEVER = ();  // "'!' type is experimental"; requires nightly
+
 impl Platform for MyPlatform {
     /*
     */
-    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),NEVER> {
         const TRACE_SLICE_HEAD: usize = 20;
 
         self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf)
@@ -62,7 +64,7 @@ impl Platform for MyPlatform {
     * to stop early. CERTAIN error codes MAY lead to a single retry, if we think we have a chance
     * to recover.
     */
-    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),NEVER> {
         const TRACE_SLICE_HEAD: usize = 20;
 
         trace!("Writing: {:#06x} <- {:#04x}", index, slice_head(vs,20));    // TEMP
@@ -70,7 +72,6 @@ impl Platform for MyPlatform {
         // 'esp-hal' doesn't have '.write_write()', but it's easy to make one. This means we don't
         // need to concatenate the slices in a buffer.
         //
-        trace!("A");
         self.i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)])
             .unwrap_or_else(|e| {
                 //panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);

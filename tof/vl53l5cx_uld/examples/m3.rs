@@ -39,8 +39,6 @@ use common::MyPlatform;
 
 #[main]
 fn main() -> ! {
-    init_defmt();
-
     match main2() {
         Err(e) => {
             panic!("Failed with ULD error code: {}", e);
@@ -68,6 +66,9 @@ struct Pins<'a> {
 #[allow(non_upper_case_globals)]
 //const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
 const I2C_SPEED: Rate = Rate::from_khz(1000);        // TEMP; works also with this! (C6)
+
+//?? #[cfg(feature="run_with_espflash")]
+//?? esp_bootloader_esp_idf::esp_app_desc!();
 
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
@@ -171,7 +172,6 @@ const D_PROVIDER: Delay = Delay::new();
 fn blocking_delay_ms(ms: u32) { D_PROVIDER.delay_millis(ms); }
 fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 
-// tbd. check if the "timestamp" feature of 'esp-println' is something we want to use?
 /*
 * Tell 'defmt' how to support '{t}' (timestamp) in logging.
 *
@@ -185,11 +185,16 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 * Note: If you use Embassy, a better way is to depend on 'embassy-time' and enable its
 *       "defmt-timestamp-uptime-*" feature.
 */
-fn init_defmt() {
-    use esp_hal::time::Instant;
+#[cfg(feature="run_with_probe_rs")]
+defmt::timestamp!("{=u64:us}", {
+    let now = Instant::now();
+    now.duration_since_epoch().as_micros()
+});
 
-    defmt::timestamp!("{=u64:us}", {
-        let now = Instant::now();
-        now.duration_since_epoch().as_micros()
-    });
+#[cfg(feature="run_with_espflash")]
+#[unsafe(no_mangle)]
+pub extern "Rust" fn _esp_println_timestamp() -> u64 {
+    Instant::now()
+        .duration_since_epoch()
+        .as_millis()
 }

@@ -63,6 +63,11 @@ _m3-next:
 	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES),esp_hal_api,esp-hal-next \
 	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
 
+_m3-next-with-espflash:
+	EXAMPLE=m3 \
+	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api,esp-hal-next \
+	  $(REMAKE) --no-print-directory _build _run-with-espflash-v4
+
 m3-with-espflash:
 	EXAMPLE=m3 \
 	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api \

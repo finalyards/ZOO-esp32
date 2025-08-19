@@ -1,8 +1,8 @@
 [package]
 name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
 edition = "2024"
-rust-version = "1.86"
-    # 1.86: 'esp-{println|backtrace|...}' uses that, so..
+rust-version = "1.89"
+    # 1.88: 'esp-hal' 1.0.0-rc0 (and others) require this; "cargo update"
     # 1.85: stable support for edition "2024"
 publish = false
 
@@ -28,7 +28,8 @@ esp-hal         = { version = "1.0.0-rc.0", features = ["esp32c6"], optional = t
 #[dev-dependencies]
 # Rust provides no mechanism for conditional 'dev-dependencies'. Thus, we introduce them here.
 defmt-rtt       = { version = "1.0.0", optional = true }
-esp-println     = { version = "0.15.0", features = ["esp32c6"], optional = true }   # "defmt-espflash"
+#?? esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32c6"], optional = true }
+esp-println     = { version = "0.15.0", features = ["esp32c6", "timestamp"], optional = true }   # "defmt-espflash"
 
 semihosting     = { version = "0.1.20", optional = true }
     # "portable-atomic":
@@ -50,7 +51,7 @@ esp-hal         = { version = "1.0.0-rc.0", features = ["esp32c6", "unstable"] }
     # "unstable" needed for 'delay' module
 
 [build-dependencies]
-anyhow          = "1.0.97"
+anyhow          = "1.0.99"
 itertools       = "0.14.0"
 serde           = { version = "1.0", features = ["derive"] }
 toml            = "0.9.5"
@@ -89,6 +90,7 @@ targets_per_zone_4=["nb_targets_detected"]
 defmt = ["dep:defmt",
     #"esp-hal/defmt",       # tbd. BUG expected in 1.0 (main,beta.x,rc.x) code, about the constness of assert
     "esp-backtrace/defmt",
+    #?? "esp-bootloader-esp-idf?/defmt",
     "esp-println?/defmt-espflash"
 ]
 
@@ -109,7 +111,7 @@ _semihosting = ["dep:semihosting", "esp-backtrace/semihosting"]
 # Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
 # not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
 #
-run_with_espflash = ["defmt", "dep:esp-println"]
+run_with_espflash = ["defmt", "dep:esp-println"]    # ?? "dep:esp-bootloader-esp-idf" ??
 run_with_probe_rs = ["defmt", "dep:defmt-rtt", "_semihosting"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
