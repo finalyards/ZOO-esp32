@@ -171,6 +171,7 @@ const D_PROVIDER: Delay = Delay::new();
 fn blocking_delay_ms(ms: u32) { D_PROVIDER.delay_millis(ms); }
 fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 
+// tbd. check if the "timestamp" feature of 'esp-println' is something we want to use?
 /*
 * Tell 'defmt' how to support '{t}' (timestamp) in logging.
 *

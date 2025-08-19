@@ -171,15 +171,11 @@ $ make -f Makefile.dev m3
 4.025994 [INFO ] .distance_mm:      [[[38, 0, 1, 0], [142, 11, 0, 0], [73, 7, 0, 0], [0, 0, 0, 0]], [[300, 202, 907, 933], [253, 1043, 808, 646], [220, 642, 708, 724], [393, 606, 642, 653]]]
 4.026182 [INFO ] .reflectance:      [[[0, 0, 0, 0], [4, 0, 0, 0], [1, 0, 0, 0], [0, 0, 0, 0]], [[15, 2, 30, 19], [13, 31, 11, 6], [5, 3, 12, 8], [6, 11, 15, 8]]]
 4.069097 [DEBUG] INT after: 42.756ms
-
+[...]
+Firmware exited successfully
 ```
 
 If you have an ESP32-C3 board, this will fail. Use `make -f Makefile.dev m3-with-espflash`, instead.
-
-
-## Troubleshooting
-
-See [`TROUBLES.md`](./TROUBLES.md).
 
 
 ## Power budget
@@ -193,20 +189,20 @@ Let's see, how many can be powered without an external power source.
 ||mA|V|mW|
 |---|---|---|---|
 |**Drains**|
-|- ESP32-C6-DevKitM1|38mA (radio off) .. 189mA (BLE sending at 9.0 dBm)<sup>`|1|`</sup>|3.3|124 .. 624|
-|- SATEL board|130mA (AVDD + IOVDD; 50 + 80)|3.3|429|
-|- external pull-ups|2k2: 1.5mA x 2 = 3mA|3.3|10|
+|&nbsp;&nbsp;ESP32-C6-DevKitM1|38mA (radio off) .. 189mA (BLE sending at 9.0 dBm)<sup>`|1|`</sup>|3.3|<nobr>124 .. 624</nobr>|
+|&nbsp;&nbsp;SATEL board|130mA (AVDD + IOVDD; 50 + 80)|3.3|429|
+|&nbsp;&nbsp;external pull-ups|2k2: 1.5mA x 2 = 3mA|3.3|10|
 |**Source**|
-|- Power available from a USB 2.0 port (Raspberry Pi 3B)|500mA|5|2500|
+|&nbsp;&nbsp;Power available from a USB 2.0 port (Raspberry Pi 3B)|500mA|5.0|2500|
 
 For four SATEL boards:
 
 - no radio: 124 + 4*429 + 10 = 1850 mW < 2500 mW
-- BLE @ 9.0 dBm: "no radio" + 500 = 2350 mW < 2500 mW
+- BLE sending: (above) + 500 = 2350 mW < 2500 mW
 
-This seems to indicate we should be able to use four SATEL boards, and broadcast on BLE, while staying within the USB 2.0 port's power budget.
+This seems to indicate we should be able to scan on four SATEL boards, and send on BLE, simultaneously. (If that were not the case, distance scans could be paused for the duration of BLE sends, or the sensors powered separately.)
 
->Note: The above calculation is based on peak values. ST.com datasheet itself marks "continuous mode" actual consumption as 313mW, and by using "autonomous mode" (as we do in the code), the value drops below 200 (depends on the scanning frequency). This means powering even up to eight boards could be a thing, from a single USB 2.0 port. It would be best to measure the actual power use.
+>Note: The above calculation is based on peak values. ST.com datasheet itself marks "continuous mode" actual consumption as 313mW, and by using "autonomous mode" (as we do in the code), the value drops below 200 (depends on the frame rate). This means powering even up to eight boards could be a thing, but needs to be confirmed by measurements.
 
 <small>
 `|1|`: [ESP32-C6-MINI-1 & MINI-1U Datasheet v1.2](https://www.espressif.com/sites/default/files/documentation/esp32-c6-mini-1_mini-1u_datasheet_en.pdf) > 5.4 "Current consumption characteristics" <br />
@@ -225,11 +221,14 @@ This seems to indicate we should be able to use four SATEL boards, and broadcast
 	- ["Ultra lite driver (ULD) [...] with wide field of view"](https://www.st.com/resource/en/data_brief/stsw-img023.pdf) (PDF, May'21; 3pp)
 	- ["A guide to using the VL53L5CX multizone [...]"](https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf) (PDF, revised Feb'24; 18pp)
 
-- [VL53L5CX Product overview](https://www.st.com/resource/en/datasheet/vl53l5cx.pdf) (ST.com DS13754, Rev 12; April 2024)
+- [VL53L5CX Product overview](https://www.st.com/resource/en/datasheet/vl53l5cx.pdf) (ST.com DS13754, Rev 13; Sep 2024)
 
 ### SATEL
 
-- [How to setup and run the VL53L5CX-SATEL using an STM32 Nucleo64 board]() (ST.com AN5717, Rev 2; Dec 2021)
-- [PCB4109A, version 12, variant 00B](https://www.st.com/resource/en/schematic_pack/pcb4109a-00b-sch012.pdf) (ST.com; 2021; PDF 2pp.)
+- [How to setup and run the VL53L5CX-SATEL using an STM32 Nucleo64 board](https://www.st.com/resource/en/application_note/an5717-how-to-setup-and-run-the-vl53l5cxsatelusing-an-stm32-nucleo64-board-stmicroelectronics.pdf) (ST.com AN5717, Rev 4; Dec 2024)
 
-	>*Interestingly, marked `CONFIDENTIAL` but behind a public web link.*
+- [PCB4109A, version 12, variant 00B](https://community.st.com/ysqtg83639/attachments/ysqtg83639/imaging-sensors-forum/1559/1/PCB4109A-00B-SCH012.pdf) (ST.com; Apr 2021; PDF 2pp.)
+
+<!-- earlier URL (now 404):
+https://www.st.com/resource/en/schematic_pack/pcb4109a-00b-sch012.pdf
+-->
