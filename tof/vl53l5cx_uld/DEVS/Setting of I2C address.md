@@ -1,6 +1,6 @@
 # Setting of I2C address
 
-***The VL53L5CX sensor doesn't seem to be designed with multiple-board use cases in mind.*** 
+>Disclaimer. This section could do some flame control.
 
 While it's possible to tie multiple boards on a single I2C bus, the mechanisms for doing so seem half-hearted, at best. This markdown file discusses this aspect of the sensors.
 
@@ -12,11 +12,11 @@ While it's possible to tie multiple boards on a single I2C bus, the mechanisms f
 
 - VL53L5CX does not **retain** the I2C address programmed to it (in non-volatile memory)
 - initial programming needs `LPn` (chip select) to *all* sensors
-- things could have been different..
+- `LPn` has *nothing* to do with Low Power mode.
 
 ## What one can do
 
-All boards start with address `0x52`<sub>7 bits</sub>. One can call the `vl53l5cx_set_i2c_address` function to change that address to another one, on the I2C bus. Once the address is changed, the board starts *immediately* recognizing the new address.
+All boards start with address `0x52`. One can call the `vl53l5cx_set_i2c_address` function to change that address to another one, on the I2C bus. Once the address is changed, the board starts *immediately* recognizing the new address.
 
 ### How this fares in practice?
 
@@ -24,7 +24,8 @@ Not well. Since all the boards start with address `0x52`, there needs to be a me
 
 To use `LPn`, one must carry an extra pin from the MCU to *every* sensor, separately. **This defeats the benefit of I2C bus**, which is to allow using multiple peripherals **without chip enable** signals.
 
->As we'll discuss below, there could have been other opportunities. Likely, the multi-sensor use case just didn't get much love and testing in product development...
+>As we'll discuss below, there could have been other opportunities. Likely, the multi-sensor use case just didn't get much love and testing in product specification.
+
 
 ## What could have been
 
@@ -82,13 +83,19 @@ Setting addresses in a daisy-chain fashion would be in the spirit of the I2C bus
 
 ## The road we took
 
->NOTE: The author actually ended up both using `LPn` pins (for visual debug cue, using LEDs), *and* changing the addresses.
+The author actually ended up both using `LPn` pins (for visual debug cue, using LEDs), *and* changing the addresses.
 
-<strike>With the above restrictions, the author thinks meddling with I2C address change is not worth it, as things stand. Since `n` * `LPn` pins are anyways needed, we can equally well use them for picking the board to address, and keep all boards at default `0x52` address.
 
-### Implications
+## What could have been different..
 
-Things will work. MCUs have pins. PCBs can route them.
+The `LPn` pin should never have been called that. It's "comms enable" (DS13754 - Rev 13, page 7), nothing more!
 
-We can (if we want) set LEDs to the `LPn` pins, seeing indication on which board is currently being accessed. Note that this is just a visualization/debugging thing that matters nothing to the operation of the boards, themselves.
-</strike>
+However, for some strange reason, `LPn` gets mentioned in DS13754 - Rev 13 (page 9), under the `LP idle` box, only. This might give the reader a feel it has something to do with the Low Power mode. It doesn't. It works in the LP Idle, HP Idle, and perhaps also the Ranging mode. 
+
+>![](.images/lpn-mention.png)
+
+Just **remove** such a mention. 
+	
+ST.com [acknowledges this](https://community.st.com/t5/imaging-sensors/vl53l5cx-lpn-pin-behavior-usage/td-p/115174) in 2022, but they haven't made an effort to remove that line from the L5CX (or L8CX) specs.
+
+Please.

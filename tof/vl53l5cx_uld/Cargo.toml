@@ -127,7 +127,7 @@ harness = false
 required-features = ["defmt"]
 
 # Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
-[patch.crates-io]
-esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
