@@ -16,7 +16,8 @@
 #	- clang
 #
 # Env.vars:
-#	- VL53L5CX_ULD_API={path}	Folder where the vendor C sources are placed
+#	- VL53L5CX_ULD_API={path}	Folder where the vendor C sources are placed (vl53l5cx variant)
+#	- VL53L8CX_ULD_API={path}	// ..for vl53l8cx (you can define either or both)
 #
 # Note: 'bindgen' docs show how that tool builds a static library, when used as a Rust library. We take a very similar
 #		approach, but use 'bindgen' CLI instead of the library.
@@ -27,6 +28,15 @@
 # Note: Unconditional (manual) make with 'make -B' MAY BE CURRENTLY BROKEN. Just run 'make _clean', instead. #tbd.
 #
 VL53L5CX_ULD_API?=~/VL53L5CX_ULD_API
+X?=
+
+ifneq ($(filter _clean _klean echo,$(MAKECMDGOALS)),)
+  # let them pass, without 'X'
+else ifndef X
+  $(error Please define env.var. 'X' - either to 5 or 8)
+else ifeq ($(filter $(X),5 8),)
+  $(error Unexpected X=$(X); valid: 5,8)
+endif
 
 _TMP:=./tmp/
 _C_SRC:=tmp/c_src
@@ -50,41 +60,45 @@ all:
 	@false
 
 # The targets that 'build.rs' normally builds (for debugging, in case make fails)
-manual: tmp/libvendor_uld.a tmp/uld_raw.rs
+manual: tmp/libvendor_uld$(X).a tmp/uld_raw$(X).rs
 	@echo "\nManual build succeeded."
 
 #---
 # Build the static library
 #
-tmp/libvendor_uld.a: tmp/vl53l5cx_api.o
+tmp/libvendor_uld$(X).a: tmp/vl53l$(X)cx_api.o
 	ar rcs $@ $<
 
-tmp/%.o: $(_C_SRC)/%.c wrap.h $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h $(_OTHER_INCS) tmp/config.h Makefile \
+tmp/%.o: $(_C_SRC)/%.c wrap$(X).h $(_C_SRC)/vl53l$(X)cx_api.h $(_C_SRC)/vl53l$(X)cx_buffers.h $(_OTHER_INCS) tmp/config$(X).h Makefile \
 	| clang
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
 #---
-# Patch ST.com sources from './VL53LCX_ULD_API/**' to 'tmp/c_src/'
+# Patch ST.com sources from './VL53L{58}CX_ULD_API/**' to 'tmp/c_src/'
 #
 # 	- places e.g. headers and C files in the same folder, for convenience
 #	- removes a nasty! reference to a field in a structure that's supposed to be customer-made and opaque
 #
-$(_C_SRC)/%.h: $(VL53L5CX_ULD_API)/inc/%.h
+$(_C_SRC)/%.h: $(VL53L$(X)CX_ULD_API)/inc/%.h \
+	| tmp_c_exists
 	@cp $< $@
 
-$(_C_SRC)/vl53l5cx_api.c: $(VL53L5CX_ULD_API)/src/vl53l5cx_api.c ./patch
-	patch $< ./patch -o $@
+$(_C_SRC)/vl53l$(X)cx_api.c: $(VL53L$(X)CX_ULD_API)/src/vl53l$(X)cx_api.c ./patch$(X) \
+	| tmp_c_exists
+	patch $< ./patch$(X) -o $@
 
 # Error at root level, if vendor sources aren't there
-ifeq ("$(wildcard $(VL53L5CX_ULD_API)/src/*)", "")
-$(error Vendor''s ULD driver not found; please download and place in the folder $(VL53L5CX_ULD_API))
+ifdef X
+  ifeq ("$(wildcard $(VL53L$(X)CX_ULD_API)/src/*)", "")
+    $(error Vendor''s ULD driver not found; please download and point the env.var. 'VL53L$(X)CX_ULD_API' to it)
+  endif
 endif
 
 #---
 # Generate Rust
 #
-# Generate ’tmp/uld_raw.rs’. MANUAL CHANGES TO IT WILL BE LOST; modify this instead.
+# Generate ’tmp/uld_raw{58}.rs’. MANUAL CHANGES TO IT WILL BE LOST; modify this instead.
 #
 # About 'bindgen' (v.0.69.4):
 #	- prints errors to stdout, which is .... a bit unkind.
@@ -134,10 +148,10 @@ endif
 #		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
 #			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
 #
-tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) Makefile \
+tmp/uld_raw5.rs: wrap5.h tmp/config5.h $(_OTHER_INCS) Makefile \
 	| $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h bindgen
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
-	    --allowlist-file wrap.h \
+	    --allowlist-file wrap5.h \
 	    --allowlist-type 'VL53L5CX_.+' \
 	    --allowlist-function 'vl53l5cx_check_data_ready' \
 	    --allowlist-function 'vl53l5cx_get_(?:(power_mode)|(ranging_data))' \
@@ -163,8 +177,35 @@ tmp/uld_raw.rs: wrap.h tmp/config.h $(_OTHER_INCS) Makefile \
 
 	# Note: 'sed' removes 'Debug' from the derived behaviours. This is intentional; 'defmt' uses 'Format'.
 
+tmp/uld_raw8.rs: wrap8.h tmp/config8.h $(_OTHER_INCS) Makefile \
+	| $(_C_SRC)/vl53l8cx_api.h $(_C_SRC)/vl53l8cx_buffers.h bindgen
+	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
+	    --allowlist-file wrap8.h \
+	    --allowlist-type 'VL53L[58]CX_.+' \
+	    --allowlist-function 'vl53l[58]cx_check_data_ready' \
+	    --allowlist-function 'vl53l[58]cx_get_(?:(power_mode)|(ranging_data))' \
+	    --allowlist-function 'vl53l[58]cx_init' \
+	    --allowlist-function 'vl53l[58]cx_set_(?:(power_mode))' \
+	    --allowlist-function 'vl53l[58]cx_set_(?:(resolution)|(ranging_frequency_hz)|(integration_time_ms)|(sharpener_percent)|(target_order)|(ranging_mode))' \
+	    --allowlist-function 'vl53l[58]cx_st(?:(art)|(op))_ranging' \
+	    --allowlist-item 'API_REVISION' \
+	    \
+	    --use-core \
+	    --default-enum-style rust \
+	    --raw-line '#![allow(non_camel_case_types)]' \
+	    --raw-line '#![allow(non_snake_case)]' \
+		--raw-line 'use strum::FromRepr;' \
+		--no-copy 'VL53L[58]CX_(?:(Configuration)|(Platform))' \
+	    -- -I. -I$(_C_SRC) \
+	  | sed 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
+	  | sed 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \
+	  | sed 's/these field, except for the sensor address."/these fields."/' \
+	  | sed -E 's/^(pub enum PowerMode)/#[allow(dead_code)]\n\1/' \
+	  | sed -E 's/(vl53l[58]cx_set_power_mode)/_\1/' \
+	  > $@
+
 # Test for the above (for manual development, only); CAN BE LET GO
-EXP_x: tmp/uld_raw.rs
+EXP5_x: tmp/uld_raw5.rs
 	grep -q API_REVISION $<
 	grep -q vl53l5cx_init $<
 	grep -q vl53l5cx_get_ranging_data $<
@@ -179,18 +220,18 @@ EXP_x: tmp/uld_raw.rs
 
 	#grep -q 'pub enum PowerMode' $<
 
-# 'build.rs' writes 'tmp/config.h.next' on _every_ build.
-# If the contents differ, update 'tmp/config.h'.
+# 'build.rs' writes 'tmp/config{58}.h.next' on _every_ build.
+# If the contents differ, update 'tmp/config{58}.h'.
 #
-# Note: Keep the 'tmp/config.h.next' around - if we were to remove it, running 'make manual' repeatedly (for debugging?)
+# Note: Keep the 'tmp/config{58}.h.next' around - if we were to remove it, running 'make manual' repeatedly (for debugging?)
 #		would fail.
 #
-tmp/config.h: tmp/config.h.next
-	@cmp -s tmp/config.h tmp/config.h.next || \
+tmp/config$(X).h: tmp/config$(X).h.next
+	@cmp -s tmp/config$(X).h tmp/config$(X).h.next || \
 	  cp $< $@
 
-tmp/config.h.next: Cargo.toml
-	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build' to have features propagate to it)
+tmp/config$(X).h.next: Cargo.toml
+	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build --features=vl53l$(X)cx' to have features propagate to it)
 
 # Check that required tools are installed
 bindgen:
@@ -203,23 +244,26 @@ clang:
 	  echo >&2 "ERROR: 'clang' CLI not detected. Please install via 'sudo apt install llvm-dev libclang-dev clang'."; false \
 	)
 
+tmp_c_exists:
+	@install -d $(_C_SRC)
+
 #---
 _clean:
-	-rm tmp/uld_raw.rs tmp/c_src/* tmp/vl53l5cx_api.o tmp/libvendor_uld.a \
-		tmp/config.h tmp/config.h.*
+	-rm tmp/uld_raw?.rs tmp/c_src/* tmp/vl53l?cx_api.o tmp/libvendor_uld?.a \
+		tmp/config?.h tmp/config?.h.*
 
 _klean: _clean
 	cargo clean
 
 echo:
-	@echo $(VL53L5CX_ULD_API)
+	@echo $(VL53L$(X)CX_ULD_API) $(MAKECMDGOALS)
 
 #--
 # Remove any targets created if a build fails.
 .DELETE_ON_ERROR:
 
-.PHONY: all bindgen clang _clean _klean echo
+.PHONY: all bindgen clang tmp_c_exists _clean _klean echo
 
 # #hack For some reason, giving '-B' from 'build.rs' didn't work. By declaring the file '.PHONY' we make sure it's
 #	always recreated
-#.PHONY: tmp/uld_raw.rs
+#.PHONY: tmp/uld_raw5.rs tmp/uld_raw8.rs

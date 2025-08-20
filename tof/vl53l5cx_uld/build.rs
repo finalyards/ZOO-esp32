@@ -11,7 +11,13 @@ use anyhow::*;
 //
 include!("build_snippets/pins.in");
 
-const CONFIG_H_NEXT: &str = "tmp/config.h.next";
+// 'X' is either 5 or 8
+#[cfg(feature = "vl53l5cx")]
+const X: u8 = 5;
+#[cfg(feature = "vl53l8cx")]
+const X: u8 = 8;
+#[cfg(not(any(feature = "vl53l5cx", feature = "vl53l8cx")))]
+const X: u8 = 0;    //compile_error!("Please enable either 'vl53l5cx' or 'vl53l8cx' feature");
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
@@ -27,12 +33,23 @@ fn main() -> Result<()> {
         process::Command
     };
 
+    // Cannot make these 'const' yet, that's fine for us.
+    #[allow(non_snake_case)]
+    /*const*/ let CONFIG_H: String = format!("tmp/config{X}.h");
+    #[allow(non_snake_case)]
+    /*const*/ let CONFIG_H_NEXT: String = format!("{CONFIG_H}.next");
+
+    //#[allow(non_snake_case)]
+    //let CONFIG_H = CONFIG_H.as_str();
+    #[allow(non_snake_case)]
+    let CONFIG_H_NEXT = CONFIG_H_NEXT.as_str();
+
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
     //
     #[allow(non_snake_case)]
-    let IDE_RUN = std::env::var("__CFBundleIdentifier").is_ok();
+    let IDE_RUN = env::var("__CFBundleIdentifier").is_ok();
 
     // If IDE runs, terminate early.
     if IDE_RUN { return Ok(()) };
@@ -76,7 +93,7 @@ fn main() -> Result<()> {
     //---
     // Config sanity checks
     {
-        // In the nature of Rust features being combinable, several 'targets_per_zone{2..4}' _are_ allowed, the
+        // In the nature of Rust features being combinable, several 'targets_per_zone{2..4}' are allowed, the
         // grandest of them making the call. = we don't need to check for sanity.
         //
         //"targets_per_zone_2",
@@ -86,11 +103,18 @@ fn main() -> Result<()> {
         // "range_sigma_mm" relates to "distance_mm"
         #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
         println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
+
+        // One sensor type, per project
+        #[cfg(not(any(feature = "vl53l5cx", feature = "vl53l8cx")))]
+        panic!("Must enable feature: {{vl53l5cx|vl53l8cx}}");
+
+        #[cfg(all(feature = "vl53l5cx", feature = "vl53l8cx"))]
+        panic!("Must enable ONLY one of features: {{vl53l5cx|vl53l8cx}}");
     }
 
     // Config sanity checks (if 'examples/*')
     //
-    if std::env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
+    if env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
         #[cfg(not(any(feature = "run_with_espflash", feature = "run_with_probe_rs")))]
         panic!("Must enable feature: run_with_{{espflash|probe_rs}}");
 
@@ -138,27 +162,27 @@ fn main() -> Result<()> {
         // First group: metadata of the sensor (DIMxDIM, regardless of targets)
         //
         #[cfg(not(feature = "ambient_per_spad"))]
-        add!("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
+        add!("DISABLE_AMBIENT_PER_SPAD");
         #[cfg(not(feature = "nb_spads_enabled"))]
-        add!("VL53L5CX_DISABLE_NB_SPADS_ENABLED");
+        add!("DISABLE_NB_SPADS_ENABLED");
         #[cfg(not(feature = "nb_targets_detected"))]
-        add!("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
+        add!("DISABLE_NB_TARGET_DETECTED");
         //
         // Second group: data and metadata (DIMxDIMxTARGETS)
         //
         #[cfg(not(feature = "target_status"))]
-        add!("VL53L5CX_DISABLE_TARGET_STATUS");
+        add!("DISABLE_TARGET_STATUS");
         #[cfg(not(feature = "distance_mm"))]
-        add!("VL53L5CX_DISABLE_DISTANCE_MM");
+        add!("DISABLE_DISTANCE_MM");
         #[cfg(not(feature = "range_sigma_mm"))]
-        add!("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
+        add!("DISABLE_RANGE_SIGMA_MM");
         #[cfg(not(feature = "reflectance_percent"))]
-        add!("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
+        add!("DISABLE_REFLECTANCE_PERCENT");
         #[cfg(not(feature = "signal_per_spad"))]
-        add!("VL53L5CX_DISABLE_SIGNAL_PER_SPAD");
+        add!("DISABLE_SIGNAL_PER_SPAD");
 
         // 'motion_indicator' support is not implemented; always disable in C
-        add!("VL53L5CX_DISABLE_MOTION_INDICATOR");
+        add!("DISABLE_MOTION_INDICATOR");
 
         // Vendor docs:
         //      "the number of target[s] per zone sent through I2C. [...] a lower number [...] means a lower RAM
@@ -173,39 +197,42 @@ fn main() -> Result<()> {
             else if cfg!(feature = "targets_per_zone_2") { 2 }
             else { 1 };     // always one target
 
-        defs.push(format!("VL53L5CX_NB_TARGET_PER_ZONE {TARGETS}U"));
+        defs.push(format!("NB_TARGET_PER_ZONE {TARGETS}U"));
 
         // Write the file. This way the last 'cargo build' state remains available, even if
         // 'make' were run manually (compared to passing individual defines to 'make');
         // also, it keeps the 'Makefile' simple.
         //
         let contents = defs.iter()
-            .map(|s| format!("#define {s}"))
+            .map(|s| format!("#define VL53L{X}CX_{s}"))
             .join("\n");
 
         fs::write(CONFIG_H_NEXT, contents)
-            .expect( &format!("Unable to write {}", CONFIG_H_NEXT) );
+            .expect( &format!("Unable to write {CONFIG_H_NEXT}") );
     }
 
     // make stuff
     //
     let st = Command::new("make")
         //.arg("-B")
-        .arg("tmp/libvendor_uld.a")    // ULD C library
-        .arg("tmp/uld_raw.rs")      // generate the ULD Rust bindings
+        .arg( format!("tmp/libvendor_uld{X}.a") )    // ULD C library
+        .arg( format!("tmp/uld_raw{X}.rs") )      // generate the ULD Rust bindings
+        .arg( format!("X={X}") )
         .output()
         .expect("to be able to launch `make`")   // shown if 'make' not found on PATH
         .status;
 
     if !st.success() {
-        // Remove "tmp/config.h[.next]" so they will get recreated next time. This should avoid
-        // the build to get in an awkward position where the developer needs to remove them, themselves.
+        // Remove "tmp/config[.next].h" on failure. This tries to avoid an awkward situation where
+        // the developer needs to remove them, themselves.
         //
-        fs::remove_file("tmp/config.h")?;
-        fs::remove_file(CONFIG_H_NEXT)?;
+        // tbd. what's the right thing to do? #undecided
+        //
+        //fs::remove_file(CONFIG_H)?;
+        //fs::remove_file(CONFIG_H_NEXT)?;
 
         panic!("[ERROR!]: Running 'make' failed. \
-            SUGGESTION: run 'make manual' on the command line to see more error information. \
+            SUGGESTION: run 'make manual X={X}' on the command line to see more error information. \
         ");
     }
 
@@ -225,7 +252,7 @@ fn main() -> Result<()> {
     }
 
     println!("cargo:rustc-link-search=tmp");
-    println!("cargo:rustc-link-lib=static=vendor_uld");
+    println!("cargo:rustc-link-lib=static=vendor_uld{}", X);
 
     Ok(())
 }

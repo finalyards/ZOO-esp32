@@ -1,5 +1,5 @@
 [package]
-name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
+name = "vl53_uld"   # name matters; used in 'examples' and the 'vl' project
 edition = "2024"
 rust-version = "1.89"
     # 1.88: 'esp-hal' 1.0.0-rc0 (and others) require this; "cargo update"
@@ -67,6 +67,9 @@ toml            = "0.9.5"
 #   Some features are connected to others. We check this in 'build.rs'.
 #
 [features]
+vl53l5cx = []
+vl53l8cx = []
+
 ambient_per_spad=[]     # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
 nb_spads_enabled=[]     # VL53L5CX_DISABLE_NB_SPADS_ENABLED
 signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD

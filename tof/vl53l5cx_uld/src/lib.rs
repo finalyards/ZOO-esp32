@@ -5,6 +5,11 @@ mod platform;
 mod state_hp_idle;
 mod state_ranging;
 mod results_data;
+#[cfg(feature="vl53l5cx")]
+#[path = "../tmp/uld_raw5.rs"]
+mod uld_raw;
+#[cfg(feature="vl53l8cx")]
+#[path = "../tmp/uld_raw8.rs"]
 mod uld_raw;
 pub mod units;
 
@@ -29,6 +34,7 @@ pub use {
     }
 };
 
+#[cfg(feature = "vl53l5cx")]
 use crate::uld_raw::{
     VL53L5CX_Configuration,
     vl53l5cx_init,

@@ -13,7 +13,7 @@
 #pragma once
 #include <stdint.h>
 
-#include "tmp/config.h"
+#include "tmp/config5.h"    // tbd. FOR NOW!!! MUST DO THIS SO WORKS WITH BOTH 5&8 !!!  #HACK!!!
 
 /**
  * @brief 'VL53L5CX_Platform' is an opaque structure, provided by the customer's app.

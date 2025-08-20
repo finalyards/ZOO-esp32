@@ -2,11 +2,25 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [DEFMT_LOG=trace|debug|info|...] [FEATURES=esp-hal-next|...] make -f Makefile.dev {m3|m3-with-espflash|m3-with-probe-rs|...}
-#		# builds and runs a certain sample
+#	$ VARIANT=5|8 [DEFMT_LOG=trace|debug|info|...] [FEATURES=esp-hal-next|...] make -f Makefile.dev {m3|m3-with-espflash|m3-with-probe-rs|...}
+#
+#	..builds and runs a certain sample.
 #
 DEFMT_LOG?=debug
 FEATURES?=
+VARIANT?=
+ifndef VARIANT
+  $(error 'VARIANT' env.var. not defined. Provide either 'VARIANT=5' or 'VARIANT=8')
+endif
+
+ifeq ($(VARIANT),5)
+  _VARIANT_FEATURE:=vl53l5cx
+else ifeq ($(VARIANT),8)
+  _VARIANT_FEATURE:=vl53l58x
+else
+  $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
+endif
+
 LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
@@ -58,16 +72,6 @@ m3-with-probe-rs:
 	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES),esp_hal_api \
 	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
 
-_m3-next:
-	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES),esp_hal_api,esp-hal-next \
-	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
-
-_m3-next-with-espflash:
-	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api,esp-hal-next \
-	  $(REMAKE) --no-print-directory _build _run-with-espflash-v4
-
 m3-with-espflash:
 	EXAMPLE=m3 \
 	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api \
@@ -83,7 +87,7 @@ _test:
 
 #---
 _build:
-	$(LOG_ENV) cargo build --release --features=$(FEATURES) --example $(EXAMPLE)
+	$(LOG_ENV) cargo build --release --features=$(_VARIANT_FEATURE),$(FEATURES) --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run-with-espflash:
@@ -98,4 +102,4 @@ _run-with-probe-rs:
 echo:
 	@echo $(notdir $(_OUT_EXAMPLE))
 
-.PHONY: all m3 _test _build _run echo
+.PHONY: all m3 m3-with-probe-rs m3-with-espflash _test _build _run echo
