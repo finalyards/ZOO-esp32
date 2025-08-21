@@ -84,9 +84,14 @@ $(_C_SRC)/%.h: $(VL53L$(X)CX_ULD_API)/inc/%.h \
 	| tmp_c_exists
 	@cp $< $@
 
-$(_C_SRC)/vl53l$(X)cx_api.c: $(VL53L$(X)CX_ULD_API)/src/vl53l$(X)cx_api.c ./patch$(X) \
-	| tmp_c_exists
-	patch $< ./patch$(X) -o $@
+# NOTE: While 'VL53L5CX' seems to be with LF line endings, 'VL53L8CX' is with CRLF.
+# Note: 'patch' does not support piping for its input file (treats '-' as a filename).
+#
+$(_C_SRC)/vl53l$(X)cx_api.c: $(VL53L$(X)CX_ULD_API)/src/vl53l$(X)cx_api.c ./$(X).patch \
+	| tmp_c_exists patch dos2unix
+	cat $< | dos2unix > tmp/_
+	patch tmp/_ ./$(X).patch -o $@
+	-rm tmp/_
 
 # Error at root level, if vendor sources aren't there
 ifdef X
@@ -242,6 +247,11 @@ bindgen:
 clang:
 	@which clang >/dev/null || ( \
 	  echo >&2 "ERROR: 'clang' CLI not detected. Please install via 'sudo apt install llvm-dev libclang-dev clang'."; false \
+	)
+
+patch dos2unix:
+	@which $@ >/dev/null || ( \
+	  echo >&2 "ERROR: '$@' is not detected. Please install via 'sudo apt install $@'."; false \
 	)
 
 tmp_c_exists:

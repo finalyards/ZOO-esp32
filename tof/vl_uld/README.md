@@ -17,13 +17,36 @@ YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5c
 
 This build is relatively complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
 
+## Supported dev kits
+
+The workflow has been tested on these MCUs and sensors:
+
+|||`L8CX`|`L5CX`|
+|---|---|---|---|
+|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|*tbd.*|&check;|
+|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|*tbd.*|*tbd. check again..*|
+
+<!-- #hidden
+|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
+-->
+
+
 ## Requirements
 
-### `clang` and `make`
+### `espflash` or `probe-rs`
+
+Follow installation instructions at the [root](../../README.md) of the ZOO repo.
+
+```
+$ espflash --version
+espflash 4.0.1
+```
+
+
+### `clang`
 
 ```
 $ sudo apt install libclang-dev clang
-$ sudo apt install make
 ```
 
 ### `bindgen`
@@ -48,86 +71,36 @@ $ bindgen --version
 bindgen 0.72.0
 -->
 
+### Tools
+
+```
+$ sudo apt install make patch dos2unix
+```
+
+
 ### The vendor C libary
 
-The `VL53L5CX_ULD_API` (ULD C driver) is a separate download.
+The vendor's C driver is a separate download, with a click-through license.
 
-1. [Fetch it from the vendor](https://www.st.com/en/embedded-software/stsw-img023.html) (`Get software` > `Get latest` > check the license > ...)
+1. Fetch a zip from the vendor:
 
-	>Note: You can `"Download as a guest"`, after clicking the license.
+	(product page) > `Tools & Software` > "Ultra lite driver (ULD) API"
 
-2. Unzip it to a suitable location
-3. `export VL53L5CX_ULD_API={your-path}/VL53L5CX_ULD_API`
+	- for [VL53L8CX](https://www.st.com/en/embedded-software/stsw-img040.html)
+	- for [VL53L5CX](https://www.st.com/en/embedded-software/stsw-img023.html) 
 
-	>We only need that subfolder, not the whole unzipped contents which has examples, docs etc.
+	`Get software` > `Get latest` > check the license > ...
 
+	You can `"Download as a guest"`, after clicking the license. You *will* need to provide an email address for the actual download link, but that can be a temporary one...
 
-### Supported dev kits
+2. Unzip to a suitable location
 
-The workflow has been tested on these MCUs:
+3. `export VL53L8CX_ULD_API={your-path}/VL53L8CX_ULD_API`
 
-|||`L5CX`|`L8CX`|
-|---|---|---|---|
-|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|&check;|*tbd.*|
-|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|&check;|*tbd.*|
+	If you are targeting VL53L5CX, you just change the `8` to `5`, naturally. You can also have both API's available.
 
-<!-- #hidden
-|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
--->
-
-### Flasher: `espflash` or `probe-rs`
-
-We use [defmt](https://docs.rs/defmt/latest/defmt/) for logging and there are two different flashing/monitoring ecosystems that are compatible with it:
-
-- [`espflash`](https://github.com/esp-rs/espflash) from Espressif
-- [`probe-rs`](https://github.com/probe-rs/probe-rs) which is multi-target (ARM, RISC-V)
-
-Both of these can flash software onto your device and monitor its running. They work using very different internal approaches, and which one to choose is mostly a matter of choice.
-
-||`espflash`|`probe-rs`|
-|---|---|---|
-|USB port|any: UART or JTAG|**JTAG only**|
-|background / author(s)|Espressif|multi-vendor|
-|line format customization|yes, since version 4.0|yes, with `--log-format`|
-|`semihosting::process::exit` compatible|not (v4-dev)|yes|
-|use when...|needing to support ESP32-C3|you have USB/JTAG port (ESP32-C6)|
-
->[! NOTE]
->The selection of flasher only affects running examples, not how the `vl53l5cx_uld` can be used as a library.
-
-Once you have a hunch, which flasher you'll use, check that it can reach your devkit:
-
-<details><summary>`probe-rs`</summary>
-
-```
-$ probe-rs list
-The following debug probes were found:
-[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
-```
-</details>
-
-<details><summary>`espflash`</summary>
-
-```
-$ espflash board-info
-[2025-03-11T16:22:04Z INFO ] Serial port: '/dev/ttyUSB0'
-[2025-03-11T16:22:04Z INFO ] Connecting...
-[2025-03-11T16:22:04Z INFO ] Using flash stub
-Chip type:         esp32c6 (revision v0.0)
-Crystal frequency: 40 MHz
-Flash size:        4MB
-Features:          WiFi 6, BT 5
-MAC address:       54:32:04:07:15:10
-```
-
-<!-- #hidden
->[! NOTE]
->Since `espflash` 4.0, both tools can use the same output formatting. We utilize this. If, however, you have `espflash` 3.3 (and are not willing to update), change:
->
->- `examples/m3.rs`: comment out the line `init_defmt();`
->- `Makefile.dev`: remove `--output-format $(DEFMT_HOST_FMT)` from the targets having to do with `espflash`.
--->
-</details>
+	>We only need the one subfolder that has `src`, `inc`, not the whole unzipped contents which has examples, docs etc.
+	
 
 ### SATEL board
 

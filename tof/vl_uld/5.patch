@@ -1,0 +1,10 @@
+--- /home/ubuntu/VL53L5CX_ULD_API/src/vl53l5cx_api.c	2024-05-22 18:53:20.000000000 +0300
++++ vl53l5cx_api.c	2025-08-20 10:00:27.803134823 +0300
+@@ -414,5 +414,6 @@
+ 	status |= VL53L5CX_WrByte(&(p_dev->platform), 0x7fff, 0x00);
+ 	status |= VL53L5CX_WrByte(&(p_dev->platform), 0x4, (uint8_t)(i2c_address >> 1));
+-	p_dev->platform.address = i2c_address;
++	// THIS IS BAD ABSTRACTION - should not change things on behalf of the platform; treat 'p_dev' as opaque.
++	//p_dev->platform.address = i2c_address;
+ 	status |= VL53L5CX_WrByte(&(p_dev->platform), 0x7fff, 0x02);
+

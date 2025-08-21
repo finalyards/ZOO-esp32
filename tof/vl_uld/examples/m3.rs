@@ -22,7 +22,7 @@ use esp_hal::{
     time::{Instant, Rate}
 };
 
-extern crate vl53_uld as uld;
+extern crate vl_uld as uld;
 use uld::{
     Result,
     VL53L5CX,

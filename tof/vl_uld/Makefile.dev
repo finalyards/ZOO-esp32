@@ -16,7 +16,7 @@ endif
 ifeq ($(VARIANT),5)
   _VARIANT_FEATURE:=vl53l5cx
 else ifeq ($(VARIANT),8)
-  _VARIANT_FEATURE:=vl53l58x
+  _VARIANT_FEATURE:=vl53l8cx
 else
   $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
 endif
