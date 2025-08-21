@@ -12,12 +12,13 @@ use anyhow::*;
 include!("build_snippets/pins.in");
 
 // 'X' is either 5 or 8
-#[cfg(feature = "vl53l5cx")]
-const X: u8 = 5;
-#[cfg(feature = "vl53l8cx")]
-const X: u8 = 8;
-#[cfg(not(any(feature = "vl53l5cx", feature = "vl53l8cx")))]
-const X: u8 = 0;    //compile_error!("Please enable either 'vl53l5cx' or 'vl53l8cx' feature");
+const X: u8 =
+         if cfg!(feature = "vl53l8cx") { 8 }
+    else if cfg!(feature = "vl53l5cx") { 5 }
+    else { 0 };     // an error will be produced, later
+
+#[allow(non_snake_case)]
+const CONFIG_H_NEXT: &str = "tmp/config58.h.next";
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
@@ -32,17 +33,6 @@ fn main() -> Result<()> {
         fs,
         process::Command
     };
-
-    // Cannot make these 'const' yet, that's fine for us.
-    #[allow(non_snake_case)]
-    /*const*/ let CONFIG_H: String = format!("tmp/config{X}.h");
-    #[allow(non_snake_case)]
-    /*const*/ let CONFIG_H_NEXT: String = format!("{CONFIG_H}.next");
-
-    //#[allow(non_snake_case)]
-    //let CONFIG_H = CONFIG_H.as_str();
-    #[allow(non_snake_case)]
-    let CONFIG_H_NEXT = CONFIG_H_NEXT.as_str();
 
     // Detect when IDE is running us:
     //  - Rust Rover:
@@ -204,7 +194,7 @@ fn main() -> Result<()> {
         // also, it keeps the 'Makefile' simple.
         //
         let contents = defs.iter()
-            .map(|s| format!("#define VL53L{X}CX_{s}"))
+            .map(|s| format!("#define VL_{s}"))
             .join("\n");
 
         fs::write(CONFIG_H_NEXT, contents)

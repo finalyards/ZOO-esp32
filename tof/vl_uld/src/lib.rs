@@ -34,10 +34,9 @@ pub use {
     }
 };
 
-#[cfg(feature = "vl53l5cx")]
 use crate::uld_raw::{
-    VL53L5CX_Configuration,
-    vl53l5cx_init,
+    VL_Configuration,
+    vl_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
     ST_OK, ST_ERROR,
 };
@@ -68,14 +67,19 @@ pub const API_REVISION: &str = {
     }
 };
 
+const CORRECT_REV_ID: u8 =
+        if cfg!(feature = "vl53l8cx") { 0x0c }
+    else if cfg!(feature = "vl53l5cx") { 0x02 }
+    else { 0xff };  // cannot use 'compile_error!()' here; checked elsewhere
+
 /*
 * Adds a method to the ULD C API struct.
 *
 * Note: Since the C-side struct has quite a lot of internal "bookkeeping" fields, we don't expose
 *       this directly to Rust customers, but wrap it.
 */
-impl VL53L5CX_Configuration {
-    /** @brief Returns a default 'VL53L5CX_Configuration' struct, spiced with the application
+impl VL_Configuration {
+    /** @brief Returns a default 'VL_Configuration' struct, spiced with the application
        * provided 'Platform'-derived state (opaque to us, except for its size).
        *
        * Initialized state is (as per ULD C code):
@@ -83,10 +87,10 @@ impl VL53L5CX_Configuration {
        *       .platform: dyn Platform     = anything the app keeps there
        *       .streamcount: u8            = 0 (undefined by ULD C code)
        *       .data_read_size: u32        = 0 (undefined by ULD C code)
-       *       .default_configuration: *mut u8 = VL53L5CX_DEFAULT_CONFIGURATION (a const table)
-       *       .default_xtalk: *mut u8     = VL53L5CX_DEFAULT_XTALK (a const table)
+       *       .default_configuration: *mut u8 = VL_DEFAULT_CONFIGURATION (a const table)
+       *       .default_xtalk: *mut u8     = VL_DEFAULT_XTALK (a const table)
        *       .offset_data: [u8; 488]     = data read from the sensor
-       *       .xtalk_data: [u8; 776]      = copy of 'VL53L5CX_DEFAULT_XTALK'
+       *       .xtalk_data: [u8; 776]      = copy of 'VL_DEFAULT_XTALK'
        *       .temp_buffer: [u8; 1452]    = { being used for multiple things }
        *       .is_auto_stop_enabled: u8   = 0
        *   <<
@@ -96,13 +100,13 @@ impl VL53L5CX_Configuration {
        *   - NVM (non-volatile?) data is read from the sensor to the driver
        *   - default Xtalk data programmed to the sensor
        *   - default configuration ('.default_configuration') written to the sensor
-       *   - four bytes written to sensor's DCI memory at '0xDB80U' ('VL53L5CX_DCI_PIPE_CONTROL'):
-       *       {VL53L5CX_NB_TARGET_PER_ZONE, 0x00, 0x01, 0x00}
-       *   - if 'NB_TARGET_PER_ZONE' != 1, 1 byte updated at '0x5478+0xc0' ('VL53L5CX_DCI_FW_NB_TARGET'+0xc0)  // if I got that right!?!
-       *       {VL53L5CX_NB_TARGET_PER_ZONE}
-       *   - one byte written to sensor's DCI memory at '0xD964' ('VL53L5CX_DCI_SINGLE_RANGE'):
+       *   - four bytes written to sensor's DCI memory at '0xDB80U' ('VL_DCI_PIPE_CONTROL'):
+       *       {VL_NB_TARGET_PER_ZONE, 0x00, 0x01, 0x00}
+       *   - if 'NB_TARGET_PER_ZONE' != 1, 1 byte updated at '0x5478+0xc0' ('VL_DCI_FW_NB_TARGET'+0xc0)  // if I got that right!?!
+       *       {VL_NB_TARGET_PER_ZONE}
+       *   - one byte written to sensor's DCI memory at '0xD964' ('VL_DCI_SINGLE_RANGE'):
        *       {0x01}
-       *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
+       *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL_GLARE_FILTER'):
        *       {0x01, 0x01}
     */
     fn init_with(mut p: impl Platform) -> Result<Self> {
@@ -112,8 +116,8 @@ impl VL53L5CX_Configuration {
         };
 
         #[allow(unused_unsafe)]
-        let ret: Result<VL53L5CX_Configuration> = unsafe {
-            let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::uninit();
+        let ret: Result<VL_Configuration> = unsafe {
+            let mut uninit = MaybeUninit::<VL_Configuration>::uninit();
             let up = uninit.as_mut_ptr();
 
             // Get a '&mut dyn Platform' reference to 'p'. Converting '*c_void' (once we come to
@@ -158,7 +162,7 @@ impl VL53L5CX_Configuration {
             //
             // Note: Already this will call the platform methods (via the tunnel).
             //
-            match vl53l5cx_init(up) {
+            match vl_init(up) {
                 ST_OK => Ok(uninit.assume_init()),  // we guarantee it's now initialized
                 e => Err(Error(e))
             }
@@ -187,18 +191,31 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     }
 
     pub fn init(self) -> Result<State_HP_Idle> {
-        let uld = VL53L5CX_Configuration::init_with(/*move*/ self.p)?;
+        let uld = VL_Configuration::init_with(/*move*/ self.p)?;
 
         Ok( State_HP_Idle::new(uld) )
     }
 
     fn ping(p: &mut P) -> CoreResult<(),()> {
         #[cfg_attr(not(feature="defmt"), allow(unused_variables))]
-        match vl53l5cx_ping(p)? {
-            (a@ 0xf0, b@ 0x02) => {     // vendor driver ONLY proceeds with this
+
+        match vl_ping(p)? {
+            (a@ 0xf0, b@ CORRECT_REV_ID) => {
                 #[cfg(feature="defmt")]
                 debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b);
                 Ok(())
+            },
+            #[cfg(feature="vl53l8cx")]
+            (0xf0, b) => {
+                #[cfg(feature="defmt")]
+                error!("Expected L8CX (0x0c), found rev id: {:#04x}", b);
+                Err(())
+            },
+            #[cfg(feature="vl53l5cx")]
+            (0xf0, b) => {
+                #[cfg(feature="defmt")]
+                error!("Expected L5CX (0x02), found rev id: {:#04x}", b);
+                Err(())
             },
             t => {
                 #[cfg(feature="defmt")]
@@ -210,7 +227,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
 }
 
 /**
-* Function, modeled akin to the vendor ULD 'vl53l5cx_is_alive()', but:
+* Function, modeled akin to the vendor ULD 'vl_is_alive()', but:
 *   - made in Rust
 *   - returns the device and revision id's
 *
@@ -218,9 +235,9 @@ impl<P: Platform + 'static> VL53L5CX<P> {
 * is supposed to be functioning also before the firmware and parameters initialization.
 *
 * Note:
-*   - Vendor's ULD C driver expects '(0xf0, 0x02)'.
+*   - Vendor's ULD C driver expects '(0xf0, 0x0c)' (L8CX) or '(0xf0, 0x02)' (L5CX).
 */
-fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
+fn vl_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     let mut buf = [u8::MAX;2];
 
     pl.wr_bytes(0x7fff, &[0x00])?;

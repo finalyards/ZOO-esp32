@@ -18,7 +18,7 @@
 use defmt::{assert, panic};
 
 use crate::uld_raw::{
-    VL53L5CX_ResultsData,
+    VL_ResultsData,
 };
 use crate::units::TempC;
 
@@ -93,7 +93,7 @@ impl<const DIM: usize> ResultsData<DIM> {
         }
     }
 
-    pub(crate) fn from(raw_results: &VL53L5CX_ResultsData) -> (Self,TempC) {
+    pub(crate) fn from(raw_results: &VL_ResultsData) -> (Self,TempC) {
         use core::mem::MaybeUninit;
 
         //validate_raw(raw_results);  // panics if input not according to expectations
@@ -107,7 +107,7 @@ impl<const DIM: usize> ResultsData<DIM> {
         (x, tempC)
     }
 
-    fn feed(&mut self, rr: &VL53L5CX_ResultsData) -> TempC {
+    fn feed(&mut self, rr: &VL_ResultsData) -> TempC {
         use core::convert::identity;
 
         // helpers
@@ -241,7 +241,7 @@ impl TargetStatus {
 * Validates that the input we get from ULD C API is according to assumptions (i.e. validate our
 * ASSUMPTIONS; the data of course are fine!!!).
 */
-fn validate_raw<const DIM: usize>(rr: &VL53L5CX_ResultsData) {
+fn validate_raw<const DIM: usize>(rr: &VL_ResultsData) {
 
     // helpers
     //

@@ -17,7 +17,7 @@ use crate::I2cAddr;
 use crate::uld_raw::{
     ST_OK,
     ST_ERROR as ST_ERR,
-    VL53L5CX_Platform
+    VL_Platform
 };
 
 /**
@@ -58,12 +58,12 @@ pub trait Platform {
 /// @param (uint8_t) *p_value : Where to store the value
 /// @return (uint8_t) status : 0 if OK
 #[unsafe(no_mangle)]
-pub extern "C" fn VL53L5CX_RdByte(
-    pt: *mut VL53L5CX_Platform,
+pub extern "C" fn VL_RdByte(
+    pt: *mut VL_Platform,
     index: u16,
     p_value: *mut u8
 ) -> u8 {
-    VL53L5CX_RdMulti(pt, index, p_value, 1_u32)
+    VL_RdMulti(pt, index, p_value, 1_u32)
 }
 
 /// @brief write one single byte
@@ -72,12 +72,12 @@ pub extern "C" fn VL53L5CX_RdByte(
 /// @param (uint8_t) value : value to write
 /// @return (uint8_t) status : 0 if OK
 #[unsafe(no_mangle)]
-pub extern "C" fn VL53L5CX_WrByte(
-    pt: *mut VL53L5CX_Platform,
+pub extern "C" fn VL_WrByte(
+    pt: *mut VL_Platform,
     index: u16,
     v: u8
 ) -> u8 {
-    VL53L5CX_WrMulti(pt, index, (&mut [v]).as_mut_ptr(), 1_u32)
+    VL_WrMulti(pt, index, (&mut [v]).as_mut_ptr(), 1_u32)
 }
 
 /// @brief read multiples bytes
@@ -87,8 +87,8 @@ pub extern "C" fn VL53L5CX_WrByte(
 /// @param (uint32_t) size : Size of 'p_values' buffer
 /// @return (uint8_t) status : 0 if OK
 #[unsafe(no_mangle)]
-pub extern "C" fn VL53L5CX_RdMulti(
-    pt: *mut VL53L5CX_Platform,
+pub extern "C" fn VL_RdMulti(
+    pt: *mut VL_Platform,
     index: u16,
     p_values: *mut u8,
     size: u32   // should be 'size_t'
@@ -112,8 +112,8 @@ pub extern "C" fn VL53L5CX_RdMulti(
 /// @param (uint32_t) size : Size of 'p_values'
 /// @return (uint8_t) status : 0 if OK
 #[unsafe(no_mangle)]
-pub extern "C" fn VL53L5CX_WrMulti(
-    pt: *mut VL53L5CX_Platform,
+pub extern "C" fn VL_WrMulti(
+    pt: *mut VL_Platform,
     index: u16,
     p_values: *mut u8,  // *u8 (const)
     size: u32   // actual values fit 16 bits; 'size_t'
@@ -137,7 +137,7 @@ pub extern "C" fn VL53L5CX_WrMulti(
 /// @param (uint8_t*) buf : Buffer to swap
 /// @param (uint16_t) size : Buffer size in bytes; always multiple of 4.
 #[unsafe(no_mangle)]
-pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; not words*/) {
+pub extern "C" fn VL_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; not words*/) {
 
     // Note: Since we don't actually _know_, whether 'buffer' is 4-byte aligned (to be used as '*mut u32'),
     // The original doc mentions a blurry "generally uint32_t" (not very helpful).
@@ -157,7 +157,7 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; n
 /// @param (uint32_t) time_ms : Time to wait in ms
 /// @return (uint8_t) status : 0 if wait is finished
 #[unsafe(no_mangle)]
-pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u8 {
+pub extern "C" fn VL_WaitMs(pt: *mut VL_Platform, time_ms: u32) -> u8 {
     assert!(time_ms <= 100, "Unexpected long wait: {}ms", time_ms);    // we know from the C code there's no >100
 
     with(pt, |p| {
@@ -167,7 +167,7 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
 }
 
 pub(crate)  // open for 'set_i2c_address()' so that the I2C address can be changed, on the fly!!!
-fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
+fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL_Platform, f: F) -> T {
 
     let x: &mut dyn Platform = {    // re-interpret what's in '*pt' as '&mut dyn Platform'
         let pt: *mut &mut dyn Platform = pt as *mut c_void as _;

@@ -67,21 +67,21 @@ toml            = "0.9.5"
 #   Some features are connected to others. We check this in 'build.rs'.
 #
 [features]
-vl53l5cx = []
 vl53l8cx = []
+vl53l5cx = []
 
-ambient_per_spad=[]     # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
-nb_spads_enabled=[]     # VL53L5CX_DISABLE_NB_SPADS_ENABLED
-signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
-range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
-distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
-reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
+ambient_per_spad=[]     # VL_DISABLE_AMBIENT_PER_SPAD
+nb_spads_enabled=[]     # VL_DISABLE_NB_SPADS_ENABLED
+signal_per_spad=[]      # VL_DISABLE_SIGNAL_PER_SPAD
+range_sigma_mm=[]       # VL_DISABLE_RANGE_SIGMA_MM
+distance_mm=[]          # VL_DISABLE_DISTANCE_MM
+reflectance_percent=[]  # VL_DISABLE_REFLECTANCE_PERCENT
 
 # Keep always enabled. You need it to know which results are valid.
-target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
+target_status = []      # VL_DISABLED_TARGET_STATUS
 
 # Automatically enabled when having multiple zones.
-nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
+nb_targets_detected=[]  # VL_DISABLE_NB_TARGET_DETECTED
 
 # The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
 # If you want to see more, enable these:

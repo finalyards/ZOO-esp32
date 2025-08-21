@@ -23,8 +23,8 @@ use crate::{
         State_Ranging,
     },
     uld_raw::{
-        vl53l5cx_get_power_mode,
-        VL53L5CX_Configuration
+        vl_get_power_mode,
+        VL_Configuration
     },
     Error,
     I2cAddr,
@@ -50,11 +50,11 @@ pub struct State_HP_Idle {
     // The "state" can be read, but we "MUST not manually change these field[s]". In this Rust API,
     // the whole "state" is kept private, to enforce such read-only nature.
     //
-    uld: VL53L5CX_Configuration,
+    uld: VL_Configuration,
 }
 
 impl State_HP_Idle {
-    pub(crate) fn new(uld: VL53L5CX_Configuration) -> Self {
+    pub(crate) fn new(uld: VL_Configuration) -> Self {
         Self{ uld }
     }
 
@@ -75,7 +75,7 @@ impl State_HP_Idle {
     */
     pub fn set_i2c_address(&mut self, addr: &I2cAddr) -> Result<()> {
 
-        // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
+        // Implementation based on ULD C API 'vl_set_i2c_address'
 
         platform::with(&mut self.uld.platform, |pl| -> core::result::Result<(),()> {
             pl.wr_bytes(0x7fff, &[0])?;
@@ -100,13 +100,13 @@ impl State_HP_Idle {
     */
     pub /*<-- for debugging*/ fn i2c_no_op(&mut self) -> Result<()> {
         let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_get_power_mode(&mut self.uld, &mut tmp) } {
+        match unsafe { vl_get_power_mode(&mut self.uld, &mut tmp) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }
     }
 
-    pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL53L5CX_Configuration {
+    pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL_Configuration {
         &mut self.uld
     }
 
@@ -120,13 +120,13 @@ impl State_HP_Idle {
     //
     pub fn get_power_mode(&mut self) -> Result<PowerMode> {
         let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_get_power_mode(&mut self.vl, &mut tmp) } {
+        match unsafe { vl_get_power_mode(&mut self.vl, &mut tmp) } {
             ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
             e => Err(Error(e))
         }
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        match unsafe { vl53l5cx_set_power_mode(&mut self.vl, v as u8) } {
+        match unsafe { vl_set_power_mode(&mut self.vl, v as u8) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }
@@ -140,8 +140,8 @@ impl State_HP_Idle {
     // 'dci_replace_data' doesn't seem useful; easily reproduced using the 'read' and 'write'. Skip.
 
     // Remaining to be implemented:
-    //  vl53l5cx_enable_internal_cp()
-    //  vl53l5cx_disable_internal_cp
-    //  vl53l5cx_set_VHV_repeat_count
-    //  vl53l5cx_get_VHV_repeat_count
+    //  vl_enable_internal_cp()
+    //  vl_disable_internal_cp
+    //  vl_set_VHV_repeat_count
+    //  vl_get_VHV_repeat_count
 }

@@ -13,15 +13,15 @@
 #pragma once
 #include <stdint.h>
 
-#include "tmp/config5.h"    // tbd. FOR NOW!!! MUST DO THIS SO WORKS WITH BOTH 5&8 !!!  #HACK!!!
+#include "tmp/config58.h"
 
 /**
- * @brief 'VL53L5CX_Platform' is an opaque structure, provided by the customer's app.
- *      Gets placed "as-is" (as value) into 'VL53L5CX_Configuration', in the vendor code,
+ * @brief 'VL_Platform' is an opaque structure, provided by the customer's app.
+ *      Gets placed "as-is" (as value) into 'VL_Configuration', in the vendor code,
  *      and a pointer to that "slot" is passed to customer-provided functions.
  *
  *      What I could do:
- *          Change the definition of 'VL53L5CX_Configuration' so that the 'platform' field
+ *          Change the definition of 'VL_Configuration' so that the 'platform' field
  *          is an extension (empty array) as the *last* entry (now it's the first one).
  *          + would allow us to define its contents within Rust
  *          - would need patching the C sources (doable)
@@ -43,56 +43,56 @@ typedef struct {
     //_Alignas(8) uint8_t _[20];      // 20+ bytes; 8 aligned; in practice 'clang' (18.1.3) makes it 24 bytes wide
 
     _Alignas(8) uint8_t _[48];      // 48+ bytes; 8 aligned
-} VL53L5CX_Platform;
+} VL_Platform;
 
 /**
  * @brief Read a single byte.
- * @param (VL53L5CX_Platform*) p_platform : platform structure
+ * @param (VL_Platform*) p_platform : platform structure
  * @param (uint16_t) addr : index of value to read
  * @param (uint8_t) *p_out : where result is placed
  * @return (uint8_t) status : 0 if OK
  */
-uint8_t VL53L5CX_RdByte(
-		VL53L5CX_Platform *p_platform,
+uint8_t VL_RdByte(
+		VL_Platform *p_platform,
 		uint16_t addr,
 		uint8_t *p_out);
 
 /**
  * @brief Write one single byte.
- * @param (VL53L5CX_Platform*) p_platform : platform structure
+ * @param (VL_Platform*) p_platform : platform structure
  * @param (uint16_t) addr : index of value to read
  * @param (uint8_t) value : value to write
  * @return (uint8_t) status : 0 if OK
  */
-uint8_t VL53L5CX_WrByte(
-		VL53L5CX_Platform *p_platform,
+uint8_t VL_WrByte(
+		VL_Platform *p_platform,
 		uint16_t addr,
 		uint8_t value);
 
 /**
  * @brief Read multiples bytes
- * @param (VL53L5CX_Platform*) p_platform : platform structure
+ * @param (VL_Platform*) p_platform : platform structure
  * @param (uint16_t) addr : index of values to read
  * @param (uint8_t) *p_out : stores the read data
  * @param (uint32_t) size : size of '*p_out'
  * @return (uint8_t) status : 0 if OK
  */
-uint8_t VL53L5CX_RdMulti(
-		VL53L5CX_Platform *p_platform,
+uint8_t VL_RdMulti(
+		VL_Platform *p_platform,
 		uint16_t addr,
 		uint8_t *p_out,
 		uint32_t size);
 
 /**
  * @brief Write multiples bytes
- * @param (VL53L5CX_Platform*) p_platform : platform structure
+ * @param (VL_Platform*) p_platform : platform structure
  * @param (uint16_t) addr : index of values to write.
  * @param (uint8_t) *p_values : bytes to write
  * @param (uint32_t) size : size of '*p_values'
  * @return (uint8_t) status : 0 if OK
  */
-uint8_t VL53L5CX_WrMulti(
-		VL53L5CX_Platform *p_platform,
+uint8_t VL_WrMulti(
+		VL_Platform *p_platform,
 		uint16_t addr,
 		uint8_t *p_values,
 		uint32_t size);
@@ -102,16 +102,16 @@ uint8_t VL53L5CX_WrMulti(
  * @param (uint8_t*) buffer : Buffer to swap, "generally uint32_t" (:O)
  * @param (uint16_t) size : Buffer size to swap (in bytes, thus multiple of 4)
  */
-void VL53L5CX_SwapBuffer(
+void VL_SwapBuffer(
 		uint8_t *buffer,
 		uint16_t size);
 
 /**
  * @brief Wait some time (100ms is longest this will be used on).
- * @param (VL53L5CX_Platform*) p_platform : platform structure
+ * @param (VL_Platform*) p_platform : platform structure
  * @param (uint32_t) ms : time to wait
  * @return (uint8_t) status : 0 if wait is finished
  */
-uint8_t VL53L5CX_WaitMs(
-		VL53L5CX_Platform *p_platform,
+uint8_t VL_WaitMs(
+		VL_Platform *p_platform,
 		uint32_t ms);

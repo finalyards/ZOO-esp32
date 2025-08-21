@@ -27,7 +27,7 @@
 #
 # Note: Unconditional (manual) make with 'make -B' MAY BE CURRENTLY BROKEN. Just run 'make _clean', instead. #tbd.
 #
-VL53L5CX_ULD_API?=~/VL53L5CX_ULD_API
+VL53L5CX_ULD_API?=
 X?=
 
 ifneq ($(filter _clean _klean echo,$(MAKECMDGOALS)),)
@@ -66,10 +66,10 @@ manual: tmp/libvendor_uld$(X).a tmp/uld_raw$(X).rs
 #---
 # Build the static library
 #
-tmp/libvendor_uld$(X).a: tmp/vl53l$(X)cx_api.o
+tmp/libvendor_uld$(X).a: tmp/vl_api$(X).o
 	ar rcs $@ $<
 
-tmp/%.o: $(_C_SRC)/%.c wrap$(X).h $(_C_SRC)/vl53l$(X)cx_api.h $(_C_SRC)/vl53l$(X)cx_buffers.h $(_OTHER_INCS) tmp/config$(X).h Makefile \
+tmp/vl_api$(X).o: $(_C_SRC)/vl_api.c wrap58.h $(_C_SRC)/vl_api.h $(_C_SRC)/vl_buffers.h $(_OTHER_INCS) tmp/config58.h Makefile \
 	| clang
 	@echo $<
 	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
@@ -84,7 +84,7 @@ $(_C_SRC)/%.h: $(VL53L$(X)CX_ULD_API)/inc/%.h \
 	| tmp_c_exists
 	@cp $< $@
 
-# NOTE: While 'VL53L5CX' seems to be with LF line endings, 'VL53L8CX' is with CRLF.
+# NOTE: While 'VL53L5CX' (2.0.1) seems to be with LF line endings, 'VL53L8CX' (2.0.1) is with CRLF.
 # Note: 'patch' does not support piping for its input file (treats '-' as a filename).
 #
 $(_C_SRC)/vl53l$(X)cx_api.c: $(VL53L$(X)CX_ULD_API)/src/vl53l$(X)cx_api.c ./$(X).patch \
@@ -99,6 +99,28 @@ ifdef X
     $(error Vendor''s ULD driver not found; please download and point the env.var. 'VL53L$(X)CX_ULD_API' to it)
   endif
 endif
+
+#---
+# Create joint 'vl_...' files for both L8CX and L5CX.
+#
+# Note: These are added as '.PHONY' targets, meaning they get recreated each run (when they are needed). This covers
+#		the case where the user would change between 'L8CX' and 'L5CX' targeting - without 'make clean'.
+#
+## This will not work (said "nothing to do" for the targets):
+#$(_C_SRC)/vl_%: $(_C_SRC)/vl53l$(X)cx_%
+#	sed 's/VL53L$(X)CX_/VL_/g' $< | sed 's/vl53l$(X)cx_/vl_/g' > $@
+#
+# Templating pattern by a Copilot suggestion; the author couldn't possibly craft that... :)
+#
+_PARTS := api.c api.h buffers.h
+
+define VL53_template
+$(_C_SRC)/vl_$(1): $(_C_SRC)/vl53l$(X)cx_$(1)
+	sed 's/VL53L$(X)CX_/VL_/g' $$< | sed 's/vl53l$(X)cx_/vl_/g' > $$@
+.PHONY: $(_C_SRC)/vl_$(1)
+endef
+
+$(foreach f,$(_PARTS),$(eval $(call VL53_template,$(f))))
 
 #---
 # Generate Rust
@@ -153,17 +175,17 @@ endif
 #		Thus, the dependencies (that need to exist) are placed as "order-only" prerequisites. [1]
 #			[1]: https://www.gnu.org/software/make/manual/html_node/Prerequisite-Types.html
 #
-tmp/uld_raw5.rs: wrap5.h tmp/config5.h $(_OTHER_INCS) Makefile \
-	| $(_C_SRC)/vl53l5cx_api.h $(_C_SRC)/vl53l5cx_buffers.h bindgen
+tmp/uld_raw8.rs tmp/uld_raw5.rs: wrap58.h tmp/config58.h $(_C_SRC)/vl_api.h $(_C_SRC)/vl_buffers.h $(_OTHER_INCS) Makefile \
+	| bindgen
 	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
-	    --allowlist-file wrap5.h \
-	    --allowlist-type 'VL53L5CX_.+' \
-	    --allowlist-function 'vl53l5cx_check_data_ready' \
-	    --allowlist-function 'vl53l5cx_get_(?:(power_mode)|(ranging_data))' \
-	    --allowlist-function 'vl53l5cx_init' \
-	    --allowlist-function 'vl53l5cx_set_(?:(power_mode))' \
-	    --allowlist-function 'vl53l5cx_set_(?:(resolution)|(ranging_frequency_hz)|(integration_time_ms)|(sharpener_percent)|(target_order)|(ranging_mode))' \
-	    --allowlist-function 'vl53l5cx_st(?:(art)|(op))_ranging' \
+	    --allowlist-file wrap58.h \
+	    --allowlist-type 'VL_.+' \
+	    --allowlist-function 'vl_check_data_ready' \
+	    --allowlist-function 'vl_get_(?:(power_mode)|(ranging_data))' \
+	    --allowlist-function 'vl_init' \
+	    --allowlist-function 'vl_set_(?:(power_mode))' \
+	    --allowlist-function 'vl_set_(?:(resolution)|(ranging_frequency_hz)|(integration_time_ms)|(sharpener_percent)|(target_order)|(ranging_mode))' \
+	    --allowlist-function 'vl_st(?:(art)|(op))_ranging' \
 	    --allowlist-item 'API_REVISION' \
 	    \
 	    --use-core \
@@ -171,53 +193,26 @@ tmp/uld_raw5.rs: wrap5.h tmp/config5.h $(_OTHER_INCS) Makefile \
 	    --raw-line '#![allow(non_camel_case_types)]' \
 	    --raw-line '#![allow(non_snake_case)]' \
 		--raw-line 'use strum::FromRepr;' \
-		--no-copy 'VL53L5CX_(?:(Configuration)|(Platform))' \
+		--no-copy 'VL_(?:(Configuration)|(Platform))' \
 	    -- -I. -I$(_C_SRC) \
 	  | sed 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
 	  | sed 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \
 	  | sed 's/these field, except for the sensor address."/these fields."/' \
 	  | sed -E 's/^(pub enum PowerMode)/#[allow(dead_code)]\n\1/' \
-	  | sed -E 's/(vl53l5cx_set_power_mode)/_\1/' \
+	  | sed -E 's/(vl_set_power_mode)/_\1/' \
 	  > $@
 
 	# Note: 'sed' removes 'Debug' from the derived behaviours. This is intentional; 'defmt' uses 'Format'.
 
-tmp/uld_raw8.rs: wrap8.h tmp/config8.h $(_OTHER_INCS) Makefile \
-	| $(_C_SRC)/vl53l8cx_api.h $(_C_SRC)/vl53l8cx_buffers.h bindgen
-	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
-	    --allowlist-file wrap8.h \
-	    --allowlist-type 'VL53L[58]CX_.+' \
-	    --allowlist-function 'vl53l[58]cx_check_data_ready' \
-	    --allowlist-function 'vl53l[58]cx_get_(?:(power_mode)|(ranging_data))' \
-	    --allowlist-function 'vl53l[58]cx_init' \
-	    --allowlist-function 'vl53l[58]cx_set_(?:(power_mode))' \
-	    --allowlist-function 'vl53l[58]cx_set_(?:(resolution)|(ranging_frequency_hz)|(integration_time_ms)|(sharpener_percent)|(target_order)|(ranging_mode))' \
-	    --allowlist-function 'vl53l[58]cx_st(?:(art)|(op))_ranging' \
-	    --allowlist-item 'API_REVISION' \
-	    \
-	    --use-core \
-	    --default-enum-style rust \
-	    --raw-line '#![allow(non_camel_case_types)]' \
-	    --raw-line '#![allow(non_snake_case)]' \
-		--raw-line 'use strum::FromRepr;' \
-		--no-copy 'VL53L[58]CX_(?:(Configuration)|(Platform))' \
-	    -- -I. -I$(_C_SRC) \
-	  | sed 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
-	  | sed 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \
-	  | sed 's/these field, except for the sensor address."/these fields."/' \
-	  | sed -E 's/^(pub enum PowerMode)/#[allow(dead_code)]\n\1/' \
-	  | sed -E 's/(vl53l[58]cx_set_power_mode)/_\1/' \
-	  > $@
-
 # Test for the above (for manual development, only); CAN BE LET GO
-EXP5_x: tmp/uld_raw5.rs
+EXP_x5: tmp/uld_raw5.rs
 	grep -q API_REVISION $<
-	grep -q vl53l5cx_init $<
-	grep -q vl53l5cx_get_ranging_data $<
-	! grep -q 'static VL53L5CX_FIRMWARE' $<
-	! grep -q vl53l5cx_is_alive $<
-	! grep -q vl53l5cx_get_resolution $<
-	! grep -q VL53L5CX_RdByte $<
+	grep -q vl_init $<
+	grep -q vl_get_ranging_data $<
+	! grep -q 'static VL_FIRMWARE' $<
+	! grep -q vl_is_alive $<
+	! grep -q vl_get_resolution $<
+	! grep -q VL_RdByte $<
 	! grep -q 'these field, except ' $<
 	@#
 	@echo ""
@@ -225,17 +220,17 @@ EXP5_x: tmp/uld_raw5.rs
 
 	#grep -q 'pub enum PowerMode' $<
 
-# 'build.rs' writes 'tmp/config{58}.h.next' on _every_ build.
-# If the contents differ, update 'tmp/config{58}.h'.
+# 'build.rs' writes 'tmp/config58.h.next' on _every_ build.
+# If the contents differ, update 'tmp/config58.h'.
 #
-# Note: Keep the 'tmp/config{58}.h.next' around - if we were to remove it, running 'make manual' repeatedly (for debugging?)
+# Note: Keep the 'tmp/config58.h.next' around - if we were to remove it, running 'make manual' repeatedly (for debugging?)
 #		would fail.
 #
-tmp/config$(X).h: tmp/config$(X).h.next
-	@cmp -s tmp/config$(X).h tmp/config$(X).h.next || \
+tmp/config58.h: tmp/config58.h.next
+	@cmp -s $< $@ || \
 	  cp $< $@
 
-tmp/config$(X).h.next: Cargo.toml
+tmp/config58.h.next: Cargo.toml
 	$(error '$@' seems out-of-date (or not to exist). Please build once using 'cargo build --features=vl53l$(X)cx' to have features propagate to it)
 
 # Check that required tools are installed
@@ -259,8 +254,8 @@ tmp_c_exists:
 
 #---
 _clean:
-	-rm tmp/uld_raw?.rs tmp/c_src/* tmp/vl53l?cx_api.o tmp/libvendor_uld?.a \
-		tmp/config?.h tmp/config?.h.*
+	-rm tmp/uld_raw?.rs tmp/c_src/* tmp/vl_api?.o tmp/libvendor_uld?.a \
+		tmp/config58.h tmp/config58.h.*
 
 _klean: _clean
 	cargo clean

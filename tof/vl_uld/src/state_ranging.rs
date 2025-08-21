@@ -11,22 +11,22 @@
 use defmt::{assert, panic, trace, debug};
 
 use crate::uld_raw::{
-    VL53L5CX_Configuration,
-    vl53l5cx_start_ranging,
-    vl53l5cx_check_data_ready,
-    vl53l5cx_get_ranging_data,
-    vl53l5cx_set_resolution,
-    vl53l5cx_set_ranging_frequency_hz,
-    vl53l5cx_set_ranging_mode,
-    vl53l5cx_set_integration_time_ms,
-    vl53l5cx_set_sharpener_percent,
-    vl53l5cx_set_target_order,
-    vl53l5cx_stop_ranging,
+    VL_Configuration,
+    vl_start_ranging,
+    vl_check_data_ready,
+    vl_get_ranging_data,
+    vl_set_resolution,
+    vl_set_ranging_frequency_hz,
+    vl_set_ranging_mode,
+    vl_set_integration_time_ms,
+    vl_set_sharpener_percent,
+    vl_set_target_order,
+    vl_stop_ranging,
     RangingMode as RangingMode_R,
     Resolution as Resolution_R,
     ST_OK,
     TargetOrder as TargetOrder_R,
-    VL53L5CX_ResultsData
+    VL_ResultsData
 };
 
 use crate::{
@@ -174,30 +174,30 @@ impl<const DIM: usize> RangingConfig<DIM> {
         }
     }
 
-    fn apply(&self, vl: &mut VL53L5CX_Configuration) -> Result<()> {
+    fn apply(&self, vl: &mut VL_Configuration) -> Result<()> {
         self.validate();    // may panic
         let /*const*/ ULD_RESO: Resolution_R = reso_details::<DIM>().0;
 
         // Set the resolution first. UM2884 (Rev 5) says:
         //  "['..._set_resolution()'] must be used before updating the ranging frequency"
 
-        match unsafe { vl53l5cx_set_resolution(vl, ULD_RESO as u8) } {  // reso value: 16 (4x4); 64 (8x8)
+        match unsafe { vl_set_resolution(vl, ULD_RESO as u8) } {  // reso value: 16 (4x4); 64 (8x8)
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
 
         if let AUTONOMOUS(MsU16(ms), HzU8(freq)) = self.mode {
-            match unsafe { vl53l5cx_set_integration_time_ms(vl, ms as u32) } {
+            match unsafe { vl_set_integration_time_ms(vl, ms as u32) } {
                 ST_OK => Ok(()),
                 e => Err(Error(e))
             }?;
-            match unsafe { vl53l5cx_set_ranging_frequency_hz(vl, freq as u8) } {
+            match unsafe { vl_set_ranging_frequency_hz(vl, freq as u8) } {
                 ST_OK => Ok(()),
                 e => Err(Error(e))
             }?;
         }
 
-        match unsafe { vl53l5cx_set_ranging_mode(vl, self.mode.as_uld() as _) } {
+        match unsafe { vl_set_ranging_mode(vl, self.mode.as_uld() as _) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
@@ -206,12 +206,12 @@ impl<const DIM: usize> RangingConfig<DIM> {
             Some(PrcU8(v)) => v,
             None => 0
         };
-        match unsafe { vl53l5cx_set_sharpener_percent(vl, sharpener_prc) } {
+        match unsafe { vl_set_sharpener_percent(vl, sharpener_prc) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
 
-        match unsafe { vl53l5cx_set_target_order(vl, self.target_order.as_uld() as _) } {
+        match unsafe { vl_set_target_order(vl, self.target_order.as_uld() as _) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
@@ -235,17 +235,17 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
 
 #[allow(non_camel_case_types)]
 pub struct State_Ranging<const DIM: usize> {    // DIM: 4|8
-    // Access to 'VL53L5CX_Configuration'.
+    // Access to 'VL_Configuration'.
     // The 'Option' is needed to have both explicit '.stop()' and an implicit 'Drop'.
     outer_state: Option<State_HP_Idle>,
 }
 
 impl<const DIM: usize> State_Ranging<DIM> {
     pub(crate) fn transition_from(/*move*/ mut st: State_HP_Idle, cfg: &RangingConfig<DIM>) -> Result<Self> {
-        let vl: &mut VL53L5CX_Configuration = st.borrow_uld_mut();
+        let vl: &mut VL_Configuration = st.borrow_uld_mut();
         cfg.apply(vl)?;
 
-        match unsafe { vl53l5cx_start_ranging(vl) } {
+        match unsafe { vl_start_ranging(vl) } {
             ST_OK => {
                 let x = Self{
                     outer_state: Some(st),
@@ -264,7 +264,7 @@ impl<const DIM: usize> State_Ranging<DIM> {
     */
     pub fn is_ready(&mut self) -> Result<bool> {
         let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_check_data_ready(self.borrow_uld_mut(), &mut tmp) } {
+        match unsafe { vl_check_data_ready(self.borrow_uld_mut(), &mut tmp) } {
             ST_OK => Ok(tmp != 0),
             e => Err(Error(e))
         }
@@ -281,8 +281,8 @@ impl<const DIM: usize> State_Ranging<DIM> {
         // The 'i8' field within the struct needs explicit initialization.
         // See -> https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#initializing-a-struct-field-by-field
         //
-        let mut buf: VL53L5CX_ResultsData = {
-            let mut un = MaybeUninit::<VL53L5CX_ResultsData>::uninit();
+        let mut buf: VL_ResultsData = {
+            let mut un = MaybeUninit::<VL_ResultsData>::uninit();
             let up = un.as_mut_ptr();
             unsafe {
                 addr_of_mut!((*up).silicon_temp_degc).write(0);
@@ -290,7 +290,7 @@ impl<const DIM: usize> State_Ranging<DIM> {
             }
         };
 
-        match unsafe { vl53l5cx_get_ranging_data(self.borrow_uld_mut(), &mut buf) } {
+        match unsafe { vl_get_ranging_data(self.borrow_uld_mut(), &mut buf) } {
             ST_OK => {
                 let tuple = ResultsData::<DIM>::from(&buf);
                 Ok(tuple)
@@ -317,13 +317,13 @@ impl<const DIM: usize> State_Ranging<DIM> {
     * Takes '&mut Self': 'Drop' handler cannot call the normal '.stop()' that consumes the struct.
     */
     fn _stop(outer: &mut State_HP_Idle) -> Result<()> {
-        match unsafe { vl53l5cx_stop_ranging(outer.borrow_uld_mut()) } {
+        match unsafe { vl_stop_ranging(outer.borrow_uld_mut()) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }
     }
 
-    fn borrow_uld_mut(&mut self) -> &mut VL53L5CX_Configuration {
+    fn borrow_uld_mut(&mut self) -> &mut VL_Configuration {
         self.outer_state.as_mut().unwrap().borrow_uld_mut()
     }
 }
