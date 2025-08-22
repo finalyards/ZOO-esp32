@@ -46,13 +46,11 @@ fn main() -> ! {
 
         Ok(()) => {
             info!("End of ULD demo");
-            #[cfg(feature = "_semihosting")]
             semihosting::process::exit(0);      // back to developer's command line
         }
     }
 
-    #[cfg(not(feature = "_semihosting"))]
-    loop {}
+    //loop {}
 }
 
 #[allow(non_snake_case)]

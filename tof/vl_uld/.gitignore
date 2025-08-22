@@ -1,7 +1,6 @@
 # In case you build natively. For Multipass VM's, use a shared '~/target' instead.
 /target/
 
-/Cargo.lock
 /tmp/
 /.OUT_DIR
 

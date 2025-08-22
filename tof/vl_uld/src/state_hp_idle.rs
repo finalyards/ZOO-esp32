@@ -32,6 +32,14 @@ use crate::{
     ST_OK
 };
 
+#[cfg(feature = "vl53l8cx")]
+use crate::{
+    uld_raw::{
+        vl_get_external_sync_pin_enable,
+        vl_set_external_sync_pin_enable
+    }
+};
+
 /*
 * The "HP Idle" state (vendor terminology): firmware has been downloaded; ready to range.
 */
@@ -110,6 +118,25 @@ impl State_HP_Idle {
         &mut self.uld
     }
 
+    /*
+    * External sync pin control.
+    */
+    #[cfg(feature = "vl53l8cx")]
+    pub fn get_external_sync_pin_enable(&mut self) -> Result<bool> {
+        let mut tmp: u8 = 0;
+        match unsafe { vl_get_external_sync_pin_enable(&mut self.uld, &mut tmp) } {
+            ST_OK => Ok(tmp != 0),
+            e => Err(Error(e))
+        }
+    }
+    #[cfg(feature = "vl53l8cx")]
+    pub fn set_external_sync_pin_enable(&mut self, v: bool) -> Result<()> {
+        match unsafe { vl_set_external_sync_pin_enable(&mut self.uld, v as u8) } {
+            ST_OK => Ok(()),
+            e => Err(Error(e))
+        }
+    }
+
     /*** disabled (until we try/need low power)
     // tbd. Does setting low power mode mean transitioning to 'LP_Idle'?  In that case, this should
     //      be state transition for us (and 'get_power_mode' is not needed, since it's implied by
@@ -120,13 +147,13 @@ impl State_HP_Idle {
     //
     pub fn get_power_mode(&mut self) -> Result<PowerMode> {
         let mut tmp: u8 = 0;
-        match unsafe { vl_get_power_mode(&mut self.vl, &mut tmp) } {
+        match unsafe { vl_get_power_mode(&mut self.uld, &mut tmp) } {
             ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
             e => Err(Error(e))
         }
     }
     pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        match unsafe { vl_set_power_mode(&mut self.vl, v as u8) } {
+        match unsafe { vl_set_power_mode(&mut self.uld, v as u8) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }
