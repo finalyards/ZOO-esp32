@@ -32,6 +32,9 @@ use uld::{
     units::*,
 };
 
+#[cfg(feature = "vl53l8cx")]
+use uld::SyncMode;
+
 include!("./pins_gen.in");  // pins!
 
 mod common;
@@ -62,8 +65,8 @@ struct Pins<'a> {
 }
 
 #[allow(non_upper_case_globals)]
-//const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
-const I2C_SPEED: Rate = Rate::from_khz(1000);        // TEMP; works also with this! (C6)
+const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
+//const I2C_SPEED: Rate = Rate::from_khz(1000);        // TEMP; works also with this! (C6)
 
 //?? #[cfg(feature="run_with_espflash")]
 //?? esp_bootloader_esp_idf::esp_app_desc!();
@@ -116,9 +119,17 @@ fn main2() -> Result<()> {
     //
     let freq = Rate::from_hz(10);
 
-    let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),HzU8(freq.as_hz() as u8)))
-        .with_target_order(CLOSEST);
+    let c = {
+        let m =
+            AUTONOMOUS(5.ms(),HzU8(freq.as_hz() as u8),
+            #[cfg(feature = "vl53l8cx")]
+                SyncMode::NONE
+            );
+
+        RangingConfig::<4>::default()
+            .with_mode(m)
+            .with_target_order(CLOSEST)
+    };
 
     let mut ring = vl.start_ranging(&c)
         .expect("to start ranging");

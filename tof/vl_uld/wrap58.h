@@ -48,6 +48,14 @@ enum PowerMode {
 };
     // Using 'CamelCase' since Rust prefers that for enums.
 
+#ifdef VL_STATUS_FW_CHECKSUM_FAIL   // only on VL53L8CX
+enum SyncMode {
+    // "0 if the pin is disabled, or 1 if the pin is enabled" (comments in 'vl53l8cx_api.h').
+    NONE = 0,
+    SYNC = 1
+};
+#endif  // L8CX
+
 /// @brief Status of operations.
 ///
 ///     Note that official documentation only mentions these cases:

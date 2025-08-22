@@ -10,24 +10,7 @@
 #[allow(unused_imports)]
 use defmt::{assert, panic, trace, debug};
 
-use crate::uld_raw::{
-    VL_Configuration,
-    vl_start_ranging,
-    vl_check_data_ready,
-    vl_get_ranging_data,
-    vl_set_resolution,
-    vl_set_ranging_frequency_hz,
-    vl_set_ranging_mode,
-    vl_set_integration_time_ms,
-    vl_set_sharpener_percent,
-    vl_set_target_order,
-    vl_stop_ranging,
-    RangingMode as RangingMode_R,
-    Resolution as Resolution_R,
-    ST_OK,
-    TargetOrder as TargetOrder_R,
-    VL_ResultsData
-};
+use crate::uld_raw::{VL_Configuration, vl_start_ranging, vl_check_data_ready, vl_get_ranging_data, vl_set_resolution, vl_set_ranging_frequency_hz, vl_set_ranging_mode, vl_set_integration_time_ms, vl_set_sharpener_percent, vl_set_target_order, vl_stop_ranging, RangingMode as RangingMode_R, Resolution as Resolution_R, ST_OK, TargetOrder as TargetOrder_R, VL_ResultsData};
 
 use crate::{
     results_data::ResultsData,
@@ -40,6 +23,12 @@ use crate::{
 use {
     Mode::{CONTINUOUS, AUTONOMOUS},
     TargetOrder::{CLOSEST, STRONGEST},
+};
+
+#[cfg(feature="vl53l8cx")]
+use crate::uld_raw::{
+    vl_set_external_sync_pin_enable,
+    SyncMode as SyncMode_R
 };
 
 /*
@@ -62,19 +51,43 @@ const fn reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*i
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Mode {
     CONTINUOUS,
-    AUTONOMOUS(MsU16,HzU8)    // (integration time, ranging frequency)
+    AUTONOMOUS(MsU16,HzU8,
+        #[cfg(feature = "vl53l8cx")]
+        SyncMode
+    )    // (integration time, ranging frequency [,sync_mode])
 }
 
 impl Mode {
     fn as_uld(&self) -> RangingMode_R {
         match self {
             CONTINUOUS => RangingMode_R::CONTINUOUS,
-            AUTONOMOUS(_,_) => RangingMode_R::AUTONOMOUS
+            AUTONOMOUS(..) => RangingMode_R::AUTONOMOUS
         }
     }
 }
 
-// 'TargetMode' is 1:1 with ULD API, but we avoid exposing the enum values.
+// 'SyncMode' is 1:1 with ULD API, but we avoid exposing the enum values.
+//
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg(feature = "vl53l8cx")]
+#[allow(non_camel_case_types)]
+pub enum SyncMode {
+    NONE,
+    SYNC_NOT_TESTED
+}
+
+#[cfg(feature = "vl53l8cx")]
+impl SyncMode {
+    fn as_uld(&self) -> SyncMode_R {
+        match self {
+            SyncMode::NONE => SyncMode_R::NONE,
+            SyncMode::SYNC_NOT_TESTED => SyncMode_R::SYNC
+        }
+    }
+}
+
+// 'TargetOrder' is 1:1 with ULD API, but we avoid exposing the enum values.
 //
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -143,7 +156,7 @@ impl<const DIM: usize> RangingConfig<DIM> {
         let (_,R_INTEGRATION_TIMES_N, R_FREQ_RANGE_MAX): (_,u8,HzU8) = reso_details::<DIM>();
 
         match self.mode {
-            AUTONOMOUS(MsU16(integration_time_ms), HzU8(freq)) => {
+            AUTONOMOUS(MsU16(integration_time_ms), HzU8(freq), ..) => {
                 assert!((2..=1000).contains(&integration_time_ms), "Integration time out of range");
                     // Source: comment in (and code of) vendor ULD C sources
 
@@ -186,7 +199,7 @@ impl<const DIM: usize> RangingConfig<DIM> {
             e => Err(Error(e))
         }?;
 
-        if let AUTONOMOUS(MsU16(ms), HzU8(freq)) = self.mode {
+        if let AUTONOMOUS(MsU16(ms), HzU8(freq), ..) = self.mode {
             match unsafe { vl_set_integration_time_ms(vl, ms as u32) } {
                 ST_OK => Ok(()),
                 e => Err(Error(e))
@@ -216,6 +229,14 @@ impl<const DIM: usize> RangingConfig<DIM> {
             e => Err(Error(e))
         }?;
 
+        #[cfg(feature = "vl53l8cx")]
+        if let AUTONOMOUS(_, _, sm) = self.mode {
+            match unsafe { vl_set_external_sync_pin_enable(vl, sm.as_uld() as _) } {
+                ST_OK => Ok(()),
+                e => Err(Error(e))
+            }?;
+        };
+
         Ok(())
     }
 }
@@ -228,7 +249,10 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
         Self {
             sharpener: None,
             target_order: STRONGEST,
-            mode: AUTONOMOUS(5.ms(),HzU8(1)/*1.Hz()*/),
+            mode: AUTONOMOUS(5.ms(),HzU8(1) /*1.Hz()*/,
+                 #[cfg(feature = "vl53l8cx")]
+                 SyncMode::NONE
+            ),
         }
     }
 }

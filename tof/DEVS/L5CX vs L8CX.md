@@ -7,7 +7,7 @@ The library supports both VL53L5CX and VL53L8CX sensors. This page summarizes th
 
 ![](.images/vl53l5cx.png)
 
-This product was introduced in 2021 and should be available until 7/28 <sub>[source](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html)</sub>, according to the vendor's longevity commitment.
+This product was introduced in 2021 and should be available until Jul'28 <sub>[source](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html)</sub>, according to the vendor's longevity commitment.
 
 It has modes for either 4x4 or 8x8 resolution, and 45°x45° (65° diagonal) detection cone. 
 
@@ -49,7 +49,7 @@ Improvements:
 
 Other changes:
 
-- Introduced in 2023; longevity support until 1/30.
+- Introduced in 2023; longevity support until Jan'30.
 - physical size (w x l x h): 6.4 x 3.0 x 1.75 mm
 - power voltages are a bit different:
 

@@ -6,7 +6,7 @@ There are some fine print in the specs that you'd be good to be aware of, in the
 
 >"The **minimum distance between two targets** to be detected is **600 mm**."
 >
->source: UM3109 - Rev 11 (page 12)
+>source: [UM3109 - Rev 11](https://www.st.com/resource/en/user_manual/um3109-a-guide-for-using-the-vl53l8cx-lowpower-highperformance-timeofflight-multizone-ranging-sensor-stmicroelectronics.pdf) (page 12)
 
 This has been tucked into the spec as a side note, but matters immensely.
 

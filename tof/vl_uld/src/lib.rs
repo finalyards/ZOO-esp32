@@ -30,7 +30,7 @@ pub use {
         Mode,
         RangingConfig,
         State_Ranging,
-        TargetOrder
+        TargetOrder,
     }
 };
 
@@ -39,6 +39,11 @@ use crate::uld_raw::{
     vl_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
     ST_OK, ST_ERROR,
+};
+
+#[cfg(feature="vl53l8cx")]
+pub use {
+    state_ranging::SyncMode
 };
 
 pub type Result<T> = core::result::Result<T,Error>;
