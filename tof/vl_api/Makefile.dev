@@ -2,13 +2,27 @@
 # This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
 #
 # Usage:
-#	$ [DEFMT_LOG=trace|debug|info|...] [BUILD_MODE=""] [FEATURES=esp-hal-next|...] make -f Makefile.dev {single|many|...}
+#	$ VARIANT=5|8 [DEFMT_LOG=trace|debug|info|...] [BUILD_MODE=""] [FEATURES=esp-hal-next|...] make -f Makefile.dev {single|many|...}
+#
 #		# builds and runs a certain sample
 #
 DEFMT_LOG?=debug
 BUILD_MODE?=--release
 
 FEATURES?=
+VARIANT?=
+ifndef VARIANT
+  $(error 'VARIANT' env.var. not defined. Provide either 'VARIANT=5' or 'VARIANT=8')
+endif
+
+ifeq ($(VARIANT),5)
+  _VARIANT_FEATURE:=vl53l5cx
+else ifeq ($(VARIANT),8)
+  _VARIANT_FEATURE:=vl53l8cx
+else
+  $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
+endif
+
 LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
 	# otherwise, 'esp-hal' dumps all kinds of DEBUG
 
@@ -61,44 +75,26 @@ s_full2:
 many m:
 	EXAMPLE=many-emb \
 	  FEATURES=$(FEATURES),flock,distance_mm \
-	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
+	  $(REMAKE) --no-print-directory _build _run
 
 m_full:
 	EXAMPLE=many-emb \
 	  FEATURES=$(FEATURES),flock,$(ALL_FEATURES) \
-	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
+	  $(REMAKE) --no-print-directory _build _run
 
-m-dev md:
-	EXAMPLE=many-emb \
-	  FEATURES=$(FEATURES),flock,distance_mm \
-	  BUILD_MODE="" \
-	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
-
-#R# Run connected to UART (to see serial output); release
-#R#
-#Rm-serial ms:
-#R	EXAMPLE=many-emb \
-#R	  FEATURES=examples_serial,flock,distance_mm \
-#R	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run_with_espflash
-#R
-#R# Run connected to UART (to see serial output)
-#R#
-#Rm-dev-serial mds:
-#R	EXAMPLE=many-emb \
-#R	  FEATURES=examples_serial,flock,distance_mm \
-#R	  BUILD_MODE="" \
-#R	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run_with_espflash
+#m-dev md:
+#	EXAMPLE=many-emb \
+#	  FEATURES=$(FEATURES),flock,distance_mm \
+#	  BUILD_MODE="" \
+#	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
 
 #---
 _build:
-	$(LOG_ENV) cargo build $(BUILD_MODE) --features=$(FEATURES),defmt --example $(EXAMPLE)
+	$(LOG_ENV) cargo build $(BUILD_MODE) --features=$(_VARIANT_FEATURE),$(FEATURES),defmt --example $(EXAMPLE)
 	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
 
 _run:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
-
-#R_run_with_espflash:
-#R	espflash flash -f 80mhz --monitor $(_OUT_EXAMPLE)
 
 echo:
 	@echo $(_OUT_DIR)

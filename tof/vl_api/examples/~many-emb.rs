@@ -34,8 +34,8 @@ use esp_hal::{
 
 use static_cell::StaticCell;
 
-extern crate vl53l5cx;
-use vl53l5cx::{
+extern crate vl_api;
+use vl_api::{
     units::*,
     DEFAULT_I2C_ADDR,
     I2cAddr,

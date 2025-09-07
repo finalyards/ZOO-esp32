@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     // <<
     #[cfg(not(all()))]
     {
-        std::env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
+        env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
         panic!();
     }
 
@@ -102,14 +102,20 @@ fn main() -> Result<()> {
         panic!("Must enable ONLY one of features: {{vl53l5cx|vl53l8cx}}");
     }
 
-    // Config sanity checks (if 'examples/*')
+    // EXAMPLE config sanity checks.
     //
-    if env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
-        #[cfg(not(any(feature = "run_with_espflash", feature = "run_with_probe_rs")))]
-        panic!("Must enable feature: run_with_{{espflash|probe_rs}}");
+    // Note: we need to steer clear of other projects using this code for _their_ examples. Which we can.
+    if env::var("EXAMPLE").is_ok() {
+        let pwd = env::var("PWD").expect("to have 'PWD'");
+            // "/home/ubuntu/.../tof/vl_uld" | "/home/ubuntu/.../tof/vl_api" | ...
 
-        #[cfg(all(feature = "run_with_espflash", feature = "run_with_probe_rs"))]
-        panic!("Must enable ONLY one of features: run_with_{{espflash|probe_rs}}");
+        if pwd.ends_with("/vl_uld") {
+            #[cfg(not(any(feature = "run_with_espflash", feature = "run_with_probe_rs")))]
+            panic!("Must enable feature: run_with_{{espflash|probe_rs}}");
+
+            #[cfg(all(feature = "run_with_espflash", feature = "run_with_probe_rs"))]
+            panic!("Must enable ONLY one of features: run_with_{{espflash|probe_rs}}");
+        }
     }
 
     // Expose 'OUT_DIR' to an external (Makefile) build system

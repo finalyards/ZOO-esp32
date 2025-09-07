@@ -3,14 +3,17 @@
 *
 * Processes the 'pins.toml', injecting its contents - as a Rust snippet - into the given path.
 */
-use anyhow::{Context, Result};
+use anyhow::{/*Context,*/ Result};
+use std::{collections, fs};
+
+const OUTPUT_FN: &str = "examples/pins_gen.in";
 
 // TOML objects
 //
 #[derive(Debug, serde::Deserialize)]
 struct PinsToml {
     generate: String,
-    boards: std::collections::HashMap<String,Board>
+    boards: collections::HashMap<String,Board>
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -19,8 +22,8 @@ struct Board {
     SDA: u32,
     SCL: u32,
     PWR_EN: u32,
+    INT: u32,
     LPn: Vec<u32>,
-    INT: u32,   // same interrupt pin for all the boards
 }
 
 #[allow(non_snake_case)]
@@ -33,11 +36,8 @@ fn process_pins(toml: &str, board_id: &str) -> Result<()> {
         || format!("No section '[boards.{}]' found in 'pins.toml'", board_id)
     )?;
 
-    let fn_ = &c.generate;
-    assert!(fn_.len() > 0);
-
     // unpack, because "field access not supported [...] in a format string"
-    let (SDA, SCL, PWR_EN, LPns, INT) = (board.SDA, board.SCL, board.PWR_EN, &board.LPn, board.INT);
+    let (SDA, SCL, PWR_EN, INT, LPns) = (board.SDA, board.SCL, board.PWR_EN, board.INT, &board.LPn);
 
     let contents = {
         #[allow(non_snake_case)]
@@ -57,8 +57,8 @@ macro_rules! pins {{
             SDA: $peripherals.GPIO{SDA}.into(),
             SCL: $peripherals.GPIO{SCL}.into(),
             PWR_EN: $peripherals.GPIO{PWR_EN}.into(),
-            LPns: [{s_LPns}],
             INT: $peripherals.GPIO{INT}.into(),
+            LPns: [{s_LPns}],
         }}
     }}}}
 }}
@@ -70,7 +70,9 @@ macro_rules! boards {{
 "#)
     };
 
-    std::fs::write(fn_, contents).with_context(
+    let fn_ = OUTPUT_FN;
+
+    fs::write(fn_, contents).with_context(
         || format!("Unable to write {fn_}")
     )?;
 

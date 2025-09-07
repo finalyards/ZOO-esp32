@@ -61,12 +61,12 @@ struct Pins<'a> {
     SDA: AnyPin<'a>,
     SCL: AnyPin<'a>,
     PWR_EN: AnyPin<'a>,
-    INT: AnyPin<'a>
+    INT: AnyPin<'a>,
+    LPn: AnyPin<'a>
 }
 
 #[allow(non_upper_case_globals)]
 const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
-//const I2C_SPEED: Rate = Rate::from_khz(1000);        // TEMP; works also with this! (C6)
 
 //?? #[cfg(feature="run_with_espflash")]
 //?? esp_bootloader_esp_idf::esp_app_desc!();
@@ -75,13 +75,18 @@ fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
-    let Pins{ SDA, SCL, PWR_EN, INT } = pins!(peripherals);
+    let Pins{ SDA, SCL, PWR_EN, INT, LPn } = pins!(peripherals);
 
     #[allow(non_snake_case)]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
 
     #[allow(non_snake_case)]
     let INT = Input::new(INT, InputConfig::default());  // no pull
+
+    // Just set the 'LPn' pin (if any specified) up; to not disable the sensor. This is only so that
+    // a 'vl_api' (sister project) wiring can be used as-is also here.
+    //
+    let mut LPn = Output::new(LPn, Level::High, OutputConfig::default());
 
     let pl = {
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()

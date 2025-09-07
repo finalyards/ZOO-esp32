@@ -1,0 +1,101 @@
+[package]
+name = "vl_api"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+# tbd. Optimize these, asking "someone" / compare with other ESP32 libraries!  clean up.
+#
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+#codegen-units = 16
+#opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+#lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dependencies]
+arrayvec        = { version = "0.7.6", default-features = false }   # needed until '[T;N]::try_map()' makes it to stable
+defmt           = { version = "1.0.1", optional = true }
+
+esp-hal         = { version = "1.0.0-rc.0"  , features = ["esp32c6", "unstable"] }  # "defmt"
+                    # "unstable" required by 'esp-hal-embassy'
+
+vl_uld          = { path = "../vl_uld", features = [] }     # "defmt", "vl53l8cx"|"vl53l5cx"
+
+[dev-dependencies]
+defmt-rtt       = { version = "1.0.0" }
+
+embassy-executor = { version = "0.8.0" }
+embassy-sync    = { version = "0.7.1" }
+embassy-time    = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }
+
+esp-alloc       = { version = "0.8.0", default-features = false }   # needed by 'single-emb'; see 'init_heap()'
+esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "defmt", "esp32c6", "semihosting"] }
+esp-hal-embassy = { version = "0.9.0", features = ["defmt", "esp32c6"] }
+
+#R? fugit           = { version = "0.3.7" }     # tbd. still needed, explicitly?
+static_cell     = { version = "2.1.0" }
+
+[build-dependencies]
+anyhow          = "1.0.99"
+itertools       = "0.14.0"
+serde           = { version = "1.0", features = ["derive"] }
+toml            = "0.9.5"
+
+# ULD compile-time features
+[features]
+vl53l8cx = ["vl_uld/vl53l8cx"]
+vl53l5cx = ["vl_uld/vl53l5cx"]
+
+ambient_per_spad=   ["vl_uld/ambient_per_spad"]
+nb_spads_enabled=   ["vl_uld/nb_spads_enabled"]
+signal_per_spad=    ["vl_uld/signal_per_spad"]
+range_sigma_mm=     ["vl_uld/range_sigma_mm"]
+distance_mm=        ["vl_uld/distance_mm"]
+reflectance_percent= ["vl_uld/reflectance_percent"]
+
+# For more than 1 "target per zone":
+targets_per_zone_2= ["vl_uld/targets_per_zone_2"]
+targets_per_zone_3= ["vl_uld/targets_per_zone_3"]
+targets_per_zone_4= ["vl_uld/targets_per_zone_4"]
+
+defmt = ["dep:defmt", "vl_uld/defmt", "esp-hal/defmt"]
+
+single = []
+flock = []
+flock_synced = []   # enables the SYNC pin for synchronous scans; L8CX only
+
+default = []
+
+# Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
+esp-hal-next = []
+
+#R # For cases when you need the stack trace.
+#R [profile.dev]
+#R #debug         = "line-tables-only"
+#R debug = 2
+#R debug-assertions = true
+#R opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
+# this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
+#
+[[example]]
+name = "single-emb"
+required-features = ["single", "defmt", "distance_mm"]
+
+[[example]]
+name = "many-emb"
+required-features = ["flock", "defmt", "distance_mm"]
+
+# Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-alloc       = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal.git" }

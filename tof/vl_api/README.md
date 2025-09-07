@@ -1,41 +1,49 @@
-# `v53l5cx`
+# `vl_api`
 
-Higher level abstraction for the ST.com [VL53L5CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html) sensors.
+Higher level abstraction for the ST.com [VL53L8CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l8cx.html) and [VL53L5CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html) sensors.
 
 APIs for using either a single, or multiple such sensors at once.
 
->Note: Unlike the `../vl53l5cx_uld` subproject, this one is ESP32-family specific (like rest of the repo is).
+>Note: Unlike the `../vl_uld` sister project, this one is ESP32 specific (like rest of the repo is).
 
 
-## Requirements
+## Preparation
 
-Follow the steps in the `../vl53l5cx_uld/README.md`. That folder needs to be compilable (`cargo build --release --lib`) before you should attempt build this one.
+Follow the steps in the `../vl_uld/README.md`. That folder needs to be compilable (`cargo build --release --lib --features vl53l8cx`) before you should attempt to build this one.
 
+>[!NOTE]
+>
+>Since the vendor wants their C driver to be click-through-licensed, we cannot provide a straightforward Cargo experience. If you dislike this, please be in touch with them. All that would be needed is for the ULD C drivers to be available, as a GitHub repo!
+>
+>..while they are at it, they could:
+>
+> - merge the `VL53L8CX´ and `VL53L5CX` code bases so that differences are managed via a `#define`
+> - update the version number *within the code* (they lack behind, in 2.0.1)
+> - remove unused defines (status #3 in `VL53L5CX`); merging the code would alert them to doing this..
+
+- Wire your development board according to [WIRING.md](./WIRING.md).
+
+	>If you need to use a different pin layout, edit `pins.toml`. This only matters for running the examples.
 
 ## Running examples
 
 ### Single board
 
 ```
-$ cargo build --release --features=single,distance_mm,defmt --example single-emb
+$ cargo build --release --features=single,distance_mm,defmt,vl53l8cx --example single-emb
 ```
+
+>[!NOTE]
+>
+>To use the example against VL53L5CX board, you'll naturally change the feature to `vl53l5cx`. These guide the underlying ULD library to do the right thing.
 
 ### Multiple boards
 
 ```
-$ EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 \
-  cargo build --release --features=flock,distance_mm,defmt --example many-emb
+$ cargo build --release --features=flock,distance_mm,defmt,vl53l8cx --example many-emb
 ```
 
->NOTE!
->
->At the moment, there's [some glitch](https://github.com/embassy-rs/embassy/issues/3537) with `embassy-time`. Use the non-release version for a good run:
->
->```
->$ make -f Makefile.dev md
->[...]
->```
-
+<!-- #hidden; not relevant..?
 #### Serial output
 
 To see the serial output:
@@ -99,9 +107,16 @@ FlockResults { board_index: 0, res: ResultsData { target_status: [[[Valid, SemiV
 ```
 
 The output is in Rust `Debug` streaming. It's similar to JSON, but includes the struct/enum names. This is just an example - you can convert to JSON if you wish.
-
+-->
 
 ## References
 
-Please see [`../vl53l5cx_uld/README`](../vl53l5cx_uld/README.md) > `References`.
+- ST.com > [...]
 
+	- ["Low-power high-performance 8x8 multizone Time-of-Flight sensor (ToF)"](https://www.st.com/en/imaging-and-photonics-solutions/vl53l8cx.html)
+
+		Product page of the VL53L8CX sensor.
+
+	- ["Breakout board based on the VL53L8 series Time-of-Flight sensors"](https://www.st.com/en/evaluation-tools/satel-vl53l8.html) 
+
+		Information about the SATEL evaluation board.
