@@ -7,9 +7,7 @@
 */
 use anyhow::*;
 
-// Snippets need to be read in here (cannot do in "statement position")
-//
-include!("build_snippets/pins.in");
+include!("../build_snippets/pins.in");  // process_pins()
 
 // 'X' is either 5 or 8
 const X: u8 =
@@ -19,6 +17,8 @@ const X: u8 =
 
 #[allow(non_snake_case)]
 const CONFIG_H_NEXT: &str = "tmp/config58.h.next";
+
+const PINS_OUT_FN: &str = "tmp/pins_snippet.in";
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
     //   TARGET=riscv32imc-unknown-none-elf
     // <<
-    #[cfg(not(all()))]
+    #[cfg(false)]
     {
         env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
         panic!();
@@ -130,10 +130,24 @@ fn main() -> Result<()> {
     }
 
     //---
-    // Turn 'pins.toml' -> 'src/pins_gen.in’ (named within the TOML itself)
+    // Turn 'pins.toml' -> 'tmp/pins_snippet.in’
     {
-        let toml = include_str!("./pins.toml");
-        process_pins(toml, &board_id)?;
+        #[cfg(feature="vl53l8cx")]
+        const SENSOR_ID: &str = "vl53l8";   // without "cx"
+        #[cfg(feature="vl53l5cx")]
+        const SENSOR_ID: &str = "vl53l5cx";
+
+        let toml = include_str!("../pins.toml");    // "argument must be a string literal"
+        let snippet: String = process_pins(toml, &board_id, SENSOR_ID)?;
+
+        let fn_ = PINS_OUT_FN;
+
+        fs::write(fn_, snippet).with_context(
+            || format!("Unable to write {fn_}")
+        )?;
+
+        // Change in TOML retriggers a build
+        println!("cargo::rerun-if-changed={}", "../pins.toml");
     }
 
     //---

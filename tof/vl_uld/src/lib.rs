@@ -42,9 +42,7 @@ use crate::uld_raw::{
 };
 
 #[cfg(feature="vl53l8cx")]
-pub use {
-    state_ranging::SyncMode
-};
+pub use state_ranging::SyncMode;
 
 pub type Result<T> = core::result::Result<T,Error>;
 
@@ -177,13 +175,13 @@ impl VL_Configuration {
 }
 
 /**
-* @brief Beginning of preparing access to a single VL53L5CX sensor.
+* @brief Beginning of preparing access to a single VL53{L5CX|L8} sensor.
 */
-pub struct VL53L5CX<P: Platform + 'static> {
+pub struct VL53<P: Platform + 'static> {
     p: P
 }
 
-impl<P: Platform + 'static> VL53L5CX<P> {
+impl<P: Platform + 'static> VL53<P> {
     /*
     * Instead of just creating this structure, this already pings the bus to see, whether there's
     * a suitable sensor out there.

@@ -1,0 +1,20 @@
+#
+# pins.toml
+#
+# Pins configuration for the examples. An include is generated, based on information in this file.
+#
+
+[boards.esp32c6.vl53l5cx]
+SDA = 18
+SCL = 19
+PWR_EN = 21
+INT = 22
+LPn = [20, 23]
+
+[boards.esp32c6.vl53l8]
+SDA = 20
+SCL = 19
+PWR_EN = 18
+INT = 22
+SYNC = 23
+LPn = [21, 14]

@@ -1,134 +1,65 @@
-# `v53l5cx_uld`
+# `vl_uld`
 
-The `uld` part for the VL53L5CX time-of-flight sensor takes care of
+The `uld` part for the VL53 time-of-flight sensors takes care of:
 
 - C/Rust adaptation
-- translation of results from 1D vectors to 2D matrices
+- translation of results from 1D (vectors) to 2D (matrices)
 - enums in place of "magic" integer values
 
-YOU SHOULD NOT USE THIS LEVEL IN AN APPLICATION. Use the [`vl53l5cx`](../vl53l5cx/README.md) API instead (which depends on us). Before that, though, read on, install the build requirements so that the higher API can also be built.
+You should not need to use this level directly, in an application. Use the [`vl_api`](../vl_api/README.md) instead.
 
->Note: We don't automatically pull in the vendor ULD C library, because it requires a "click through" license. You can download it as a guest, though, and you can use a non-traceable (temporary) email address.
-
+Please note that the library itself, like the underlying vendor C library, is *fully MCU agnostic*, i.e. you can use it as a building block for working with VL53 sensors, in Rust, on any MCU family. The examples and the `../vl_api` bring in ESP32 specific details.
 
 ## Overview
 
 ![](.images/build-map.png)
 
-This build is relatively complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
+This build is quite complex. You can just follow the instructions below, but in case there are problems, the above map may be of help.
 
-## Supported dev kits
-
-The workflow has been tested on these MCUs and sensors:
-
-|||`L8CX`|`L5CX`|
-|---|---|---|---|
-|`esp32c6`|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|*tbd.*|&check;|
-|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html)|*tbd.*|*tbd. check again..*|
-
-<!-- #hidden
-|`esp32c3`|[ESP32-C3-DevKitC-02](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html) with JTAG/USB wiring added<p />*❗️ESP32-C3 has problems with long I2C transfers, in combination with the `probe-rs` tool. Sadly, we cannot really recommend using it. See  [`../../TROUBLES.md`](../../TROUBLES.md) for details.*|
--->
+The `vl_api` only needs the "output lib". Once it is compiled, the vendor C library sources (`VL53L[58]CX_ULD_API`) do not need to be kept around.
 
 
-## Requirements
-
-### `espflash` or `probe-rs`
-
-Follow installation instructions at the [root](../../README.md) of the ZOO repo.
+## Compiling
 
 ```
-$ espflash --version
-espflash 4.0.1
+$ cargo build --release --features=distance_mm,defmt,vl53l8cx
 ```
-
-
-### `clang`
-
-```
-$ sudo apt install libclang-dev clang
-```
-
-### `bindgen`
-
-```
-$ cargo install bindgen-cli
-```
-
-<!-- author's note:
-`bindgen` is available also via `apt`, but the version seems to lag behind (perhaps is special for the Linux kernel use; don't know). At the time, `cargo install` is 0.71.1 while `apt show bindgen` gives:
->Version: 0.66.1-4
--->
-
->Note: Bindgen docs recommend using it as a library, but we prefer to use it as a command line tool.
-
-<!-- Developed with:
-$ clang --version
-Ubuntu clang version 18.1.3 (1ubuntu1)
-[...]
-
-$ bindgen --version
-bindgen 0.72.0
--->
-
-### Tools
-
-```
-$ sudo apt install make patch dos2unix
-```
-
-
-### The vendor C libary
-
-The vendor's C driver is a separate download, with a click-through license.
-
-1. Fetch a zip from the vendor:
-
-	(product page) > `Tools & Software` > "Ultra lite driver (ULD) API"
-
-	- for [VL53L8CX](https://www.st.com/en/embedded-software/stsw-img040.html)
-	- for [VL53L5CX](https://www.st.com/en/embedded-software/stsw-img023.html) 
-
-	`Get software` > `Get latest` > check the license > ...
-
-	You can `"Download as a guest"`, after clicking the license. You *will* need to provide an email address for the actual download link, but that can be a temporary one...
-
-2. Unzip to a suitable location
-
-3. `export VL53L8CX_ULD_API={your-path}/VL53L8CX_ULD_API`
-
-	If you are targeting VL53L5CX, you just change the `8` to `5`, naturally. You can also have both API's available.
-
-	>We only need the one subfolder that has `src`, `inc`, not the whole unzipped contents which has examples, docs etc.
-	
-
-### SATEL board
-
-One [SATEL board](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html) is needed. 
-
-For wiring, see [`pins.toml`](./pins.toml):
-
-```
-[boards.esp32c3]
-SDA = 4
-SCL = 5
-PWR_EN = 6
-INT=7
-
-[boards.esp32c6]
-SDA = 18
-SCL = 19
-PWR_EN = 21
-INT = 22
-```
-
 
 ## Running examples
+
+>[!NOTE]
+>One would need to run examples mostly for development, or bug finding - e.g. if your electronics has issues it may be better to test things here than on the `vl_api` level.
+
+Required:
+
+- one SATEL board, either [SATEL-VL53L8](https://www.st.com/en/evaluation-tools/satel-vl53l8.html) or [VL53L5CX-SATEL](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html).
+- ..wired according to [`../vl_api/WIRING`](../vl_api/WIRING.md).
+
+	>*You don't need to wire the `LPn0` unless you plan on using multiple sensors. In this subfolder, we only use one.*
+
+- `probe-rs` or `espflash` connection to your devkit
+
+	>See [`../../README.md`](../../README.md) > `Requirements (hardware)`
+
+	<details><summary>Versions used in development:</summary>
+	
+	```
+	$ probe-rs --version
+	probe-rs 0.29.1 (git commit: v0.29.0-26-g1cf182e)
+	```
+
+	```
+	$ espflash --version
+	espflash 4.0.1
+	```
+	</details>
+
+### Steps
 
 Test the code with:
 
 ```
-$ make -f Makefile.dev m3
+$ VARIANT=8 make -f Makefile.dev m3
 [...]
 0.870700 [INFO ] Target powered off and on again.
 0.874266 [DEBUG] Ping succeeded: 0xf0,0x02
@@ -148,7 +79,7 @@ $ make -f Makefile.dev m3
 Firmware exited successfully
 ```
 
-If you have an ESP32-C3 board, this will fail. Use `make -f Makefile.dev m3-with-espflash`, instead.
+If you have an ESP32-C3 board, you will need to use `espflash`. Try `VARIANT=8 make -f Makefile.dev m3-with-espflash`, instead.
 
 	
 ## References

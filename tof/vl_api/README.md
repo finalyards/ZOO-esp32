@@ -2,30 +2,22 @@
 
 Higher level abstraction for the ST.com [VL53L8CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l8cx.html) and [VL53L5CX](https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html) sensors.
 
-APIs for using either a single, or multiple such sensors at once.
+Provides:
 
->Note: Unlike the `../vl_uld` sister project, this one is ESP32 specific (like rest of the repo is).
+- an ESP32 adaptation for steering VL538CX or VL53L5CX sensors, over I2C bus
+	- The sensor type is steered by a library feature; each project may only use one type of sensor
+- single- and multiple-board APIs
+- Embassy `async` support
 
 
-## Preparation
+## Running examples
 
-Follow the steps in the `../vl_uld/README.md`. That folder needs to be compilable (`cargo build --release --lib --features vl53l8cx`) before you should attempt to build this one.
+See that you've wired the board like in [WIRING.md](./WIRING.md).
 
 >[!NOTE]
 >
->Since the vendor wants their C driver to be click-through-licensed, we cannot provide a straightforward Cargo experience. If you dislike this, please be in touch with them. All that would be needed is for the ULD C drivers to be available, as a GitHub repo!
->
->..while they are at it, they could:
->
-> - merge the `VL53L8CX´ and `VL53L5CX` code bases so that differences are managed via a `#define`
-> - update the version number *within the code* (they lack behind, in 2.0.1)
-> - remove unused defines (status #3 in `VL53L5CX`); merging the code would alert them to doing this..
+>In your own project, you are free to deal with the pins any way you like. You may pick up the use of a TOML file (`pins.toml`) - or just fix the pins in your code.
 
-- Wire your development board according to [WIRING.md](./WIRING.md).
-
-	>If you need to use a different pin layout, edit `pins.toml`. This only matters for running the examples.
-
-## Running examples
 
 ### Single board
 
@@ -33,9 +25,7 @@ Follow the steps in the `../vl_uld/README.md`. That folder needs to be compilabl
 $ cargo build --release --features=single,distance_mm,defmt,vl53l8cx --example single-emb
 ```
 
->[!NOTE]
->
->To use the example against VL53L5CX board, you'll naturally change the feature to `vl53l5cx`. These guide the underlying ULD library to do the right thing.
+>To use the example against VL53L5CX board, you'll naturally change the feature to `vl53l5cx`. These features steer the underlying `vl_uld` library and enable/disable some sensor specific features (e.g. only L8 has the `SYNC` pin for syncing multisensor scans).
 
 ### Multiple boards
 
@@ -43,7 +33,7 @@ $ cargo build --release --features=single,distance_mm,defmt,vl53l8cx --example s
 $ cargo build --release --features=flock,distance_mm,defmt,vl53l8cx --example many-emb
 ```
 
-<!-- #hidden; not relevant..?
+<!--R #hidden; not relevant..?
 #### Serial output
 
 To see the serial output:
@@ -111,12 +101,5 @@ The output is in Rust `Debug` streaming. It's similar to JSON, but includes the 
 
 ## References
 
-- ST.com > [...]
-
-	- ["Low-power high-performance 8x8 multizone Time-of-Flight sensor (ToF)"](https://www.st.com/en/imaging-and-photonics-solutions/vl53l8cx.html)
-
-		Product page of the VL53L8CX sensor.
-
-	- ["Breakout board based on the VL53L8 series Time-of-Flight sensors"](https://www.st.com/en/evaluation-tools/satel-vl53l8.html) 
-
-		Information about the SATEL evaluation board.
+- ["Low-power high-performance 8x8 multizone Time-of-Flight sensor (ToF)"](https://www.st.com/en/imaging-and-photonics-solutions/vl53l8cx.html) (vendor product page)
+- ["Breakout board based on the VL53L8 series Time-of-Flight sensors"](https://www.st.com/en/evaluation-tools/satel-vl53l8.html) (vendor product page)

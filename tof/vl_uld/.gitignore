@@ -5,4 +5,4 @@
 /.OUT_DIR
 
 # Generated
-/examples/pins_gen.in
+/examples/~pins_gen.rs

@@ -1,30 +1,39 @@
-# Embedded Zoo - Sensors and Actuators 
+# Zoo - Drivers for Embedded Rust
 
-## ..for [Rust](https://www.rust-lang.org) and [Embassy](https://embassy.dev).
+<img width="70%" src=".images/zoo-cover-1%20(storybook).png" />
 
-<!-- tbd. Zoo picture & styling -->
+<!--
+![](.images/zoo-cover-2%20(hackathon).png)
+-->
 
-It's quite elaborate to take in new sensors to a project. It's about:
+<!-- ideas: on the storybook image, capacitors could be changed to motors, once BLDC support is factually there.
+-->
+
+Welcome to a small collection of drivers for Embedded [Rust](https://www.rust-lang.org) - especially [Embassy](https://embassy.dev) - users!
+
+If you're like me, you might have spent time:
 
 - selecting the right part(s)
    - considering availability, price, features
-- reading the documentation
+- reading their documentation
 - ensuring drivers fit
 - learning the quirks that are not necessarily documented, anywhere
 
 This repo covers various sensors (things that measure stuff) and actuators (things that move stuff), interesting to its author, and provides reliable, maintained Rust bindings to them.
 
->**Why Embassy?**
->
->Rust provides `async/await` support, similar to what you might know from the .NET or JavaScript ecosystems. Embassy is an executor for such `async` functions; and an ecosystem of other, related stuff.
->
->In short, `async` is GREAT!!! Making async code allows concurrency to be coded and understood as if it was linear. This is a huge boost to speed of coding and maintainability of any embedded, non-trivial project. Thus, Embassy has its place as a fundamental component of this repo.
+**Why (/what is) Embassy?**
+
+Rust provides `async/await` support, similar to what you might know from the .NET or JavaScript ecosystems. Embassy is an executor for such `async` functions; and an ecosystem of related stuff.
+
+In short, `async` is GREAT!!! Making async code allows concurrency to be coded and understood as if it was linear. This is a huge boost to speed of coding and maintainability of any embedded, non-trivial project. Thus, Embassy has its place as a fundamental building block for the author's projects.
 
 
 ## Menu
 
 ||folder|what is it?|stability|comments|
 |---|---|---|---|---|
+|**Distance sensors**|
+|![](.images/about/vl53l8.jpg) ![](.images/about/vl53l5cx.jpg)|[`tof/vl_uld`](tof/vl53l5cx_uld/README.md)|Time-of-flight distance sensors; 4x4 (60Hz) or 8x8 (15Hz)|beta|VL53L8 and VL53L5CX sensors supported, over I2C bus|
 |**Comms**|
 |![](.images/about/ble.png)|[`comms/ble`](comms/ble/README.md)|Working as custom Bluetooth (BLE) service|alpha||
 ||[`comms/extras/ble-web-app`](comms/extras/ble-web-app/README.md)|Web app for interfacing with the sample BLE service|--||
@@ -33,9 +42,6 @@ This repo covers various sensors (things that measure stuff) and actuators (thin
 ||[`devkit/button`](devkit/button/README.md)|Button|--||
 |**DC&nbsp;motor&nbsp;controllers&nbsp;(brushed)**|
 |![](.images/about/drv8871.png)|[`dc-motors/drv8871`](dc-motors/drv8871/README.md)|Controller for brushed (simple) DC motors - 6.5..45V, 3.6A max|WIP||
-|**Time of flight** = distance sensors|
-|![](.images/about/vl53l5cx_uld.png)|[`tof/vl53l5cx_uld`](tof/vl53l5cx_uld/README.md)|Time-of-flight distance sensor; 4x4 (60Hz) or 8x8 (15Hz), up to 400cm|beta||
-|*tbd.* Brushless motor controllers (VESC)|
 
 
 ### Folder structure

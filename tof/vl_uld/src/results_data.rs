@@ -67,7 +67,7 @@ impl<const DIM: usize> ResultsData<DIM> {
     /*
     * Provide an empty buffer-like struct; owned usually by the application and fed via 'feed()'.
     */
-    #[cfg(not(all()))]
+    #[cfg(false)]
     fn empty() -> Self {
 
         Self {

@@ -1,8 +1,9 @@
 [package]
-name = "vl_uld"   # name matters; used in 'examples' and the 'vl' project
+name = "vl_uld"   # name matters; used in 'examples' and the 'vl_api' project
 edition = "2024"
 rust-version = "1.89"
-    # 1.88: 'esp-hal' 1.0.0-rc0 (and others) require this; "cargo update"
+    # 1.88: 'esp-hal' 1.0.0-rc0 (and others) require this
+    #       '#[cfg(true|false)]'
     # 1.85: stable support for edition "2024"
 publish = false
 
