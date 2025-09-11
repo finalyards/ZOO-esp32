@@ -96,10 +96,10 @@ fn main() -> Result<()> {
 
         // One sensor type, per project
         #[cfg(not(any(feature = "vl53l5cx", feature = "vl53l8cx")))]
-        panic!("Must enable feature: {{vl53l5cx|vl53l8cx}}");
+        panic!("📍 Must enable feature: {{vl53l5cx|vl53l8cx}}");
 
         #[cfg(all(feature = "vl53l5cx", feature = "vl53l8cx"))]
-        panic!("Must enable ONLY one of features: {{vl53l5cx|vl53l8cx}}");
+        panic!("📍 Must enable ONLY one of features: {{vl53l5cx|vl53l8cx}}");
     }
 
     // EXAMPLE config sanity checks.
@@ -111,10 +111,10 @@ fn main() -> Result<()> {
 
         if pwd.ends_with("/vl_uld") {
             #[cfg(not(any(feature = "run_with_espflash", feature = "run_with_probe_rs")))]
-            panic!("Must enable feature: run_with_{{espflash|probe_rs}}");
+            panic!("📍 Must enable feature: run_with_{{espflash|probe_rs}}");
 
             #[cfg(all(feature = "run_with_espflash", feature = "run_with_probe_rs"))]
-            panic!("Must enable ONLY one of features: run_with_{{espflash|probe_rs}}");
+            panic!("📍 Must enable ONLY one of features: run_with_{{espflash|probe_rs}}");
         }
     }
 
@@ -263,6 +263,9 @@ fn main() -> Result<()> {
 
     println!("cargo:rustc-link-search=tmp");
     println!("cargo:rustc-link-lib=static=vendor_uld{}", X);
+
+    // Change in Makefile re-triggers a build
+    println!("cargo::rerun-if-changed={}", "Makefile");
 
     Ok(())
 }

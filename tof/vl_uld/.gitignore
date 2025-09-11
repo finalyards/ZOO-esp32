@@ -3,6 +3,3 @@
 
 /tmp/
 /.OUT_DIR
-
-# Generated
-/examples/~pins_gen.rs

@@ -25,12 +25,6 @@ use {
     TargetOrder::{CLOSEST, STRONGEST},
 };
 
-#[cfg(feature="vl53l8cx")]
-use crate::uld_raw::{
-    vl_set_external_sync_pin_enable,
-    SyncMode as SyncMode_R
-};
-
 /*
 * Defines which resolutions the device is able to play with; their mapping to ULD and physical
 * limits.
@@ -44,17 +38,19 @@ const fn reso_details<const DIM: usize>() -> (Resolution_R /*Raw entry*/, u8 /*i
     }
 }
 
-// Adding to the C API by joining integration time with the ranging mode - since integration time
+// Adding to the C API by joining other parameters with the ranging mode - since integration time
 // only applies to one of the modes.
+//
+// Note: On L8, also the SYNC pin use (yes/no) would fall into this same category: SYNC pin only
+//      affects "autonomous" mode. However, merging it here (since we are exposed via 'vl_api' to
+//      the applications) turned out to be difficult. Thus, we just follow the C API abstraction
+//      on the SYNC pin enablement, and leave things for 'vl_api' to figure out.
 //
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Mode {
     CONTINUOUS,
-    AUTONOMOUS(MsU16,HzU8,
-        #[cfg(feature = "vl53l8cx")]
-        SyncMode
-    )    // (integration time, ranging frequency [,sync_mode])
+    AUTONOMOUS(MsU16,HzU8),   // (integration time, ranging frequency)
 }
 
 impl Mode {
@@ -62,27 +58,6 @@ impl Mode {
         match self {
             CONTINUOUS => RangingMode_R::CONTINUOUS,
             AUTONOMOUS(..) => RangingMode_R::AUTONOMOUS
-        }
-    }
-}
-
-// 'SyncMode' is 1:1 with ULD API, but we avoid exposing the enum values.
-//
-#[derive(Copy, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[cfg(feature = "vl53l8cx")]
-#[allow(non_camel_case_types)]
-pub enum SyncMode {
-    NONE,
-    SYNC_NOT_TESTED
-}
-
-#[cfg(feature = "vl53l8cx")]
-impl SyncMode {
-    fn as_uld(&self) -> SyncMode_R {
-        match self {
-            SyncMode::NONE => SyncMode_R::NONE,
-            SyncMode::SYNC_NOT_TESTED => SyncMode_R::SYNC
         }
     }
 }
@@ -229,14 +204,6 @@ impl<const DIM: usize> RangingConfig<DIM> {
             e => Err(Error(e))
         }?;
 
-        #[cfg(feature = "vl53l8cx")]
-        if let AUTONOMOUS(_, _, sm) = self.mode {
-            match unsafe { vl_set_external_sync_pin_enable(vl, sm.as_uld() as _) } {
-                ST_OK => Ok(()),
-                e => Err(Error(e))
-            }?;
-        };
-
         Ok(())
     }
 }
@@ -249,10 +216,7 @@ impl<const DIM: usize> Default for RangingConfig<DIM> {
         Self {
             sharpener: None,
             target_order: STRONGEST,
-            mode: AUTONOMOUS(5.ms(),HzU8(1) /*1.Hz()*/,
-                 #[cfg(feature = "vl53l8cx")]
-                 SyncMode::NONE
-            ),
+            mode: AUTONOMOUS(5.ms(),HzU8(1) /*1.Hz()*/),
         }
     }
 }

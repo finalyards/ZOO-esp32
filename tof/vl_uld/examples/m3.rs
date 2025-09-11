@@ -14,13 +14,7 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;
 
-use esp_hal::{
-    delay::Delay,
-    gpio::{AnyPin, DriveMode, Input, InputConfig, Level, Output, OutputConfig},
-    i2c::master::{Config as I2cConfig, I2c},
-    main,
-    time::{Instant, Rate}
-};
+use esp_hal::{delay::Delay, gpio, gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig}, i2c::master::{Config as I2cConfig, I2c}, main, time::{Instant, Rate}};
 
 extern crate vl_uld as uld;
 use uld::{
@@ -31,9 +25,6 @@ use uld::{
     Mode::AUTONOMOUS,
     units::*,
 };
-
-#[cfg(feature = "vl53l8cx")]
-use uld::SyncMode;
 
 include!("../tmp/pins_snippet.in");  // pins!, boards!
 
@@ -74,7 +65,7 @@ const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
 
 #[cfg(false)]
 fn main3() -> Result<()> {
-    use esp_hal::gpio::Pull;
+    use esp_hal::gpio::{DriveMode, Pull};
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
@@ -125,17 +116,25 @@ fn main2() -> Result<()> {
     #[allow(non_snake_case)]
     let INT = Input::new(INT, InputConfig::default());  // no pull
 
+    const BOARDS_N: usize = boards!();
+
     // Set 'LPn' pins (if any) to suitable states:
-    //  - 0: let it float HIGH (= "logical low"); we want to talk to it
-    //  - 1..: LOW disabled them from the I2C bus
+    //  - HIGH: sensor's I2C enabled
+    //  - LOW: sensor does not act on I2C bus
     //
-    // If there are no LPn pins specified, that's fine: SATEL pulls its 'LPn' up.
+    // We want to enable the first sensor; disable others (if any).
+    //
+    // Direct push/pull has turned out to be more reliable (at least, provides brighter LED on
+    // L8), than open drain. Both _should_ work, but since the sensor treats 'LPn' only as input,
+    // we choose push/pull.
     //
     // Note: Keeping the handle to the pins is optional. 'esp-hal' will likely not reset their
     //      config, but keeping the handle makes this safe.
     //
     #[allow(non_snake_case)]
-    let LPn: [Output;boards!()] = {
+    #[cfg(false)]   // OPEN DRAIN - feels it wasn't that good (can remove once things work).
+    let LPn: [Output;BOARDS_N] = {
+        use gpio::DriveMode;
         let c_opendrain: OutputConfig = OutputConfig::default()
             .with_drive_mode(DriveMode::OpenDrain);  // SATEL has external pull-up resistor
 
@@ -149,6 +148,22 @@ fn main2() -> Result<()> {
             let lev = if i==0 {Level::High} else {Level::Low};
             i += 1;
             Output::new(pin, lev, c_opendrain)
+        })
+    };
+    #[allow(non_snake_case)]
+    let LPn: [Output;BOARDS_N] = {  // PUSH/PULL
+        let c: OutputConfig = OutputConfig::default();
+
+        // Note! Tried with (fancier) '.iter().enumerate().map(|i,pin|)', but that complexity
+        //      isn't well suited to 'AnyPin', 'OutputPin'. It causes a reference ('&AnyPin') to
+        //      be taken, and dealing with that causes errors, no matter which way you take.
+        //      'impl OutputPin' is defined for 'AnyPin', but not for '&AnyPin'.
+        //
+        let mut i=0;
+        LPn.map(|pin| {
+            let x = Output::new(pin, if i==0 {Level::High} else {Level::Low}, c);
+            i += 1;
+            x
         })
     };
     let _ = LPn;
@@ -192,10 +207,7 @@ fn main2() -> Result<()> {
     let freq = Rate::from_hz(10);
 
     let c = {
-        let m = AUTONOMOUS(5.ms(),HzU8(freq.as_hz() as u8),
-        #[cfg(feature = "vl53l8cx")]
-        SyncMode::NONE
-        );
+        let m = AUTONOMOUS(5.ms(),HzU8(freq.as_hz() as u8));
 
         RangingConfig::<4>::default()
             .with_mode(m)

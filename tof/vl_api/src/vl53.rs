@@ -1,5 +1,5 @@
 /*
-* Presents one VL53L5CX sensor, with its activation line and unique I2C address.
+* Presents one VL53 sensor, with its activation line and unique I2C address.
 */
 #[cfg(feature = "defmt")]
 use defmt::debug;
@@ -14,12 +14,12 @@ use esp_hal::{
 #[cfg(feature = "flock")]
 use esp_hal::gpio::Output;
 
-use vl53l5cx_uld::{
+use vl_uld::{
     DEFAULT_I2C_ADDR,
     RangingConfig,
     Result,
     State_HP_Idle,
-    VL53L5CX
+    VL53 as VL53_ULD    // covers both L8 and L5CX
 };
 
 use crate::{
@@ -32,11 +32,11 @@ use crate::ranging::Ranging;
 #[cfg(feature = "flock")]
 use crate::ranging_flock::RangingFlock;
 
-pub struct VL {
+pub struct VL53 {
     uld: State_HP_Idle,   // initialized ULD level driver, with dedicated I2C address
 }
 
-impl VL {
+impl VL53 {
     // tbd. make so that caller can give either 'I2cAddr' or a reference
     //
     pub fn new_and_setup(i2c_shared: &'static RefCell<I2c<'static, Blocking>>,
@@ -49,7 +49,7 @@ impl VL {
         //
         let pl = Pl::new(i2c_shared);
 
-        let mut uld = VL53L5CX::new_with_ping(pl)?.init()?;
+        let mut uld = VL53_ULD::new_with_ping(pl)?.init()?;
 
         let a = i2c_addr;
         if *a != DEFAULT_I2C_ADDR {
@@ -96,12 +96,12 @@ impl VL {
             bs_av.map(|x| x.into_inner().ok().unwrap())
         }
 
-        let tmp: Result<[VL;BOARDS]> = array_try_map_mut_enumerated(LPns, #[allow(non_snake_case)] |(i,LPn)| {
+        let tmp: Result<[VL53;BOARDS]> = array_try_map_mut_enumerated(LPns, #[allow(non_snake_case)] |(i,LPn)| {
             LPn.set_high();     // enable this chip and leave it on
 
             let i2c_addr = i2c_addr_gen(i);
             debug!("I2C ADDR: {} -> {}", i, i2c_addr);   // TEMP
-            let vl = VL::new_and_setup(i2c_shared, &i2c_addr)?;
+            let vl = VL53::new_and_setup(i2c_shared, &i2c_addr)?;
 
             debug!("Init of board {} succeeded", i);
             Ok(vl)
@@ -122,7 +122,7 @@ pub trait VLsExt<const N: usize, const DIM: usize> {
 }
 
 #[cfg(feature = "flock")]
-impl<const N: usize, const DIM: usize> VLsExt<N,DIM> for [VL;N] {
+impl<const N: usize, const DIM: usize> VLsExt<N,DIM> for [VL53;N] {
     fn start_ranging(self, cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<RangingFlock<N,DIM>> {
         RangingFlock::start(self, cfg, pinINT)
     }

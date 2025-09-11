@@ -11,7 +11,7 @@ use esp_hal::{
     time::{now, Instant}
 };
 
-use vl53l5cx_uld::{
+use vl_uld::{
     units::TempC,
     RangingConfig,
     Result,
@@ -22,7 +22,7 @@ use vl53l5cx_uld::{
 use arrayvec::ArrayVec;
 
 use crate::{
-    VL
+    VL53
 };
 
 #[derive(Clone, Debug)]
@@ -46,7 +46,7 @@ pub struct RangingFlock<const N: usize, const DIM: usize> {
 
 impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
 
-    pub(crate) fn start(vls: [VL;N], cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<Self> {
+    pub(crate) fn start(vls: [VL53;N], cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<Self> {
 
         // Turn the ULD level handles into "ranging" state, and start tracking the 'pinINT'.
 
@@ -83,7 +83,7 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
         //      - time stamps should be as close to actual measurement as possible!
 
         // Trace if we see new data
-        #[cfg(all())]
+        //#[cfg(false)]
         {
             for (i,uld) in self.ulds.iter_mut().enumerate() {
                 if uld.is_ready()? {
@@ -132,10 +132,10 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
         }
     }
 
-    pub fn stop(self) -> Result<([VL;N], Input<'static>)> {
+    pub fn stop(self) -> Result<([VL53;N], Input<'static>)> {
         let vls = array_try_map(self.ulds, |x| {
             let uld = x.stop()?;
-            Ok( VL::recreate(uld) )
+            Ok( VL53::recreate(uld) )
         })?;
 
         Ok( (vls, self.pinINT) )

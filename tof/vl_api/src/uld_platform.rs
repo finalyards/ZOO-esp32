@@ -1,5 +1,5 @@
 /*
-* 'Platform' implementation for the VL53L5CX ULD interface.
+* 'Platform' implementation required by the ULD.
 *
 * For access to the I2C bus, a 'RefCell' is used. The intended use is Embassy tasks, on the same
 * priority, where multiple devices can borrow the bus, but not across 'await' boundaries.
@@ -10,11 +10,11 @@ use defmt::{info, debug, error, warn, trace, panic};
 
 use esp_hal::{
     delay::Delay,
-    i2c::master::I2c,
+    i2c::master::{I2c, Operation},
     Blocking
 };
 
-use vl53l5cx_uld::{
+use vl_uld::{
     DEFAULT_I2C_ADDR,
     I2cAddr,
     Platform
@@ -24,6 +24,9 @@ use core::cell::RefCell;
 
 #[cfg(feature = "defmt")]
 const TRACE_HEAD_N:usize=20;        // Number of first bytes to show
+
+#[allow(non_camel_case_types)]
+type T_NVER = ();  // ! (experimental; requires 'nightly') or Infallible
 
 /*
 */
@@ -46,15 +49,11 @@ impl<'a> Pl<'a> {
 }
 
 impl Platform for Pl<'_> {
-    // Note: With Rust Edition 2024 out, try '!' or 'Infallible' as the return type (we don't provide
-    //      errors). In Edition 2021, Rust 1.82, 'Infallible' doesn't coerce to '()' (it could),
-    //      so cannot use it now. //2-Nov-24
-
     /*
     * ULD reads can be in sizes of 492 bytes (or more). The 'esp-hal' requires these to be handled
     * in multiple parts.
     */
-    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),()/* !*/> {     // "'!' type is experimental"
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> Result<(),T_NVER> {     // "'!' type is experimental"
         let mut i2c = self.i2c_shared.borrow_mut();
 
         i2c.write_read(self.i2c_addr.as_7bit(), &index.to_be_bytes(), buf)
@@ -65,9 +64,9 @@ impl Platform for Pl<'_> {
         #[cfg(feature = "defmt")]
         {
             if buf.len() <= TRACE_HEAD_N {
-                trace!("I2C read: {:#06x} -> {:#04x}", index_orig, buf);
+                trace!("I2C read: {:#06x} -> {:#04x}", index, buf);
             } else {
-                trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index_orig, slice_head(buf,TRACE_HEAD_N), buf.len());
+                trace!("I2C read: {:#06x} -> {:#04x}... ({} bytes)", index, slice_head(buf,TRACE_HEAD_N), buf.len());
             }
         }
 
@@ -84,7 +83,7 @@ impl Platform for Pl<'_> {
     * to stop early. CERTAIN error codes MAY lead to a single retry, if we think we have a chance
     * to recover.
     */
-    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),() /* !*/> {   // "'!' type is experimental" (nightly)
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> Result<(),T_NVER> {   // "'!' type is experimental" (nightly)
         let mut i2c = self.i2c_shared.borrow_mut();
         let addr: u8 = self.i2c_addr.as_7bit();
 

@@ -8,7 +8,7 @@ mod ranging;
 mod ranging_flock;
 
 mod uld_platform;
-mod vl;
+mod vl53;
 
 #[cfg(feature = "single")]
 pub use ranging::{SoloResults, Ranging};
@@ -16,15 +16,15 @@ pub use ranging::{SoloResults, Ranging};
 #[cfg(feature = "flock")]
 pub use {
     ranging_flock::{FlockResults, RangingFlock},
-    vl::VLsExt      // tbd. how to provide such methods properly?  Compare with 'fugit'.
+    vl53::VLsExt      // tbd. how to provide such methods properly?  Compare with 'fugit'.
 };
 
-pub use vl::{
-    VL,
+pub use vl53::{
+    VL53,
 };
 
 // Elements we pass through from the ULD level. Careful here: ideally all API is under our direct control!
-pub use vl53l5cx_uld::{
+pub use vl_uld::{
     API_REVISION as ULD_VERSION,
     DEFAULT_I2C_ADDR,
     I2cAddr,

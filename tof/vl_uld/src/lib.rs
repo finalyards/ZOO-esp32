@@ -41,9 +41,6 @@ use crate::uld_raw::{
     ST_OK, ST_ERROR,
 };
 
-#[cfg(feature="vl53l8cx")]
-pub use state_ranging::SyncMode;
-
 pub type Result<T> = core::result::Result<T,Error>;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -56,7 +53,8 @@ impl Display for Error {
     }
 }
 
-pub const DEFAULT_I2C_ADDR: I2cAddr = I2cAddr::from_8bit(0x52);    // default after each power on
+// Default after each power on; both L8 and L5CX
+pub const DEFAULT_I2C_ADDR: I2cAddr = I2cAddr::from_8bit(0x52);
 
 // After LOTS of variations, here's a way to expose a 'CStr' string as a '&str' const (as long as
 // we avoid '.unwrap*()' of any kind, it's const). Why it matters (does it tho?):
@@ -70,10 +68,7 @@ pub const API_REVISION: &str = {
     }
 };
 
-const CORRECT_REV_ID: u8 =
-        if cfg!(feature = "vl53l8cx") { 0x0c }
-    else if cfg!(feature = "vl53l5cx") { 0x02 }
-    else { 0xff };  // cannot use 'compile_error!()' here; checked elsewhere
+const CORRECT_REV_ID: u8 = if cfg!(feature = "vl53l8cx") { 0x0c } else { 0x02 };
 
 /*
 * Adds a method to the ULD C API struct.

@@ -8,7 +8,9 @@
 use anyhow::*;
 
 // Snippets need to be read in here (cannot do in "statement position")
-include!("build_snippets/pins.in");   // process_pins(toml: &str, board_id: &str) -> anyhow::Result<()>
+include!("../build_snippets/pins.in");   // process_pins()
+
+const PINS_OUT_FN: &str = "tmp/pins_snippet.in";
 
 /*
 * Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
@@ -18,6 +20,9 @@ include!("build_snippets/pins.in");   // process_pins(toml: &str, board_id: &str
 *       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 */
 fn main() -> Result<()> {
+    #[allow(unused_imports)]
+    use std::{env, fs, process::Command};
+
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
@@ -39,12 +44,11 @@ fn main() -> Result<()> {
     //   TARGET=riscv32imc-unknown-none-elf
     //  <<
     //
-    #[cfg(not(all()))]
+    #[cfg(false)]
     {
-        std::env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
-        std::process::exit(1);
+        env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
+        process::exit(1);
     }
-
 
     // Pick the current MCU. To be used as board id for 'pins.toml'.
     //
@@ -52,8 +56,6 @@ fn main() -> Result<()> {
     //  esp32c3
     //
     let board_id: String = {
-        use std::process::Command;
-
         let output = Command::new("sh")
             .arg("-c")
             .arg("grep -oE -m 1 '\"esp32(c3|c6)\"' Cargo.toml | cut -d '\"' -f2")
@@ -72,7 +74,16 @@ fn main() -> Result<()> {
     //---
     // Config sanity checks
     {
-        // let 'vl53l5cx_uld' check its features (no double check)
+        #[cfg(all(feature = "flock_synced", not(feature = "vl53l8cx")))]
+        //println!("cargo:warning=Feature 'flock_synced' can ONLY be used on L8CX sensors, but 'vl53l8cx' is not enabled");
+        compile_error!("Feature 'flock_synced' can ONLY be used on L8CX sensors, but 'vl53l8cx' is not enabled");
+
+        // One of these
+        #[cfg(not(any(feature = "single", feature = "flock")))]
+        compile_error!("Please enable one of: {{single|flock}}");
+
+        #[cfg(all(feature = "single", feature = "flock"))]
+        compile_error!("Both features are enabled: {{single, flock}}");
     }
 
     // Expose 'OUT_DIR' to an external (Makefile) build system
@@ -88,10 +99,24 @@ fn main() -> Result<()> {
     }
 
     //---
-    // Turn 'pins.toml' -> 'src/pins_gen.in’ (named within the TOML itself)
+    // Turn 'pins.toml' -> 'tmp/pins_snippet.in'
     {
-        let toml = include_str!("./pins.toml");
-        process_pins(toml, &board_id)?;
+        #[cfg(feature="vl53l8cx")]
+        const SENSOR_ID: &str = "vl53l8";   // without "cx"
+        #[cfg(feature="vl53l5cx")]
+        const SENSOR_ID: &str = "vl53l5cx";
+
+        let toml = include_str!("../pins.toml");
+        let snippet: String = process_pins(toml, &board_id, SENSOR_ID)?;
+
+        let fn_ = PINS_OUT_FN;
+
+        fs::write(fn_, snippet).with_context(
+            || format!("Unable to write {fn_}")
+        )?;
+
+        // Change in TOML retriggers a build
+        println!("cargo::rerun-if-changed={}", "../pins.toml");
     }
 
     // Link arguments
@@ -103,7 +128,7 @@ fn main() -> Result<()> {
         );
 
         for s in link_args {
-            println!("cargo::rustc-link-arg={}", s);
+            println!("cargo::rustc-link-arg={s}");
         }
     }
 

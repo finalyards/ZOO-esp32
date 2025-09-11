@@ -4,11 +4,17 @@ Higher level abstraction for the ST.com [VL53L8CX](https://www.st.com/en/imaging
 
 Provides:
 
-- an ESP32 adaptation for steering VL538CX or VL53L5CX sensors, over I2C bus
+- an ESP32 adaptation for steering `VL53{L8|L5}CX` sensors, over I2C bus
 	- The sensor type is steered by a library feature; each project may only use one type of sensor
 - single- and multiple-board APIs
 - Embassy `async` support
 
+
+## Compiling
+
+```
+$ cargo build --release --features=single,distance_mm,defmt,vl53l8cx
+```
 
 ## Running examples
 

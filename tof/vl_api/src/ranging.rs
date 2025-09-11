@@ -8,10 +8,10 @@ use defmt::{trace};
 
 use esp_hal::{
     gpio::Input,
-    time::{Instant, now}
+    time::Instant
 };
 
-use vl53l5cx_uld::{
+use vl_uld::{
     RangingConfig,
     Result,
     ResultsData,
@@ -20,7 +20,7 @@ use vl53l5cx_uld::{
 };
 
 use crate::{
-    VL,
+    VL53,
 };
 
 #[derive(Clone, Debug)]
@@ -41,12 +41,13 @@ pub struct Ranging<const DIM: usize> {    // DIM: 4|8
 
 #[cfg(feature = "single")]
 impl<const DIM: usize> Ranging<DIM> {
-    pub(crate) fn start(vl: VL, cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<Ranging<DIM>> {
+    pub(crate) fn start(vl: VL53, cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<Ranging<DIM>> {
         let uld = vl.into_uld().start_ranging(cfg)?;
         Ok(Self{ uld, pinINT })
     }
 
     pub async fn get_data(&mut self) -> Result<SoloResults<DIM>> {
+        let now = Instant::now;
         let t0 = now();
 
         // Two kinds of spec can be implemented here:
@@ -66,7 +67,7 @@ impl<const DIM: usize> Ranging<DIM> {
         self.pinINT.wait_for_falling_edge() .await;
         let ts = now();     // nearest time after the (presumed) scan
 
-        trace!("Received falling edge of INT, after {}", now() - t0);
+        trace!("Received falling edge of INT, after {}", ts - t0);
 
         match self.uld.is_ready()? {
             true => (),
@@ -77,8 +78,8 @@ impl<const DIM: usize> Ranging<DIM> {
         Ok( SoloResults{ res, temp_degc, time_stamp: ts } )
     }
 
-    pub fn stop(self) -> Result<VL> {
+    pub fn stop(self) -> Result<VL53> {
         let uld = self.uld.stop()?;
-        Ok(VL::recreate(uld))
+        Ok(VL53::recreate(uld))
     }
 }

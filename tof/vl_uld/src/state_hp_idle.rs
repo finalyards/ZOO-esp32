@@ -35,8 +35,8 @@ use crate::{
 #[cfg(feature = "vl53l8cx")]
 use crate::{
     uld_raw::{
-        vl_get_external_sync_pin_enable,
-        vl_set_external_sync_pin_enable
+        vl_set_external_sync_pin_enable,
+        SyncMode as SyncMode_R
     }
 };
 
@@ -114,27 +114,25 @@ impl State_HP_Idle {
         }
     }
 
-    pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL_Configuration {
-        &mut self.uld
-    }
-
     /*
-    * External sync pin control.
+    * External sync pin control. L8 only.
+    *
+    * Note: The setting only applies to "autonomous" mode. Instead of having it as a mode parameter,
+    *       it's here as a "global" switch. However, even this arrangement guarantees the call is
+    *       made in the HP Idle state, being a benefit over the ULD C API.
     */
     #[cfg(feature = "vl53l8cx")]
-    pub fn get_external_sync_pin_enable(&mut self) -> Result<bool> {
-        let mut tmp: u8 = 0;
-        match unsafe { vl_get_external_sync_pin_enable(&mut self.uld, &mut tmp) } {
-            ST_OK => Ok(tmp != 0),
-            e => Err(Error(e))
-        }
-    }
-    #[cfg(feature = "vl53l8cx")]
-    pub fn set_external_sync_pin_enable(&mut self, v: bool) -> Result<()> {
+    pub fn set_sync_pin_enable(&mut self, v: bool) -> Result<()> {
+        let v: SyncMode_R = if v { SyncMode_R::SYNC } else { SyncMode_R::NONE };
+
         match unsafe { vl_set_external_sync_pin_enable(&mut self.uld, v as u8) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }
+    }
+
+    pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL_Configuration {
+        &mut self.uld
     }
 
     /*** disabled (until we try/need low power)

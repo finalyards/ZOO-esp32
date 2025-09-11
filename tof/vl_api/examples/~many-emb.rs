@@ -42,12 +42,12 @@ use vl_api::{
     Mode::*,
     RangingConfig,
     TargetOrder::*,
-    VL,
+    VL53,
     VLsExt as _,
     FlockResults
 };
 
-include!("./pins_gen.in");  // pins!, boards!
+include!("~pins_gen.rs");  // pins!, boards!
 
 const BOARDS: usize = boards!();
 
@@ -102,8 +102,8 @@ async fn main(spawner: Spawner) {
         info!("Targets powered off and on again.");
     }
 
-    let vls = VL::new_flock(LPns, i2c_shared,
-        |i| I2cAddr::from_7bit(DEFAULT_I2C_ADDR.as_7bit() + i as u8)
+    let vls = VL53::new_flock(LPns, i2c_shared,
+                              |i| I2cAddr::from_7bit(DEFAULT_I2C_ADDR.as_7bit() + i as u8)
     ).unwrap();
 
     info!("Init succeeded");
@@ -141,7 +141,7 @@ async fn main(spawner: Spawner) {
 //
 #[embassy_executor::task]
 #[allow(non_snake_case)]
-async fn ranging(/*move*/ vls: [VL;BOARDS], pin_INT: Input<'static>, snd: DynSender<'static, FRes>) {
+async fn ranging(/*move*/ vls: [VL53;BOARDS], pin_INT: Input<'static>, snd: DynSender<'static, FRes>) {
 
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(), HzU8(10)))

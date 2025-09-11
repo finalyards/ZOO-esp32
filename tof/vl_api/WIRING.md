@@ -22,7 +22,7 @@ This wiring diagram serves both the `vl_api` and `vl_uld` levels.
 |---|---|
 |`INT`|All boards share the same interrupt wire. It's an open drain wire where any of the sensors can pull it down to indicate fresh data. The pulling down stops automatically after 100us.|
 |`LPn{01}`|*"Drive this pin to logic 0 to disable the I2C comms."*<sup>`|1|`</sup><p />In particular, the pin *DOES NOT have anything to do with the Low Power mode, despite its name.* We use it as a chip select, which it is.<p />NOTE: For running a single board, you can leave this pin unconnected (it has a pull-up within the SATEL board).|
-|`PWR_EN`|Drives a power-down reset of the sensor(s); pull low for a reset. You could omit it, but it's more reliable to hard-reset the sensors at the start of each run.|
+|`PWR_EN`|Enables the regulators on the SATEL board. To reset the board, drive it low for 10ms. Note: In SATEL-VL53L8, it is connected to GND, via 100k.|
 |`SCL`, `SDA`|The I2C bus|
 
 <small>

@@ -11,7 +11,7 @@ use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
 
 use esp_backtrace as _;
-use embassy_time as _;  // show it used in Cargo.toml
+//R? use embassy_time as _;  // show it used in Cargo.toml
 
 use core::cell::RefCell;
 
@@ -19,94 +19,75 @@ use embassy_executor::Spawner;
 
 use esp_hal::{
     delay::Delay,
-    gpio::{AnyPin, Input, Level, Output},
+    gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig},
     i2c::master::{Config as I2cConfig, I2c},
-    time::{now, Instant, Duration},
+    time::{Instant, Duration},
     timer::timg::TimerGroup,
     Blocking
 };
-#[cfg(feature = "esp-hal-next")]
-use esp_hal::gpio::{InputConfig, OutputConfig};
-#[cfg(not(feature = "esp-hal-next"))]
-use esp_hal::gpio::{Pull};
 
-#[cfg(feature = "esp-hal-next")]
-use fugit::RateExtU32;
 use static_cell::StaticCell;
 
-extern crate vl53l5cx;
-use vl53l5cx::{
+extern crate vl_api;
+use vl_api::{
     DEFAULT_I2C_ADDR,
     Mode::*,
     RangingConfig,
     SoloResults,
     TargetOrder::*,
     ULD_VERSION,
-    VL,
+    VL53,
     units::*
 };
 
-include!("./pins_gen.in");  // pins!
+include!("../tmp/pins_snippet.in");  // pins!, boards!
 
 static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
 
+const BOARDS_N: usize = boards!();
+
 #[allow(non_snake_case)]
-struct Pins<const BOARDS: usize>{
-    SDA: AnyPin,
-    SCL: AnyPin,
-    PWR_EN: AnyPin,
-    LPns: [AnyPin;BOARDS],
-    INT: AnyPin
+struct Pins<'a>{
+    SDA: AnyPin<'a>,
+    SCL: AnyPin<'a>,
+    PWR_EN: AnyPin<'a>,
+    INT: AnyPin<'a>,
+    SYNC: Option<AnyPin<'a>>,   // 'pins!()' needs the field to exist
+    LPn: [AnyPin<'a>;BOARDS_N]
 }
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-    //init_heap();
-
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
-    let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
+    let Pins{ SDA, SCL, PWR_EN, INT, LPn, .. } = pins!(peripherals);   // not needing 'SYNC'
 
     #[allow(non_snake_case)]
-    #[cfg(feature="esp-hal-next")]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
-    #[allow(non_snake_case)]
-    #[cfg(not(feature="esp-hal-next"))]
-    let mut PWR_EN = Output::new(PWR_EN, Level::Low);
 
     #[allow(non_snake_case)]
-    #[cfg(feature="esp-hal-next")]
-    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low, OutputConfig::default()) });
-    #[allow(non_snake_case)]
-    #[cfg(not(feature="esp-hal-next"))]
-    let mut LPns = LPns.map(|n| { Output::new(n, Level::Low) });
-
-    #[allow(non_snake_case)]
-    #[cfg(feature="esp-hal-next")]
     let INT = Input::new(INT, InputConfig::default());     // no 'Pull'
+
+    // 'LPn's are pulled up within the SATELs (10k on front side of L8 level translator; 4.7k on L5CX),
+    // but it turns out best to just drive them straight (SATEL only uses them as input).
+    //
     #[allow(non_snake_case)]
-    #[cfg(not(feature="esp-hal-next"))]
-    let INT = Input::new(INT, Pull::None);
+    let mut LPns = LPn.map(|pin| {
+        Output::new(pin, Level::Low, OutputConfig::default())   // disabled
+    });
+    let _ = LPns;
+    LPns[0].set_high();     // enable the first board
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    #[cfg(feature = "esp-hal-next")]
     let i2c_cfg = I2cConfig::default()
-        .with_frequency(50.kHz())   // WAS _THIS_ THAT MADE IT???? !===!?!?!?!?!?!??!?! tbd.tbd.-
+        //R .with_frequency(50.kHz())   // WAS _THIS_ THAT MADE IT???? !===!?!?!?!?!?!??!?! tbd.tbd.-
         ;
-    #[cfg(not(feature = "esp-hal-next"))]
-    let i2c_cfg = I2cConfig::default();     // was there a way to steer frequency? doesn't matter
 
-    #[cfg(feature = "esp-hal-next")]
     let i2c_bus = I2c::new(peripherals.I2C0, i2c_cfg)
         .unwrap()
-        .with_sda(SDA)
-        .with_scl(SCL);
-
-    #[cfg(not(feature = "esp-hal-next"))]
-    let i2c_bus = I2c::new(peripherals.I2C0, i2c_cfg)
         .with_sda(SDA)
         .with_scl(SCL);
 
@@ -124,7 +105,7 @@ async fn main(spawner: Spawner) {
     // Enable one of the wired boards. Others remain low.
     LPns[0].set_high();
 
-    let vl = VL::new_and_setup(&i2c_shared, &DEFAULT_I2C_ADDR)
+    let vl = VL53::new_and_setup(&i2c_shared, &DEFAULT_I2C_ADDR)
         .unwrap();
 
     info!("Init succeeded, ULD version {}", ULD_VERSION);
@@ -135,7 +116,7 @@ async fn main(spawner: Spawner) {
 
 #[embassy_executor::task]
 #[allow(non_snake_case)]
-async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
+async fn ranging(/*move*/ vl: VL53, pinINT: Input<'static>) {
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(),HzU8(10)))  // 10.Hz() with 'fugit::Rate'
         .with_target_order(CLOSEST);
@@ -143,7 +124,7 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
     let mut ring = vl.start_ranging(&c, pinINT)
         .expect("ranging to start");
 
-    let t0 = now();
+    let t0 = Instant::now();
     let mut _t = Timings::new();
 
     for _round in 0..10 {
@@ -159,7 +140,7 @@ async fn ranging(/*move*/ vl: VL, pinINT: Input<'static>) {
 
         // tbd. Consider making output a separate task (feed via a channel)
         {
-            info!("Data ({}, {})", temp_degc, (time_stamp-t0).to_millis());
+            info!("Data ({}, {})", temp_degc, (time_stamp-t0).as_millis());
 
             info!(".target_status:    {}", res.target_status);
             #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
@@ -191,18 +172,18 @@ struct Timings {
 
 impl Timings {
     fn new() -> Self {
-        let dummy = Instant::from_ticks(0);
+        let dummy = Instant::EPOCH;
         Self{ t0: dummy, t1: dummy, t2: dummy }
     }
 
     fn t0(&mut self) {
-        self.t0 = now();
+        self.t0 = Instant::now();
     }
     fn results(&mut self) {
-        self.t1 = now();
+        self.t1 = Instant::now();
     }
     fn results_passed(&mut self) {
-        self.t2 = now();
+        self.t2 = Instant::now();
     }
 
     fn report(&mut self) {
@@ -211,7 +192,7 @@ impl Timings {
         let dt2 = self.t2 - self.t1;
 
         fn ms(dur: /*&*/Duration) -> f32 {
-            dur.to_micros() as f32 / 1000.0
+            dur.as_micros() as f32 / 1000.0
         }
 
         debug!("Timing [ms] (total {=f32}): wait+read {}, passing {}", ms(dt_total), ms(dt1), ms(dt2));

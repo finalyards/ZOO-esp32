@@ -30,16 +30,16 @@ vl_uld          = { path = "../vl_uld", features = [] }     # "defmt", "vl53l8cx
 [dev-dependencies]
 defmt-rtt       = { version = "1.0.0" }
 
-embassy-executor = { version = "0.8.0" }
-embassy-sync    = { version = "0.7.1" }
-embassy-time    = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }
+#embassy-executor = { version = "0.9.1" }
+embassy-executor = { version = "0.7.0" }    # tbd. 'esp-hal-embassy' (0.9.0) still depends on 0.7.0
+embassy-sync    = { version = "0.7.2" }
+#embassy-time    = { version = "0.5.0", features = ["defmt", "defmt-timestamp-uptime"] }
 
 esp-alloc       = { version = "0.8.0", default-features = false }   # needed by 'single-emb'; see 'init_heap()'
 esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "defmt", "esp32c6", "semihosting"] }
 esp-hal-embassy = { version = "0.9.0", features = ["defmt", "esp32c6"] }
 
-#R? fugit           = { version = "0.3.7" }     # tbd. still needed, explicitly?
-static_cell     = { version = "2.1.0" }
+static_cell     = { version = "2.1.1" }
 
 [build-dependencies]
 anyhow          = "1.0.99"
@@ -68,7 +68,7 @@ defmt = ["dep:defmt", "vl_uld/defmt", "esp-hal/defmt"]
 
 single = []
 flock = []
-flock_synced = []   # enables the SYNC pin for synchronous scans; L8CX only
+flock_synced = ["flock"]   # enables the SYNC pin for synchronous scans; L8 only
 
 default = []
 
@@ -89,9 +89,9 @@ esp-hal-next = []
 name = "single-emb"
 required-features = ["single", "defmt", "distance_mm"]
 
-[[example]]
-name = "many-emb"
-required-features = ["flock", "defmt", "distance_mm"]
+#|[[example]]
+#|name = "many-emb"
+#|required-features = ["flock", "defmt", "distance_mm"]
 
 # Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
 #|[patch.crates-io]

@@ -181,7 +181,7 @@ tmp/uld_raw8.rs tmp/uld_raw5.rs: wrap58.h tmp/config58.h $(_C_SRC)/vl_api.h $(_C
 	    --allowlist-file wrap58.h \
 	    --allowlist-type 'VL_.+' \
 	    --allowlist-function 'vl_check_data_ready' \
-	    --allowlist-function 'vl_(?:(get)|(set))_external_sync_pin_enable' \
+	    --allowlist-function 'vl_set_external_sync_pin_enable' \
 	    --allowlist-function 'vl_(?:(get)|(set))_power_mode' \
 	    --allowlist-function 'vl_get_ranging_data' \
 	    --allowlist-function 'vl_init' \

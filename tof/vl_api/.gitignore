@@ -1,6 +1,5 @@
 /target/
 
 /.OUT_DIR
+/tmp/
 
-# Generated
-/examples/pins_gen.in

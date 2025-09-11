@@ -300,18 +300,7 @@ dependencies = [
  "critical-section",
  "defmt 0.3.100",
  "document-features",
- "embassy-executor-macros 0.6.2",
-]
-
-[[package]]
-name = "embassy-executor"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f102d5e04befe3ea74b6f41a0e26218740124636eb2f59e1cc215b5839b96df2"
-dependencies = [
- "critical-section",
- "document-features",
- "embassy-executor-macros 0.7.0",
+ "embassy-executor-macros",
 ]
 
 [[package]]
@@ -319,18 +308,6 @@ name = "embassy-executor-macros"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3577b1e9446f61381179a330fc5324b01d511624c55f25e3c66c9e3c626dbecf"
-dependencies = [
- "darling 0.20.11",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "embassy-executor-macros"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfdddc3a04226828316bf31393b6903ee162238576b1584ee2669af215d55472"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
@@ -393,7 +370,6 @@ checksum = "f820157f198ada183ad62e0a66f554c610cdcd1a9f27d4b316358103ced7a1f8"
 dependencies = [
  "cfg-if",
  "critical-section",
- "defmt 0.3.100",
  "document-features",
  "embassy-time-driver",
  "embedded-hal 0.2.7",
@@ -417,7 +393,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc55c748d16908a65b166d09ce976575fb8852cf60ccd06174092b41064d8f83"
 dependencies = [
- "embassy-executor 0.7.0",
+ "embassy-executor",
  "heapless",
 ]
 
@@ -622,7 +598,7 @@ dependencies = [
  "critical-section",
  "defmt 1.0.1",
  "document-features",
- "embassy-executor 0.7.0",
+ "embassy-executor",
  "embassy-sync 0.6.2",
  "embassy-time",
  "embassy-time-driver",
@@ -1336,9 +1312,9 @@ checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.18"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
 
 [[package]]
 name = "unsafe-libyaml"
@@ -1366,9 +1342,8 @@ dependencies = [
  "arrayvec",
  "defmt 1.0.1",
  "defmt-rtt",
- "embassy-executor 0.8.0",
+ "embassy-executor",
  "embassy-sync 0.7.2",
- "embassy-time",
  "esp-alloc",
  "esp-backtrace",
  "esp-hal",
@@ -1389,7 +1364,9 @@ dependencies = [
  "esp-hal",
  "esp-println",
  "itertools",
+ "serde",
  "strum",
+ "toml",
 ]
 
 [[package]]
