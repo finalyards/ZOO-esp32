@@ -46,6 +46,7 @@ static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
 
 const BOARDS_N: usize = boards!();
 
+#[allow(dead_code)]     // allow 'SYNC' to not be used
 #[allow(non_snake_case)]
 struct Pins<'a>{
     SDA: AnyPin<'a>,

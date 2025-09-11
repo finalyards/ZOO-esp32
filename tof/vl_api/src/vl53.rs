@@ -43,17 +43,24 @@ impl VL53 {
         i2c_addr: &I2cAddr
     ) -> Result<Self> {
 
-        // Note: It seems the VL53L5CX doesn't retain its I2C address. Thus, we start each session
-        //      by not only initializing the firmware (in '.init()') but also from the default I2C
-        //      address. tbd. CONFIRM!!
+        // The VL53L5CX doesn't retain its I2C address. Thus, we start each session by initializing
+        // the firmware using the default I2C address, then changing to the requested one.
         //
         let pl = Pl::new(i2c_shared);
 
         let mut uld = VL53_ULD::new_with_ping(pl)?.init()?;
 
+        // Also, we can let the board know here, whether SYNC pin should be enabled. This affects
+        // the "autonomous" scan cycles. The abstraction taken in the 'vl_api' is to go all-or-nothing
+        // for the SYNC. This makes sense since it's a matter of physical wiring. Only applicable
+        // when we have multiple boards to drive (that's an assumption; please prove it wrong;
+        // the ULD level doesn't place such limitations, only us).
+        //
+        #[cfg(all(feature="flock_synced", feature = "vl53l8cx"))]
+        uld.set_sync_pin_enable(true)?;
+
         let a = i2c_addr;
         if *a != DEFAULT_I2C_ADDR {
-            debug!("!!!! calling set_i2c_address: {}", a);
             uld.set_i2c_address(a)?;     // tbd. '.as_8bit()' if public
         }
         debug!("Board now reachable as: {}", i2c_addr);

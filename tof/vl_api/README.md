@@ -28,7 +28,7 @@ See that you've wired the board like in [WIRING.md](./WIRING.md).
 ### Single board
 
 ```
-$ cargo build --release --features=single,distance_mm,defmt,vl53l8cx --example single-emb
+$ cargo run --release --features=single,distance_mm,defmt,vl53l8cx --example single-emb
 ```
 
 >To use the example against VL53L5CX board, you'll naturally change the feature to `vl53l5cx`. These features steer the underlying `vl_uld` library and enable/disable some sensor specific features (e.g. only L8 has the `SYNC` pin for syncing multisensor scans).
