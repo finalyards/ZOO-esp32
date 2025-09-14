@@ -70,20 +70,21 @@ ambient_per_spad=[]     # VL_DISABLE_AMBIENT_PER_SPAD
 nb_spads_enabled=[]     # VL_DISABLE_NB_SPADS_ENABLED
 signal_per_spad=[]      # VL_DISABLE_SIGNAL_PER_SPAD
 range_sigma_mm=[]       # VL_DISABLE_RANGE_SIGMA_MM
-distance_mm=[]          # VL_DISABLE_DISTANCE_MM
+#Rdistance_mm=[]          # VL_DISABLE_DISTANCE_MM
 reflectance_percent=[]  # VL_DISABLE_REFLECTANCE_PERCENT
 
-# Keep always enabled. You need it to know which results are valid.
-target_status = []      # VL_DISABLED_TARGET_STATUS
+# Recommended to keep enabled; you'll need this for gaining insight to the reliability of the results.
+#Rtarget_status = []      # VL_DISABLED_TARGET_STATUS
 
-# Automatically enabled when having multiple zones.
-nb_targets_detected=[]  # VL_DISABLE_NB_TARGET_DETECTED
+#Rnb_targets_detected=[]  # VL_DISABLE_NB_TARGET_DETECTED (but C-level enabling is decided by 'targets_per_zone_{2..4}')
 
 # The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
 # If you want to see more, enable these:
-targets_per_zone_2=["nb_targets_detected"]
-targets_per_zone_3=["nb_targets_detected"]
-targets_per_zone_4=["nb_targets_detected"]
+targets_per_zone_2=["_multi"]
+targets_per_zone_3=["_multi"]
+targets_per_zone_4=["_multi"]
+
+_multi=[]   # internal; multiple targets requested (some data will be marked as MISSING)
 
 # Note: keep the feature properly named (not '_defmt'); outside use might decide to build the lib without 'defmt'.
 defmt = ["dep:defmt",
@@ -96,7 +97,7 @@ defmt = ["dep:defmt",
 # Provide interfacing to 'esp_hal::time::Rate'
 esp_hal_api = ["dep:esp-hal"]
 
-default = ["target_status"]
+default = []
 
 # Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
 esp-hal-next = []
@@ -112,7 +113,7 @@ run_with_probe_rs = ["defmt", "dep:defmt-rtt"]
 #
 [[example]]
 name = "m3"
-required-features = ["distance_mm"]   # + "targets_per_zone_{2..4}"
+required-features = []
 
 [[test]]
 name = "plain_test"

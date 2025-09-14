@@ -1,17 +1,17 @@
-# Zoo - Drivers for Embedded Rust
-
-<img width="70%" src=".images/zoo-cover-1%20(storybook).png" />
+# Drivers for Embedded Rust
 
 <!--
-![](.images/zoo-cover-2%20(hackathon).png)
+<img width="70%" src=".images/zoo-cover-1%20(storybook).png" />
 -->
+
+<img width="60%" src=".images/zoo-cover-2%20(hackathon).png" />
 
 <!-- ideas: on the storybook image, capacitors could be changed to motors, once BLDC support is factually there.
 -->
 
-Welcome to a small collection of drivers for Embedded [Rust](https://www.rust-lang.org) - especially [Embassy](https://embassy.dev) - users!
+Welcome to a small collection of drivers for Embedded [Rust](https://www.rust-lang.org) - especially [Embassy](https://embassy.dev)!
 
-If you're like me, you might have spent time:
+If you're like the author, you might have spent time:
 
 - selecting the right part(s)
    - considering availability, price, features
@@ -36,13 +36,15 @@ In short, `async` is GREAT!!! Making async code allows concurrency to be coded a
 |![](.images/about/vl53l8.jpg) ![](.images/about/vl53l5cx.jpg)|[`tof/vl_uld`](tof/vl53l5cx_uld/README.md)|Time-of-flight distance sensors; 4x4 (60Hz) or 8x8 (15Hz)|beta|VL53L8 and VL53L5CX sensors supported, over I2C bus|
 |**Comms**|
 |![](.images/about/ble.png)|[`comms/ble`](comms/ble/README.md)|Working as custom Bluetooth (BLE) service|alpha||
-||[`comms/extras/ble-web-app`](comms/extras/ble-web-app/README.md)|Web app for interfacing with the sample BLE service|--||
 |**Development kits**|
 |![](.images/about/devkit.png)|[`devkit/rgb`](devkit/rgb/README.md)|RGB LED|WIP||
 ||[`devkit/button`](devkit/button/README.md)|Button|--||
 |**DC&nbsp;motor&nbsp;controllers&nbsp;(brushed)**|
 |![](.images/about/drv8871.png)|[`dc-motors/drv8871`](dc-motors/drv8871/README.md)|Controller for brushed (simple) DC motors - 6.5..45V, 3.6A max|WIP||
 
+<!--
+||[`comms/extras/ble-web-app`](comms/extras/ble-web-app/README.md)|Web app for interfacing with the sample BLE service|--||
+-->
 
 ### Folder structure
 

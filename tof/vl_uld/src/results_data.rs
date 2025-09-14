@@ -1,10 +1,11 @@
 /*
-* Convert data received from the ULD C API to more.. robust formats:
+* Convert data received from the ULD C API to more easy-to-use formats:
 *   - 1D vectors -> 2D matrices
 *   - integers -> enums or tuple structs
-*   - some squeezing of type safety, e.g. negative 'distance_mm's not accepted
+*   - '.nb_targets_detected', '.distance_mm' and '.target_status' merged into one, "measurement"
+*       enum, making use of the data easier - without losing any of its details!!!
 *
-* Note: It is by design that these conversions happen already at the ULD level.
+* It is by design that these conversions happen already at the ULD level.
 *
 * Note: Many of the individual data are steered by features. These go all the way to the C level:
 *       disabling a feature means less driver code, less data to transfer.
@@ -15,7 +16,7 @@
 */
 #[cfg(feature = "defmt")]
 #[allow(unused_imports)]
-use defmt::{assert, panic};
+use defmt::{assert, debug, panic, warn};
 
 use crate::uld_raw::{
     VL_ResultsData,
@@ -45,15 +46,16 @@ pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     pub ambient_per_spad: [[u32; DIM]; DIM],
     #[cfg(feature = "nb_spads_enabled")]
     pub spads_enabled: [[u32; DIM]; DIM],
-    #[cfg(feature = "nb_targets_detected")]
-    pub targets_detected: [[u8; DIM]; DIM],     // 1..{X in 'targets_per_zone_X' feature}
+    //R #[cfg(feature = "nb_targets_detected")]
+    //R pub targets_detected: [[u8; DIM]; DIM],     // 1..{X in 'targets_per_zone_X' feature}
 
     // Actual results: DIMxDIMxTARGETS
-    #[cfg(feature = "target_status")]
-    pub target_status: [[[TargetStatus; DIM]; DIM]; TARGETS],
+    //#[cfg(feature = "target_status")]
+    //pub target_status: [[[TargetStatus; DIM]; DIM]; TARGETS],
 
-    #[cfg(feature = "distance_mm")]
-    pub distance_mm: [[[u16; DIM]; DIM]; TARGETS],
+    //#[cfg(feature = "distance_mm")]
+    //pub distance_mm: [[[u16; DIM]; DIM]; TARGETS],
+    pub meas: [[[Meas; DIM]; DIM]; TARGETS],
     #[cfg(feature = "range_sigma_mm")]
     pub range_sigma_mm: [[[u16; DIM]; DIM]; TARGETS],
 
@@ -75,8 +77,8 @@ impl<const DIM: usize> ResultsData<DIM> {
             ambient_per_spad: [[0;DIM];DIM],
             #[cfg(feature = "nb_spads_enabled")]
             spads_enabled: [[0;DIM];DIM],
-            #[cfg(feature = "nb_targets_detected")]
-            targets_detected: [[0;DIM];DIM],
+            //R #[cfg(feature = "nb_targets_detected")] // these could be gone from the API
+            //R targets_detected: [[0;DIM];DIM],
 
             #[cfg(feature = "target_status")]
             target_status: [[[TargetStatus::NoTarget;DIM];DIM];TARGETS],
@@ -99,7 +101,7 @@ impl<const DIM: usize> ResultsData<DIM> {
         //validate_raw(raw_results);  // panics if input not according to expectations
 
         let mut x: Self = {
-            let un = MaybeUninit::<Self>::uninit();
+            let un = MaybeUninit::<Self>::zeroed(); // tbd. 'uninit', when things work, again
             unsafe { un.assume_init() }
         };
 
@@ -141,6 +143,17 @@ impl<const DIM: usize> ResultsData<DIM> {
                 }
             }
         }
+        #[allow(dead_code)]
+        fn into_matrix_map_o_pos<IN: Copy, OUT, const DIM: usize>(raw: &[IN], offset: usize, out: &mut [[OUT; DIM]; DIM], f: impl Fn(IN, usize) -> OUT) {
+            let raw = &raw[..DIM * DIM * TARGETS];      // take only the beginning of the C buffer
+
+            for r in 0..DIM {
+                for c in 0..DIM {
+                    let x: usize = r * DIM + c;
+                    out[r][c] = f(raw[x*TARGETS + offset], x);
+                }
+            }
+        }
         #[inline]
         #[allow(dead_code)]
         fn into_matrix_o<X: Copy, const DIM: usize>(raw: &[X], offset: usize, out: &mut [[X; DIM]; DIM]) {     // no mapping
@@ -164,21 +177,179 @@ impl<const DIM: usize> ResultsData<DIM> {
         into_matrix(&rr.ambient_per_spad, &mut self.ambient_per_spad);
         #[cfg(feature = "nb_spads_enabled")]
         into_matrix(&rr.nb_spads_enabled, &mut self.spads_enabled);
-        #[cfg(feature = "nb_targets_detected")]
-        into_matrix(&rr.nb_target_detected, &mut self.targets_detected);
+
+        //R#[cfg(feature = "nb_targets_detected")]
+        //Rinto_matrix(&rr.nb_target_detected, &mut self.targets_detected);
+
+        //R Validity check: expect '.nb_target_detected' to be always >= 1.
+        #[cfg(false)]   //R disabled; conversion does it, below
+        {
+            let raw = &rr.nb_target_detected[..DIM * DIM];  // take only the beginning of the C buffer
+
+            for r in 0..DIM {
+                for c in 0..DIM {
+                    let v = raw[r*DIM+c];
+                    assert!( v>0, "Unexpected: no target detected!");
+                }
+            }
+        }
 
         // Results: DIMxDIMxTARGETS
         //
         for i in 0..TARGETS {
-            #[cfg(feature = "target_status")]
-            into_matrix_map_o(&rr.target_status, i, &mut self.target_status[i], TargetStatus::from_uld);
 
-            // We tolerate '.distance_mm' == 0 for non-existing data (where '.target_status' is 0); no need to check.
+            // DEBUG: print out data; this advances our understanding of it!
+            //          See -> 'DEVS/Data analysis.md'
+            //#[cfg(false)]
+            {
+                use core::mem::MaybeUninit;
+
+                let r_nb = &rr.nb_target_detected[..DIM * DIM];
+                let r_dist = &rr.distance_mm[..DIM * DIM * TARGETS];
+                let r_ts = &rr.target_status[..DIM * DIM * TARGETS];
+
+                // Output data that's the same for all targets.
+                if i==0 {
+                    defmt::trace!("\n\tnb_target_detected: {}\n\tRAW distance_mm: {}\n\tRAW target_status: {}", r_nb, r_dist, r_ts);
+                }
+
+                // Collect the current target's data (they are scattered; cannot use slicing)
+                //
+                // Rust doesn't allow 'DIM*DIM' to be used (since template param), but we know
+                // the debugging happens with 'DIM'==4.
+                //
+                // To be safe, make then 64 long; slicing will only expose the necessary part!
+                //
+                let mut dist_buf: [i16;64] = unsafe { MaybeUninit::zeroed().assume_init() };
+                let mut ts_buf: [u8;64] = unsafe { MaybeUninit::zeroed().assume_init() };
+
+                for r in 0..DIM {
+                    for c in 0..DIM {
+                        let v = r_dist[(r*DIM+c)*TARGETS + i];
+                        dist_buf[r*DIM+c] = v;
+
+                        let v = r_ts[(r*DIM+c)*TARGETS + i];
+                        ts_buf[r*DIM+c] = v;
+                    }
+                }
+
+                // Target specific data
+                defmt::trace!("\n\tdistance_mm (#{}): {}\n\ttarget_status: {}", i, dist_buf[..DIM*DIM], ts_buf[..DIM*DIM]);
+            }
+
+            //R #[cfg(feature = "target_status")]
+            //R into_matrix_map_o(&rr.target_status, i, &mut self.target_status[i], TargetStatus::from_uld);
+
+            // REMOVE, since if pointing at the sky, there shouldn't be any measurements even for
+            // the first target.
             //
-            #[cfg(feature = "distance_mm")]
-            into_matrix_map_o(&rr.distance_mm, i, &mut self.distance_mm[i],
-            |v: i16| -> u16 {
-                assert!(v >= 0, "Unexpected 'distance_mm' value: {} < 0", v); v as u16
+            /***R
+            #[cfg(all(not(feature = "_multi"), feature = "distance_mm"))]
+            into_matrix_map_o_pos(&rr.distance_mm, i, &mut self.distance_mm[i],
+                |v: i16, pos: usize| -> u16 {
+                      assert!(TARGETS == 1);
+                      let i2: usize = pos*TARGETS + i;    // index for per-target data ('target_status')
+                      let i3: usize = pos + i;            // index for meta data
+
+                      let target_status = rr.target_status[i2];
+                      let detected = rr.nb_target_detected[i3];
+
+                      assert!(detected == 1 ||false, "No detection in single-target mode");
+                      assert!(v > 0, "Unexpected value (single target mode): {} <= 0", v);
+
+                      match target_status {
+                          //...|... => {} // seen; ok
+                          5|6|9 => {}  // valid and semi-valid
+                          x => {
+                              warn!("Unseen '.target_status' (single target mode): {}", x);
+                          }
+                      };
+
+                      v as u16
+                  });***/
+
+            // '.meas[]' gets always filled
+            into_matrix_map_o_pos(&rr.distance_mm, i, &mut self.meas[i],
+            |v: i16, pos: usize| -> Meas {
+                // L5CX: keeps the values >= 0.
+                // L8: also provides negative values, at times.
+                //
+                #[cfg(feature = "vl53l5cx")]
+                assert!(v >= 0, "Unexpected '.distance_mm' value: {} < 0", v);
+
+                let i2: usize = pos*TARGETS + i;    // index for per-target data ('target_status')
+                let i3: usize = pos + i;            // index for meta data
+
+                let target_status = rr.target_status[i2];
+                let detected = rr.nb_target_detected[i3];
+
+                let /*mut*/ ret: Meas;
+
+                if (i as u8) < detected {     // "target detected"
+                    // Expecting target status:
+                    //      5:   good measurement, (valid '.distance_mm' > 0)
+                    //      6|9: semi-valid measurement ("50%" trust; '.distance_mm' > 0)
+                    //      ...: invalid measurement ("0%" trust; '.distance_mm' > 0)
+                    //
+                    // Other status (seen):
+                    //      ...tbd.
+                    //
+                    ret = match (target_status,v > 0) {
+                        (5,true) => {
+                            Meas::Valid(v as u16)
+                        },
+                        (x@ 6|x @ 9,true) => {
+                            Meas::SemiValid(v as u16, x)
+                        },
+                        (x,_) => {
+                            Meas::Invalid(v,x)
+                        },
+                    };
+
+                    // tbd. move this to a later stage; going through all >1 targets (with direct
+                    //      indices to the results).  Turn those into their own type of result.
+                    //
+                    // Warn, if difference to the previous target is < 600mm. This occurs in data,
+                    // but is against the hardware specs.
+                    //
+                    /***
+                    if i>0 {
+                        match ret {
+                            Meas::Valid(..) | Meas::SemiValid(..) => {  // target_status: 5|6|9, have value in 'v'
+                                let v_prior = rr.distance_mm[pos*TARGETS + (i-1)];
+                                let
+
+                                let diff = v-v_prior;
+                                if diff < 600 {
+                                    warn!("Measurements from adjacent targets (same zone) less than 60cm apart: {} < 600\n\tprior: {}\n\tthis: {}", diff, v_prior, v);
+                                }
+                                // tbd. can set 'ret' here, if we want to invalidate it...
+                            },
+                            Meas::Invalid(..) | Meas::Error(..) => {}
+                        }
+                    }***/
+
+                    ret
+
+                } else {    // missing target (but '.target_status' and '.distance_mm' can still show to be surprisingly vibrant!)
+
+                    // 'target_status' seen on such data:
+                    //      0: "not updated"
+                    //      2: "target phase"
+                    //      4: "target consistency failed"
+                    //
+                    match target_status {
+                        5|6|9 => {  // very weird, if 'valid', 'semi-valid' target status occurs when not a "detected target". Isn't it...
+                            warn!("Valid or semi-valid measurement ({}, {}), but doesn't fit a \"detected target\": offset {} is beyond {}.",
+                                target_status, v, i, detected);
+
+                            Meas::Error(v,target_status, Comment::TargetStatusButNoTarget)
+                        }
+                        x => {
+                            Meas::Invalid(v,x)
+                        }
+                    }
+                }
             });
             #[cfg(feature = "range_sigma_mm")]
             into_matrix_o(&rr.range_sigma_mm, i, &mut self.range_sigma_mm[i]);
@@ -201,40 +372,68 @@ impl<const DIM: usize> ResultsData<DIM> {
 //      application code doesn't need to deal with integers. Where multiple choices exist, they
 //      are provided  as the inner values.
 //
+// Note: Adding 'Invalid' was an author's choice (to be argued), based on *observing live data*.
+//      We can aim at grouping the "other" fields in such ways, if it brings any application level
+//      benefits / understanding to the data. The fact is that such error numbers reveal too much
+//      of the inner workings of the sensor, and may be best to be left at that - as debugging
+//      tools for the vendor's engineers.
+//
+#[cfg(false)]
 #[derive(Copy, Clone, Debug)]       // 'Clone' needed for 'ResultsData' to be cloneable.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TargetStatus {
-    NotUpdated,         // 0    "Ranging data are not updated" (O)
-    Valid,              // 5    "Range valid" = 100% valid
+    Valid,              // 5    ✅"Range valid" = 100% valid
     SemiValid(u8),      // 6    "Wrap around not performed (typically the first range)"
-                        // 9    "Range valid with large pulse (may be due to a merged target)"
-    NoTarget,           // 255  "No target detected (only if number of targets detected is enabled)"
-    Error(u8),          // 1    "Signal rate too slow on SPAD array"
-                        // 2    "Target phase"
+                        // 9    ✅"Range valid with large pulse (may be due to a merged target)"
+    Invalid(u8),        // 2    ✅"Target phase"
+                        // 4    ✅"Target consistency failed"
+    //NotUpdated,         // 0    ✅"Ranging data are not updated"
+    //NoTarget,           // 255  "No target detected (only if number of targets detected is enabled)"
+    Other(u8),          // 1    "Signal rate too slow on SPAD array"
                         // 3    "Sigma estimator too high"
-                        // 4    "Target consistency failed" (O)
                         // 7    "Rate consistency failed"
                         // 8    "Signal rate too low for the current target"
                         // 10   "Range valid, but no target detected at previous range"
                         // 11   "Measurement consistency failed"
                         // 12   "Target blurred by another one, due to sharpener"
-                        // 13   "Target detected but inconsistent data. Frequently happens for secondary targets." (O)
+                        // 13   ✅"Target detected but inconsistent data. Frequently happens for secondary targets."
                         //
-                        //      (O): Observed in wild
+                        //      ✅: Observed in wild
 }
 
+#[cfg(false)]
 impl TargetStatus {
     fn from_uld(v: u8) -> Self {
         match v {
-            0 => { Self::NotUpdated }
             5 => { Self::Valid },
             6 | 9 => { Self::SemiValid(v) },
-            255 => { Self::NoTarget },
-            ..=13 => { Self::Error(v) },
-            v => panic!("Unexpected value {} for target status", v),
+            2 | 4 => { Self::Invalid(v) },
+            //0 => { Self::NotUpdated }
+            //255 => { Self::NoTarget },
+            ..=13|255 => { Self::Other(v) },
+            x => panic!("Unexpected target status: {}", x),
         }
     }
 }
+
+#[derive(Copy, Clone, Debug)]       // 'Clone' needed for 'ResultsData' to be cloneable.
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Meas {
+    Valid(u16),                 // 100% confidence (has target; target status = 5)
+    SemiValid(u16, u8),         // 50% confidence (has target; target status = 6|9)
+    Invalid(i16, u8),           // 0% confidence (all the rest):
+                                //  - distance may be 0 or negative (do not use!)
+                                //  - target status = anything but the above (not 5|6|9)
+    Error(i16, u8, Comment)     // Things the application can either ignore, or report as data errors!
+}
+
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Comment {
+    TargetStatusButNoTarget,     // target "not detected"; target_status = 5|6|9; v not checked
+    TargetsTooClose             // two "detected targets", but values < 600mm apart
+}
+
 
 /***R
 /*
@@ -288,9 +487,7 @@ fn validate_raw<const DIM: usize>(rr: &VL_ResultsData) {
     //      [INFO ] .targets_detected: [[1, 1, 2, 2], [1, 1, 1, 1], [1, 1, 1, 1], [1, 2, 2, 1]]
     //  <<
     //
-    // Q: Can this ever be zero?
-    //
-    #[cfg(feature = "nb_targets_detected")]
+    //R #[cfg(feature = "nb_targets_detected")]
     assert_matrix(&rr.nb_target_detected, |x| => { assert_gt(x, 0, "'.nb_target_detected' == 0"); });
 
     // Results: DIMxDIMxTARGETS

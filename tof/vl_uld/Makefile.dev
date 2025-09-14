@@ -32,7 +32,7 @@ REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
 	# riscv32imac-unknown-none-elf
 
-ALL_FEATURES:=ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent
+ALL_FEATURES:=ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,reflectance_percent
 
 # Detect 'cargo' build cache
 #

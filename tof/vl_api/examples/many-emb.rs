@@ -6,7 +6,6 @@
 
 #![allow(for_loops_over_fallibles)]
 
-use core::alloc;
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
@@ -27,7 +26,7 @@ use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Input, Output, InputConfig, OutputConfig, Level, Pull},
     i2c::master::{Config as I2cConfig, I2c},
-    time::{now, Instant, Duration},
+    time::{Instant, Duration, Rate},
     timer::timg::TimerGroup,
     Blocking
 };
@@ -38,72 +37,81 @@ extern crate vl_api;
 use vl_api::{
     units::*,
     DEFAULT_I2C_ADDR,
+    FlockResults,
     I2cAddr,
     Mode::*,
     RangingConfig,
     TargetOrder::*,
     VL53,
     VLsExt as _,
-    FlockResults
 };
 
-include!("~pins_gen.rs");  // pins!, boards!
-
-const BOARDS: usize = boards!();
+include!("../tmp/pins_snippet.in");  // pins!
 
 const RESO: usize = 4;
 type FRes = FlockResults<RESO>;
 
 static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
 
+//const BOARDS_N: usize = boards!();
+
+#[allow(non_upper_case_globals)]
+const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
+
 #[allow(non_snake_case)]
-struct Pins<const BOARDS: usize>{
-    SDA: AnyPin,
-    SCL: AnyPin,
-    PWR_EN: AnyPin,
-    LPns: [AnyPin;BOARDS],
-    INT: AnyPin
+struct Pins<'a, const BOARDS: usize>{
+    SDA: AnyPin<'a>,
+    SCL: AnyPin<'a>,
+    PWR_EN: AnyPin<'a>,
+    INT: AnyPin<'a>,
+    SYNC: Option<AnyPin<'a>>,
+    LPn: [AnyPin<'a>;BOARDS],
 }
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
-    let o_low_cfg = OutputConfig::default().with_level(Level::Low);
-    let i_pull_none_cfg = InputConfig::default().with_pull(Pull::None);
+    //R? let o_low_cfg = OutputConfig::default().with_level(Level::Low);
+    //R let i_no_pull = InputConfig::default().with_pull(Pull::None);
 
     #[allow(non_snake_case)]
-    let Pins{ SDA, SCL, PWR_EN, LPns, INT } = pins!(peripherals);
+    let Pins{ SDA, SCL, PWR_EN, INT, SYNC, LPn } = pins!(peripherals);
+
+    //R const _BOARDS: usize = LPns.length;
 
     #[allow(non_snake_case)]
-    let mut PWR_EN = Output::new(PWR_EN, o_low_cfg).unwrap();
+    let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
+
     #[allow(non_snake_case)]
-    let LPns = LPns.map(|n| { Output::new(n, o_low_cfg).unwrap() });
+    let INT = Input::new(INT, InputConfig::default());  // no pull
+
     #[allow(non_snake_case)]
-    let INT = Input::new(INT, i_pull_none_cfg).unwrap();
+    let LPn = LPn.map(|pin| { Output::new(pin, Level::Low, OutputConfig::default()) });
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default())
-        .unwrap()
-        .with_sda(SDA)
-        .with_scl(SCL);
+    let i2c_shared: &'static RefCell<I2c<Blocking>> = {
+        let i2c_bus = I2c::new(peripherals.I2C0, I2cConfig::default().with_frequency(I2C_SPEED))
+            .unwrap()
+            .with_sda(SDA)
+            .with_scl(SCL);
 
-    let tmp = RefCell::new(i2c_bus);
-    let i2c_shared: &'static RefCell<I2c<Blocking>> = I2C_SC.init(tmp);
-        // tbd. wrap those?
+        let tmp = RefCell::new(i2c_bus);
+        I2C_SC.init(tmp)
+    };
 
-    // Reset VL53L5CX's by pulling down their power for a moment
+    // Reset VL53's by pulling down their power for a moment
     {
         PWR_EN.set_low();
-        blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
+        blocking_delay_ms(10);      // L5CX: 10ms based on UM2884 Rev. 6, Chapter 4.2
         PWR_EN.set_high();
         info!("Targets powered off and on again.");
     }
 
-    let vls = VL53::new_flock(LPns, i2c_shared,
-                              |i| I2cAddr::from_7bit(DEFAULT_I2C_ADDR.as_7bit() + i as u8)
+    let vls = VL53::new_flock(LPn, i2c_shared,
+                |i| I2cAddr::from_7bit(DEFAULT_I2C_ADDR.as_7bit() + i)
     ).unwrap();
 
     info!("Init succeeded");

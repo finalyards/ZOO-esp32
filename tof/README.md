@@ -52,6 +52,7 @@ This library provides the Rust/C interfacing, and some other goodies for providi
 
 - matrices instead of linear vectors
 - enums instead of magic integer values
+- missing values marked, without need to cross-reference matrices (applies to reading multiple targets)
 
 In order to build this library, you need to provide it a copy of the vendor's ULD library.
 

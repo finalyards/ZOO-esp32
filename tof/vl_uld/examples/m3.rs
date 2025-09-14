@@ -14,7 +14,13 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;
 
-use esp_hal::{delay::Delay, gpio, gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig}, i2c::master::{Config as I2cConfig, I2c}, main, time::{Instant, Rate}};
+use esp_hal::{
+    delay::Delay,
+    gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig},
+    i2c::master::{Config as I2cConfig, I2c},
+    main,
+    time::{Instant, Rate}
+};
 
 extern crate vl_uld as uld;
 use uld::{
@@ -63,47 +69,6 @@ const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
 //?? #[cfg(feature="run_with_espflash")]
 //?? esp_bootloader_esp_idf::esp_app_desc!();
 
-#[cfg(false)]
-fn main3() -> Result<()> {
-    use esp_hal::gpio::{DriveMode, Pull};
-
-    let peripherals = esp_hal::init(esp_hal::Config::default());
-
-    // Drive PWR_EN up; otherwise no IOVdd to raise the LPn.
-    #[allow(non_snake_case)]
-    let _PWR_EN = {
-        let ret = Output::new(peripherals.GPIO18, Level::High, OutputConfig::default());
-        info!("PWR_EN pulled up.");
-        ret
-    };
-
-    // Measure voltages here - 3v3, 1v8, IOVdd
-
-    let c_drain: OutputConfig = OutputConfig::default()
-        .with_drive_mode(DriveMode::OpenDrain);     // SATEL has external pull-up resistor
-
-    // Loop, changing GPIO21 (LPn) between High/Low
-    //let mut PIN = Output::new(peripherals.GPIO21, Level::High, OutputConfig::default());  // works
-    let mut PIN = Output::new(peripherals.GPIO21, Level::High, c_drain);
-
-    debug!("Initial state should be: UP");
-    blocking_delay_ms(5000);
-
-    let mut up: bool = true;
-    loop {
-        blocking_delay_ms(2600);
-
-        if up {
-            PIN.set_low();
-            debug!("DOWN");
-        } else {
-            PIN.set_high();
-            debug!("UP");
-        }
-        up = !up;
-    }
-}
-
 fn main2() -> Result<()> {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
@@ -151,22 +116,18 @@ fn main2() -> Result<()> {
         })
     };
     #[allow(non_snake_case)]
-    let LPn: [Output;BOARDS_N] = {  // PUSH/PULL
+    let mut LPn: [Output;BOARDS_N] = {  // PUSH/PULL
         let c: OutputConfig = OutputConfig::default();
 
-        // Note! Tried with (fancier) '.iter().enumerate().map(|i,pin|)', but that complexity
+        //R Note! Tried with (fancier) '.iter().enumerate().map(|i,pin|)', but that complexity
         //      isn't well suited to 'AnyPin', 'OutputPin'. It causes a reference ('&AnyPin') to
         //      be taken, and dealing with that causes errors, no matter which way you take.
         //      'impl OutputPin' is defined for 'AnyPin', but not for '&AnyPin'.
         //
-        let mut i=0;
         LPn.map(|pin| {
-            let x = Output::new(pin, if i==0 {Level::High} else {Level::Low}, c);
-            i += 1;
-            x
+            Output::new(pin, Level::Low, c)
         })
     };
-    let _ = LPn;
 
     let pl = {
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()
@@ -180,6 +141,8 @@ fn main2() -> Result<()> {
         MyPlatform::new(i2c_bus)
     };
 
+    info!("I2C speed: {}", I2C_SPEED);
+
     // Reset VL53(s) by pulling down their power for a moment
     {
         PWR_EN.set_low();
@@ -188,6 +151,7 @@ fn main2() -> Result<()> {
         PWR_EN.set_high();
         info!("Target powered off and on again.");
     }
+    LPn[0].set_high();
 
     let vl = VL53::new_with_ping(pl)?.init()?;
 
@@ -217,7 +181,7 @@ fn main2() -> Result<()> {
     let mut ring = vl.start_ranging(&c)
         .expect("to start ranging");
 
-    for round in 0..3 {
+    for round in 0..23 {    // ..3
         let t0= Instant::now();
 
         // wait for 'INT' to fall
@@ -237,10 +201,12 @@ fn main2() -> Result<()> {
 
         info!("Data #{} ({})", round, temp_degc);
 
-        #[cfg(feature = "target_status")]
-        info!(".target_status:    {}", res.target_status);
-        #[cfg(feature = "nb_targets_detected")]
-        info!(".targets_detected: {}", res.targets_detected);
+        info!("        {}", res.meas);
+
+        //R #[cfg(feature = "target_status")]
+        //R info!(".target_status:    {}", res.target_status);
+        //R #[cfg(feature = "nb_targets_detected")]
+        //R info!(".targets_detected: {}", res.targets_detected);
 
         #[cfg(feature = "ambient_per_spad")]
         info!(".ambient_per_spad: {}", res.ambient_per_spad);
@@ -250,8 +216,8 @@ fn main2() -> Result<()> {
         info!(".signal_per_spad:  {}", res.signal_per_spad);
         #[cfg(feature = "range_sigma_mm")]
         info!(".range_sigma_mm:   {}", res.range_sigma_mm);
-        #[cfg(feature = "distance_mm")]
-        info!(".distance_mm:      {}", res.distance_mm);
+        //R #[cfg(feature = "distance_mm")]
+        //R info!(".distance_mm:      {}", res.distance_mm);
         #[cfg(feature = "reflectance_percent")]
         info!(".reflectance:      {}", res.reflectance);
     }

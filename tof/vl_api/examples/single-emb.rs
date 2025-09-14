@@ -10,8 +10,8 @@
 use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
 
-use esp_backtrace as _;
-//R? use embassy_time as _;  // show it used in Cargo.toml
+use esp_backtrace as _;     // needed for the panic handler to actually kick in
+use embassy_time as _;      // show it used in Cargo.toml
 
 use core::cell::RefCell;
 
@@ -21,7 +21,7 @@ use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig},
     i2c::master::{Config as I2cConfig, I2c},
-    time::{Instant, Duration},
+    time::{Instant, Duration, Rate},
     timer::timg::TimerGroup,
     Blocking
 };
@@ -30,14 +30,14 @@ use static_cell::StaticCell;
 
 extern crate vl_api;
 use vl_api::{
+    units::*,
     DEFAULT_I2C_ADDR,
     Mode::*,
     RangingConfig,
     SoloResults,
     TargetOrder::*,
-    ULD_VERSION,
+    //ULD_VERSION,
     VL53,
-    units::*
 };
 
 include!("../tmp/pins_snippet.in");  // pins!, boards!
@@ -45,6 +45,9 @@ include!("../tmp/pins_snippet.in");  // pins!, boards!
 static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
 
 const BOARDS_N: usize = boards!();
+
+#[allow(non_upper_case_globals)]
+const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
 
 #[allow(dead_code)]     // allow 'SYNC' to not be used
 #[allow(non_snake_case)]
@@ -68,48 +71,47 @@ async fn main(spawner: Spawner) {
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
 
     #[allow(non_snake_case)]
-    let INT = Input::new(INT, InputConfig::default());     // no 'Pull'
+    let INT = Input::new(INT, InputConfig::default());     // no pull
 
     // 'LPn's are pulled up within the SATELs (10k on front side of L8 level translator; 4.7k on L5CX),
-    // but it turns out best to just drive them straight (SATEL only uses them as input).
+    // but it turns out best to just drive them straight.
     //
     #[allow(non_snake_case)]
-    let mut LPns = LPn.map(|pin| {
-        Output::new(pin, Level::Low, OutputConfig::default())   // disabled
+    let mut LPn = LPn.map(|pin| {
+        Output::new(pin, Level::Low, OutputConfig::default())
     });
-    let _ = LPns;
-    LPns[0].set_high();     // enable the first board
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    let i2c_cfg = I2cConfig::default()
-        //R .with_frequency(50.kHz())   // WAS _THIS_ THAT MADE IT???? !===!?!?!?!?!?!??!?! tbd.tbd.-
-        ;
+    let i2c_shared: &'static RefCell<I2c<Blocking>> = {
+        let x = I2c::new(peripherals.I2C0, I2cConfig::default()
+            .with_frequency(I2C_SPEED)
+        ).unwrap();
 
-    let i2c_bus = I2c::new(peripherals.I2C0, i2c_cfg)
-        .unwrap()
-        .with_sda(SDA)
-        .with_scl(SCL);
+        let i2c_bus = x
+            .with_sda(SDA)
+            .with_scl(SCL);
 
-    let tmp = RefCell::new(i2c_bus);
-    let i2c_shared: &'static RefCell<I2c<Blocking>> = I2C_SC.init(tmp);
+        let tmp = RefCell::new(i2c_bus);
+        I2C_SC.init(tmp)
+    };
 
-    // Reset VL53L5CX by pulling down their power for a moment
+    // Reset VL53's by pulling down their power for a moment
     {
         PWR_EN.set_low();
-        blocking_delay_ms(10);      // 10ms based on UM2884 (PDF; 18pp) Rev. 6, Chapter 4.2
+        blocking_delay_ms(10);      // L5CX: 10ms based on UM2884 Rev. 6, Chapter 4.2
         PWR_EN.set_high();
         info!("Target powered off and on again.");
     }
 
     // Enable one of the wired boards. Others remain low.
-    LPns[0].set_high();
+    LPn[0].set_high();
 
     let vl = VL53::new_and_setup(&i2c_shared, &DEFAULT_I2C_ADDR)
         .unwrap();
 
-    info!("Init succeeded, ULD version {}", ULD_VERSION);
+    info!("Init succeeded");
 
     spawner.spawn(ranging(vl, INT)).unwrap();
 }

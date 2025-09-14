@@ -5,6 +5,8 @@ The `uld` part for the VL53 time-of-flight sensors takes care of:
 - C/Rust adaptation
 - translation of results from 1D (vectors) to 2D (matrices)
 - enums in place of "magic" integer values
+- merging `.distance_mm`, `.target_status` and the target information (`.nb_target_detected`) together into an enum that is easier to deal with than three separate data sources
+- enforce data validation, craft invariants
 
 You should not need to use this level directly, in an application. Use the [`vl_api`](../vl_api/README.md) instead.
 
@@ -30,7 +32,7 @@ $ cargo build --release --features=distance_mm,defmt,vl53l8cx
 >[!NOTE]
 >One would need to run examples mostly for development, or bug finding - e.g. if your electronics has issues it may be better to test things here than on the `vl_api` level.
 
-Required:
+### Required
 
 - one SATEL board, either [SATEL-VL53L8](https://www.st.com/en/evaluation-tools/satel-vl53l8.html) or [VL53L5CX-SATEL](https://www.st.com/en/evaluation-tools/vl53l5cx-satel.html).
 - ..wired according to [`../vl_api/WIRING`](../vl_api/WIRING.md).
@@ -41,18 +43,19 @@ Required:
 
 	>See [`../../README.md`](../../README.md) > `Requirements (hardware)`
 
-	<details><summary>Versions used in development:</summary>
+<!--
+Versions used in development:
 	
-	```
-	$ probe-rs --version
-	probe-rs 0.29.1 (git commit: v0.29.0-26-g1cf182e)
-	```
+```
+$ probe-rs --version
+probe-rs 0.29.1 (git commit: v0.29.0-26-g1cf182e)
+```
 
-	```
-	$ espflash --version
-	espflash 4.0.1
-	```
-	</details>
+```
+$ espflash --version
+espflash 4.0.1
+```
+-->
 
 ### Steps
 
@@ -79,7 +82,8 @@ $ VARIANT=8 make -f Makefile.dev m3
 Firmware exited successfully
 ```
 
-If you have an ESP32-C3 board, you will need to use `espflash`. Try `VARIANT=8 make -f Makefile.dev m3-with-espflash`, instead.
+>[!NOTE]
+>If you have an ESP32-C3 board, you will need to use `espflash`. Try `VARIANT=8 make -f Makefile.dev m3-with-espflash`, instead.
 
 	
 ## References

@@ -90,9 +90,9 @@ fn main() -> Result<()> {
         //"targets_per_zone_3",
         //"targets_per_zone_4",
 
-        // "range_sigma_mm" relates to "distance_mm"
-        #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
-        println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
+        //R "range_sigma_mm" relates to "distance_mm"
+        //R #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
+        //R println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
 
         // One sensor type, per project
         #[cfg(not(any(feature = "vl53l5cx", feature = "vl53l8cx")))]
@@ -175,15 +175,18 @@ fn main() -> Result<()> {
         add!("DISABLE_AMBIENT_PER_SPAD");
         #[cfg(not(feature = "nb_spads_enabled"))]
         add!("DISABLE_NB_SPADS_ENABLED");
-        #[cfg(not(feature = "nb_targets_detected"))]
-        add!("DISABLE_NB_TARGET_DETECTED");
-        //
+
+        // Always build C level with '.nb_target_detected'; need it for:
+        //  a) ensuring it's never 0 (we assume that, but validate)
+        //  b) marking missing results (for multiple-target mode)
+        //add!("DISABLE_NB_TARGET_DETECTED");
+
         // Second group: data and metadata (DIMxDIMxTARGETS)
         //
-        #[cfg(not(feature = "target_status"))]
-        add!("DISABLE_TARGET_STATUS");
-        #[cfg(not(feature = "distance_mm"))]
-        add!("DISABLE_DISTANCE_MM");
+        //R#[cfg(not(feature = "target_status"))]    // always compile
+        //Radd!("DISABLE_TARGET_STATUS");
+        //R#[cfg(not(feature = "distance_mm"))]      // always compile (can later reconsider this, but 'target_status' we need always)
+        //Radd!("DISABLE_DISTANCE_MM");
         #[cfg(not(feature = "range_sigma_mm"))]
         add!("DISABLE_RANGE_SIGMA_MM");
         #[cfg(not(feature = "reflectance_percent"))]
