@@ -14,33 +14,45 @@ Welcome to a small collection of drivers for Embedded [Rust](https://www.rust-la
 If you're like the author, you might have spent time:
 
 - selecting the right part(s)
-   - considering availability, price, features
+   - considering features, price and availability
 - reading their documentation
 - ensuring drivers fit
 - learning the quirks that are not necessarily documented, anywhere
 
-This repo covers various sensors (things that measure stuff) and actuators (things that move stuff), interesting to its author, and provides reliable, maintained Rust bindings to them.
+In particular, while the embedded Rust ecosystem has matured fast (2025 situation), and some MCU vendors (at least Espressif) provide great and ongoing Rust support, dealing with sensor X - in Rust - may be less pleasant. The aim of this repo is to smoothen that corner as well: to provide **great Rust support** for **selected third party sensors**.
 
-**Why (/what is) Embassy?**
+**Which sensors will be supported?**
 
-Rust provides `async/await` support, similar to what you might know from the .NET or JavaScript ecosystems. Embassy is an executor for such `async` functions; and an ecosystem of related stuff.
+Some.
 
-In short, `async` is GREAT!!! Making async code allows concurrency to be coded and understood as if it was linear. This is a huge boost to speed of coding and maintainability of any embedded, non-trivial project. Thus, Embassy has its place as a fundamental building block for the author's projects.
+This repo covers sensors (things that measure stuff) and actuators (things that move stuff), interesting to its author.
 
+**Why Embassy? (what is it?)**
+
+Rust provides `async/await` support in the language, but you'll need an executor to actually use it. Embassy is such an executor (and much more) for embedded, `no-std` targets.
+
+Writing `async` code allows concurrency to be dealt with as if only one thing moved at a time (which is not true). This is great for us humans - it makes source code shorter, more understandable and ... why *wouldn't* you want to program `async`!?
+
+Embassy means to this repo that instead of polling your hardware (and consuming CPU cycles), your code will be *awaiting an interrupt*, and saving (battery) power until it's time to act!
+
+>Examples that use Embassy are indicated by the postfix `.emb.rs`.
 
 ## Menu
 
 ||folder|what is it?|stability|comments|
 |---|---|---|---|---|
 |**Distance sensors**|
-|![](.images/about/vl53l8.jpg) ![](.images/about/vl53l5cx.jpg)|[`tof/vl_uld`](tof/vl53l5cx_uld/README.md)|Time-of-flight distance sensors; 4x4 (60Hz) or 8x8 (15Hz)|beta|VL53L8 and VL53L5CX sensors supported, over I2C bus|
-|**Comms**|
-|![](.images/about/ble.png)|[`comms/ble`](comms/ble/README.md)|Working as custom Bluetooth (BLE) service|alpha||
+|![](.images/about/vl53l8.jpg) *VL53L8* ![](.images/about/vl53l5cx.jpg) *VL53L5CX*<br />*The actual sensors are the small components to the left.*|[`tof`](tof/README.md), [`tof/vl_api`](tof/vl_api/README.md)|Time-of-flight distance sensors; 4x4 (60Hz) or 8x8 (15Hz)|beta|VL53L8 and VL53L5CX sensors supported, over I2C bus.|
+|**Wireless**|
+|![](.images/about/ble.png)<br/>*BLE*|[`comms/ble`](comms/ble/README.md)|Working as custom Bluetooth (BLE) service|alpha|No external components needed; shows how to bake custom BLE interface into your project.|
 |**Development kits**|
 |![](.images/about/devkit.png)|[`devkit/rgb`](devkit/rgb/README.md)|RGB LED|WIP||
 ||[`devkit/button`](devkit/button/README.md)|Button|--||
+
+<!-- #hidden; needs review
 |**DC&nbsp;motor&nbsp;controllers&nbsp;(brushed)**|
 |![](.images/about/drv8871.png)|[`dc-motors/drv8871`](dc-motors/drv8871/README.md)|Controller for brushed (simple) DC motors - 6.5..45V, 3.6A max|WIP||
+-->
 
 <!--
 ||[`comms/extras/ble-web-app`](comms/extras/ble-web-app/README.md)|Web app for interfacing with the sample BLE service|--||
@@ -53,56 +65,50 @@ Each subfolder contains a structure similar to this:
 ```
 built-in/
 ├── Cargo.toml      # Cargo build file
-├── Makefile.dev    # dev helper (optional)
-├── README.md       # you-know
+├── [DEVS/]         # Comments for development of the particular subfolder
+├── README.md	    # start here
 ├── [WIRING.md]     # wiring of peripherals to MCU
-├── [pins.toml]     # configuration of MCU pins
 ├── build.rs        # additional build details
 ├── examples
 │   └── button.rs   # examples you can run (if HW is properly set up)
-├── [src]           # library code (not every folder has it)
-└── set-target.sh   # (link to a) tool to switch between MCU's
+├── [pins.toml]     # configuration of MCU pins
+├── set-target.sh   # (link to a) tool to switch between MCU's
+└── [src]           # library code
 ```
 
-By keeping the folder structure similar, getting to speed with a new kind of sensor/actuator should be as swift as possible. The steps should be familiar.
+By keeping the folder structure similar, getting to speed with a new kind of sensor/actuator should be as swift as possible.
 
 
 ### MCU coverage
 
-The repo **focuses on ESP32 series MCU's**, but this is mainly so that the stated support remains maintained and tested. **If you are ready to take on maintenance for other MCU's, let the author know**. The Rust / Embassy ecosystem, as such, provides the possibility to keep the repo *very* MCU independent. That alone is great. 🎉🎉🎈🎈
+The repo focuses on ESP32 series MCU's; this is mainly so that the stated support remains maintained and tested. 
+
+>The Rust / Embassy ecosystem, as such, provides the possibility to support more families; it's a matter of human effort. Let the author know if you'd like to become co-author, responsible for some other MCU's.
 
 |MCU|dev board|support level|notes|
 |---|---|---|---|
-|ESP32&#x2011;C3|[ESP32&#x2011;C3-DevKitC-02](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp32-c3-devkitc-02/user_guide.html)|used regularly|See below|
 |ESP32&#x2011;C6|[ESP32-C6-DevKitM-01](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitm-1/user_guide.html)|used regularly|No problems!|
+|ESP32&#x2011;C3|[ESP32&#x2011;C3-DevKitC-02](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp32-c3-devkitc-02/user_guide.html)|used sometimes|See below|
 
-<!-- #hidden
-|(ESP32)|[Adafruit ESP32 Feather V2](https://www.adafruit.com/product/5400)|2nd tier|ESP32 code is in a branch that's updated *on request*.<br />Rust support for Xtensa (which this one is) still needs a separate `espup` utility, unlike RISC V targets, and `stable` Rust cannot be used on it. This is only an initial speed bump, however. Instructions for setting up the toolchain are in the particular branch.<br />*Doesn't have built-in JTAG* support so you'll need to purchase an adapter, e.g. [ESP-Prog](https://docs.espressif.com/projects/esp-iot-solution/en/latest/hw-reference/ESP-Prog_guide.html), for debug logging.|
+<!-- #hidden; `defmt` got more stable, less need to point this out?
+>Note: The repo does debug logs using [defmt](https://defmt.ferrous-systems.com) which means JTAG support is essential, for any development work.
 -->
 
->Note: The repo does debug logs using [defmt](https://defmt.ferrous-systems.com) which means JTAG support is essential, for any development work.
-
-#### ESP32-C3 considerations!!
+#### ESP32-C3 considerations
 
 - The chip does provide a built in USB/JTAG circuitry, but the suggested devkit doesn't have a connector for it. You can solder one, or (perhaps a better approach?), attach a cable to breakout pins on a breadboard. 
 
-	*tbd. image pending*
-
 - I2C functionality - and possibly other time sensitive functionality - is known to suffer from a JTAG *specification issue* that affects `probe-rs`'s ability to interface with the chip. If you need long I2C communications, ESP32-C6 is the better chip to target.
 
-	Note: The problem only involves debugging/logging over JTAG. You can quite well do long I2C transactions in production.
+	>[!NOTE]
+	>The problem only involves debugging/logging over JTAG. You can quite well do long I2C transactions in production.
 
-<!-- remove? / #hidden
-#### ESP32 considerations!!
-
-The support will be available as a separate branch, because it needs more changes than simply changing the `target` (`.cargo/config.toml`) and `feature` (`Config.toml`) that our chip selection script manages.
--->
 
 ## Changing the target
 
 Projects such as `esp-hal` use Cargo [features mechanism](https://doc.rust-lang.org/cargo/reference/features.html) for selecting the target MCU (e.g. `esp32c3` vs. `esp32c6`). While this seems to be the norm, this repo deviates from it.
 
-The main reason is philosophical. Features should be used for - well - features of the code base, and they should be cumulative (by the Rust recommendations). MCU features, on the other hand, are exclusive.
+The main reason is philosophical. Features should be used for - well - features of the code base, and they should be cumulative (by the Rust recommendations). Using features for MCU selection, however, are exclusive.
 
 **So what do we do?**
 
@@ -113,7 +119,7 @@ This means that you can, for example:
 - use `dc-motors` code, targeting ESP32-C3, while..
 - using `tof` code, targeting ESP32-C6
 
-This at least matches the way the author works; there's always a particular breadboard connected with such software.
+This at least matches the way the author works; there's always a particular breadboard wired for working with such software.
 
 To change the folder's MCU target, 
 
@@ -142,7 +148,7 @@ Please 'cargo build' or 'cargo run', as usual.
 
 You can see the change by `git diff`, i.e. the selected (default) MCU type gets stored in the version control.
 
-This approach is a bit intrusive, but having used it for a while the author does prefer it over the `features` approach, at least for the case of the Zoo (which is full of examples). For publishing a library, using the feature mechanism is likely preferrable (or only working solution).
+This approach is a bit intrusive, but having used it for a while the author does prefer it over the `features` approach, at least for the case of the ZOO (full of examples). For publishing a library, using the feature mechanism is likely preferrable (or only working solution).
 
 
 ## Requirements (hardware)
@@ -152,118 +158,178 @@ This approach is a bit intrusive, but having used it for a while the author does
 - Breadboard
 - Wires
 
-Each sensor's subsection has a `WIRING.md` that shows suggested wiring. You can change the pin layout by editing `pins.toml` files found in each subfolder.
+Each sensor's subsection has a `WIRING.md` that shows suggested wiring. You can change the pin layout by editing the `pins.toml` file found in the same subfolder.
 
-### The computers setup
+## Requirements (development environment)
 
-![](.images/layout.png)
+The repo can be used in multiple ways. Here, we walk you through the two that the author is actively using:
 
-The repo can be used in two ways, depending on where `probe-rs` is located:
+- macOS + Multipass VM
+- Windows + WSL2
 
-- **`probe-rs` remotely**
+What's important is that:
 
-	This is the recommended approach, pictured above. You have a separate computer for interfacing with the MCU, and connect to its `probe-rs` tool over `ssh`. Instructions for installation are provided below.
+- you are running Ubuntu Linux on the command prompt
+- you have a working setup for either [`probe-rs`](https://probe.rs) (or [`espflash`](https://github.com/esp-rs/espflash)) to reach your MCU
 
-- **`probe-rs` over USB/IP (for WSL2)**
+Please read this section to the end, and then decide how you'd like your setup to be.
 
-	This is useful if you have a single (Windows) laptop. Here, USB/IP is used to bring the host's USB port to the VM (WSL2), and `probe-rs` runs within your development VM. 
-	
-Since the project files simply refer to `probe-rs`, either of these approaches works. With the WSL2 approach, you sacrifice *galvanic isolation*, i.e. your electronics are directly connected to the laptop. Consider using a [USB Isolator](https://www.triosoft.fi/p8024-delock-usb-isolator-with-5-kv-isolation-fi.html). `|2|`
-
-<small>
-`|2|`: The author would like to hear any experience on use of USB isolators; any products you can recommend, perhaps?
-</small> 	
-
-*There are no instructions on setting up the USB/IP. Ask the author...*
-
----
-
-Let's get back to the default setup.
-
-- Code editing happens on a host (Mac), using an IDE ([Rust Rover](https://www.jetbrains.com/rust/))
-- Compilation happens in a virtual machine (using [Multipass](https://multipass.run) for this); the whole Rust and embedded toolchain *only needs to be installed within here*.
-- Hardware devices (MCU + sensors) are connected to *a Raspberry Pi* that runs `ssh` and has [`probe-rs`](https://probe.rs) installed.
-
->Note: Due to using WLAN, the software development and hardware setups are fully air-gapped from each other.
-
-<p />
-
->Note: Originally, the author used USB/IP for the setup. This, however, leads to very slow flash times.
-
-### Shortcomings of Multipass
-
-It's maintained by Canonical, but on somewhat limited resources. Some other virtualization product might suit you better, if you are a company. Also, it doesn't have USB pass-through but since we anyways prefer *physical isolation* from the MCU, that's not really an issue.
-
->Note! Since 1.14.0, the author has found Multipass to be somewhat more fragile than before! This is, however, under control, and should not keep you from using the solution. More info is available in the [`mp´](https://github.com/akauppi/mp) repo.
-
-<!-- disabled
-#### Running on a single computer?
-
-Fully possible. You just point `ssh` to point to your host, from the VM, and have `probe-rs` installed on the host.
-
-Again, the benefit is that your Rust / embedded toolchains are sandboxed. Only `probe-rs` remains on the host, and is easy to install and update there.
+>Below, we use terms:
+>
+>"desktop environment" = the OS you read your emails in
 
 
-#### Windows + WSL2
+### macOS + Multipass VM
 
-Should probably write a whole new section on WSL2... Since it's Ubuntu to begin with, and sandboxed (kind of; not as much as Multipass), the author **only uses WSL2** and not Multipass on his Windows 10 laptop.
+![](.images/mp-setup.png)
 
-Also, `probe-rs` in this case is installed within the WSL2 VM, and accesses the devkit via USB/IP. USB/IP between a Windows host and WSL2 is *very smooth* and there's no reason for the `ssh` stuff.
+Pros:
 
-This scenario is ideal if you want to work on a single computer, e.g. for taking demos out on the field a Windows laptop is sufficient!
+- digital security: by using a VM, your build environment cannot reach your desktop environment - except for the source files which are mapped between the two
+- electric safety: galvanic isolatation of MCU & wiring means no chance of frying your desktop computer (or laptop)
+- tools added don't accumulate on your desktop environment; easy to start anew
+- you can limit the amount of resources (disk, CPU) given to the build environment
+
+Cons:
+
+- managing Multipass
+- Multipass needs a few hoops to get performance right
+- need two computers
+- need to use repos [`mp`](https://github.com/akauppi/mp) and [`probe-rs-remote`](https://github.com/finalyards/probe-rs-remote) to get the setup done right
+
+Multipass is available also on Linux and Windows, making this a very OS-agnostic way to develop one's code. 
+
+<!-- tbd. mention this in a `DEVS/IDEs.md` thingy
+#### Role of the IDE
+
+The author uses [Rust Rover](https://www.jetbrains.com/rust/), but without its remote 
 -->
 
-#### Multipass and Windows
+>#### Multipass and Windows
+>
+>For running Multipass on Windows, please note that **only Windows Pro has Hyper-V**. The author hasn't run Multipass on Windows (since WSL2 is there) but if he would, he'd pick a Pro license. You *can* run Multipass with Windows Home, but that involves VirtualBox. `#yuck`
 
-For running Multipass on Windows, please note that **only Windows Pro has Hyper-V** hypervisor support. The author hasn't run Multipass on Windows (since WSL2 is there) but if he would, he'd pick a Pro license. You *can* run Multipass with Windows Home, but that involves VirtualBox 👎. Unless.. <sub>[hint](https://github.com/canonical/multipass/issues/1810), [hint#2](https://medium.com/@antongslismith/multipass-with-hyper-v-on-windows-10-home-7fd783d83978)</sub>
+<!-- #hidden
+#### Shortcomings of Multipass
 
----
+It's maintained by Canonical, but on somewhat limited resources. Some other virtualization product might suit you better. Also, it doesn't have USB pass-through but since we anyways prefer *physical isolation* from the MCU, that's not really an issue.
+
+>Note! Since 1.14.0, the author has found Multipass to be somewhat more fragile than it was until then. This is, however, under control, and should not keep you from using the solution. More info is available in the [`mp`](https://github.com/akauppi/mp) repo.
+-->
+
+<!-- #hidden; stuff for a discussion board!?
+#### Running on a single computer?
+
+Fully possible. You just point `ssh` to your host, from the VM, and have `probe-rs` installed on the host. Perhaps you want to use a USB Isolator, in such a scenario?
+
+Again, the benefit is that your Rust / embedded toolchains are sandboxed. Only `probe-rs` remains on the desktop environment, and is easy to install and update there (well, unless it needs a whole Rust environment?).
+-->
+
+### Windows + WSL2
+
+![](.images/wsl2-setup.png)
+
+Pros:
+
+- easy to get going if you have a Windows machine 
+- works also on Windows 10 Home
+- only one computer is needed
+
+Cons:
+
+- no galvanic isolation from the MCU & wiring
+- no digital safety: WSL2 can reach your main environment (it's *not* a sandbox)
+- need to set up USB/IP, to reach the USB device in Linux (very smooth experience!)
+
+The author uses this setup for travel (incl. visits to a Hacklab).
+
+Note that in this setup, the source folders (your Git repos) should remain on the WSL2 partition. The Windows IDE's can reach them there, without problems, and the performance is *way better* this way.
+
+Also note that - while WSL2 does use a Virtual Machine - there's no isolation between your development and desktop environments. They now run different OS'es, but you can still e.g. `touch /mnt/c/Users/{yourid}/Desktop/abc.txt`, i.e. create and use stuff from the desktop. This means, so can the libraries you are working with!!
+
+<!--
+>There may be some safety mechanisms in Windows + WSL2 the author is not aware of.
+-->
+
+Also, `probe-rs` in this case is installed within the WSL2, and accesses the devkit via USB/IP. USB/IP between a Windows host and WSL2 is *very smooth* and there's no reason for the `ssh` stuff.
+
+This scenario is ideal if you want to work on a single computer, e.g. for taking demos out on the field a Windows laptop is sufficient!
+
+>**Galvanic isolation**
+>
+>Consider using a [USB Isolator](https://www.amazon.de/s?k=usb+isolator) to protect your USB port. If you do, the author would like to hear your experiences.
+>
+>In particular, of interest: 
+>
+>- do they still provide power for the MCU?
+>- does using one slow down the development (e.g. flashing), compared to directly fitting the MCU?
+
+
+### Installation - which one shall it be?
+
+<details><summary>**Installing Multipass setup**</summary>
+
+- Visit the [`mp`](https://github.com/akauppi/mp) and [`probe-rs-remote`](https://github.com/finalyards/probe-rs-remote) repos, and try to get the setup running.
+</details>
+
+<details><summary>**Installing WSL2 setup**</summary>
+
+- Set up USB/IP to see your MCU from the WSL2 prompt. Instructions in [`USBIP-WSL2`](https://github.com/finalyards/USBIP-WSL2).
+
+- Install a Rust environment on WSL2, with:
+
+	```
+	$ rustup target add riscv32imc-unknown-none-elf
+	$ rustup target add riscv32imac-unknown-none-elf
+	```
+- [Install `probe-rs`](https://probe.rs/docs/getting-started/installation/) either by:
+
+	- curl; follow the `Linux` options
+	- `cargo binstall probe-rs-tools`
+	- `cargo install probe-rs-tools --locked`
+
+	See the main page for comparison of the approaches.
+</details>
+
+**Testing:**
+	
+You should be able to (with MCU connected)..
+	
+```
+$ probe-rs list
+The following debug probes were found:
+[0]: ESP JTAG -- 303a:1001:54:32:04:07:15:10 (EspJtag)
+```
+	
+..get the list of MCU's you have connected to the auxiliary computer.
+
+>Let the author know if there are gotchas - e.g. by creating an issue. 
+		
+
+
+### Summary
 
 As you can see, there are some different ways to set up the toolchain.
 
 What's important to take home from this is that
 
-🅰️ The ZOO runs on Ubuntu Linux only. With virtualization, however, this should not limit your choices.
-
-🅱️ `probe-rs` is the tool of choice for interacting with your development kit. The build scripts don't care whether such command leads to USB/IP or a `ssh`-bridged installation.
+- The ZOO runs on Ubuntu Linux only. With virtualization, however, this should not limit your choices.
+- `probe-rs` is the tool of choice for interacting with your development kit. The build scripts don't care whether such command leads to USB/IP or a `ssh`-bridged installation.
 
 Good luck! ☀️☀️☀️
 
 
-
-## Requirements (software)
-
-These two repos help you to set up the environment discussed above:
-
-- [`mp:/rust+emb`](https://github.com/akauppi/mp)
-
-	Helps you create a Multipass VM that has the tools (Rust, Cargo, `probe-rs-remote`) used in the ZOO.
-	
-	This doesn't cover exactly *all* the tools, but gives a solid foundation. If additional tools are needed, they are mentioned in the subfolder `README`s (for example, the `tof/vl53l5cx_uld` needs `clang` and `bindgen` CLI to be separately installed).
-
-
-- [`probe-rs-remote`](https://github.com/lure23/probe-rs-remote)
-
-	The `probe-rs` over `ssh` bridging.
-	
-	Follow these instructions to set up your Raspberry Pi (or other such secondary computer) that runs `probe-rs`.
-	
-	>Note: The front side setup is not needed if you use `mp` `rust+emb/prep.sh` - it's already covered there.
-	
-
 ## Next steps
 
-Visit the subfolders, pick one you'd like to try. The instructions are within their particular `README.md`.
+Visit the subfolders, pick any one you'd like to try. The instructions are within their particular `README.md`.
 
-Please please PLEASE [give feedback](https://github.com/lure23/ZOO-esp32/issues) on the GitHub! 
+PLEASE [give feedback](https://github.com/lure23/ZOO-esp32/issues) on the GitHub! 
 
----
-
+<!--
 Developed on:
 
 ```
-macOS 15.2
-Multipass 1.15.0
-ESP32-C3-Devkit-C02 (revision 0.4) 
-ESP32-C6-DevKitM-1
+macOS 15.6
+Multipass 1.16.1
 ```
+-->
