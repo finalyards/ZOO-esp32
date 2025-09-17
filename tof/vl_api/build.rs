@@ -7,6 +7,9 @@
 */
 use anyhow::*;
 
+use itertools;  // so they look used in 'Cargo.toml' (IDE); only the snippet uses them.
+use toml;
+
 // Snippets need to be read in here (cannot do in "statement position")
 include!("../build_snippets/pins.in");   // process_pins()
 

@@ -1373,6 +1373,7 @@ dependencies = [
  "esp-hal",
  "esp-hal-embassy",
  "itertools",
+ "semihosting",
  "serde",
  "static_cell",
  "toml",

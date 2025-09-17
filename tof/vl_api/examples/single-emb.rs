@@ -17,6 +17,10 @@ use core::cell::RefCell;
 
 use embassy_executor::Spawner;
 
+use embassy_sync::{
+    signal::Signal
+};
+
 use esp_hal::{
     delay::Delay,
     gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig},
@@ -26,6 +30,7 @@ use esp_hal::{
     Blocking
 };
 
+use semihosting;
 use static_cell::StaticCell;
 
 extern crate vl_api;
@@ -57,6 +62,8 @@ struct Pins<'a,const BOARDS_N: usize>{
     SYNC: Option<AnyPin<'a>>,   // 'pins!()' needs the field to exist (even though we don't use it)
     LPn: [AnyPin<'a>;BOARDS_N]
 }
+
+static DONE: Signal<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, ()> = Signal::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
@@ -113,7 +120,11 @@ async fn main(spawner: Spawner) {
 
     spawner.spawn(ranging(vl, INT)).unwrap();
 
-    debug!("Exiting main"); //TEMP
+    // Need something to wait, to know the task(s) are done.
+    DONE.wait().await;
+
+    // Return to the host command line
+    semihosting::process::exit(0);
 }
 
 
@@ -164,7 +175,7 @@ async fn ranging(/*move*/ vl: VL53, pinINT: Input<'static>) {
         _t.report();
     }
 
-    debug!("Exited the loop");  //TEMP
+    DONE.signal(());
 }
 
 struct Timings {
