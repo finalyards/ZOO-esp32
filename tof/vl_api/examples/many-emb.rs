@@ -53,8 +53,6 @@ type FRes = FlockResults<RESO>;
 
 static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
 
-//const BOARDS_N: usize = boards!();
-
 #[allow(non_upper_case_globals)]
 const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
 
@@ -77,8 +75,6 @@ async fn main(spawner: Spawner) {
 
     #[allow(non_snake_case)]
     let Pins{ SDA, SCL, PWR_EN, INT, SYNC, LPn } = pins!(peripherals);
-
-    //R const _BOARDS: usize = LPns.length;
 
     #[allow(non_snake_case)]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
@@ -149,7 +145,7 @@ async fn main(spawner: Spawner) {
 //
 #[embassy_executor::task]
 #[allow(non_snake_case)]
-async fn ranging(/*move*/ vls: [VL53;BOARDS], pin_INT: Input<'static>, snd: DynSender<'static, FRes>) {
+async fn ranging(/*move*/ vls: [VL53;_], pin_INT: Input<'static>, snd: DynSender<'static, FRes>) {
 
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(), HzU8(10)))
@@ -157,7 +153,7 @@ async fn ranging(/*move*/ vls: [VL53;BOARDS], pin_INT: Input<'static>, snd: DynS
 
     let mut ring = vls.start_ranging(&c, pin_INT).unwrap();
 
-    let mut had_results_from = [false;BOARDS];
+    //let mut had_results_from = [false;9];   // 9: just something >= vls.length
 
     for _round in 0..10 {
         let mut _t = Timings::new();
@@ -166,6 +162,7 @@ async fn ranging(/*move*/ vls: [VL53;BOARDS], pin_INT: Input<'static>, snd: DynS
             .unwrap();
         _t.results();
 
+        #[cfg(false)]
         if !had_results_from[t.board_index] {
             had_results_from[t.board_index] = true;
             info!("Skipping first results (normally not valid)");
@@ -193,9 +190,7 @@ async fn defmt_print_results(mut rcv: DynReceiver<'static, FRes>) {
 
         info!("Data #{}: ({}, {}{}ms)", board_index, temp_degc, sign, dt.to_millis());
 
-        info!(".target_status:    {}", res.target_status);
-        #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
-        info!(".targets_detected: {}", res.targets_detected);
+        info!("                   {}", res.meas);
 
         #[cfg(feature = "ambient_per_spad")]
         info!(".ambient_per_spad: {}", res.ambient_per_spad);

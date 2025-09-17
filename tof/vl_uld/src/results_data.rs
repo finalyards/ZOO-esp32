@@ -17,8 +17,6 @@
 #[cfg(feature = "defmt")]
 #[allow(unused_imports)]
 use defmt::{assert, debug, panic, warn};
-use crate::results_data::Comment::TargetsTooClose;
-use crate::results_data::Meas::{Invalid, SemiValid};
 use crate::uld_raw::{
     VL_ResultsData,
 };
@@ -38,6 +36,11 @@ const TARGETS: usize =
 *       separately. This is mainly a matter of taste: many of the matrix "results" are actually
 *       also metadata. Only '.distance_mm' and (likely) '.reflectance_percent' can be seen as
 *       actual results. It doesn't really matter.
+*
+* Note: '.range_sigma_mm' does belong with the results (could be within 'Meas'), but it's deemed
+*       to not be needed very often, and including it there would just feel complex. The author
+*       does think that the valid/semi-valid/invalid applies to it (as well as '.distance_mm');
+*       this could be used as a water-shed rule to decide where data fits best. Observe.
 */
 #[derive(Clone, Debug)]
 pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
@@ -60,42 +63,12 @@ pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
 }
 
 impl<const DIM: usize> ResultsData<DIM> {
-    /*
-    * Provide an empty buffer-like struct; owned usually by the application and fed via 'feed()'.
-    */
-    #[cfg(false)]
-    fn empty() -> Self {
-
-        Self {
-            #[cfg(feature = "ambient_per_spad")]
-            ambient_per_spad: [[0;DIM];DIM],
-            #[cfg(feature = "nb_spads_enabled")]
-            spads_enabled: [[0;DIM];DIM],
-            //R #[cfg(feature = "nb_targets_detected")] // these could be gone from the API
-            //R targets_detected: [[0;DIM];DIM],
-
-            #[cfg(feature = "target_status")]
-            target_status: [[[TargetStatus::NoTarget;DIM];DIM];TARGETS],
-
-            #[cfg(feature = "distance_mm")]
-            distance_mm: [[[0;DIM];DIM];TARGETS],
-            #[cfg(feature = "range_sigma_mm")]
-            range_sigma_mm: [[[0;DIM];DIM];TARGETS],
-
-            #[cfg(feature = "signal_per_spad")]
-            signal_per_spad: [[[0;DIM];DIM];TARGETS],
-            #[cfg(feature = "reflectance_percent")]
-            reflectance: [[[0;DIM];DIM];TARGETS],
-        }
-    }
 
     pub(crate) fn from(raw_results: &VL_ResultsData) -> (Self,TempC) {
         use core::mem::MaybeUninit;
 
-        //validate_raw(raw_results);  // panics if input not according to expectations
-
         let mut x: Self = {
-            let un = MaybeUninit::<Self>::zeroed(); // tbd. 'uninit', when things work, again
+            let un = MaybeUninit::<Self>::uninit();
             unsafe { un.assume_init() }
         };
 
@@ -171,22 +144,6 @@ impl<const DIM: usize> ResultsData<DIM> {
         into_matrix(&rr.ambient_per_spad, &mut self.ambient_per_spad);
         #[cfg(feature = "nb_spads_enabled")]
         into_matrix(&rr.nb_spads_enabled, &mut self.spads_enabled);
-
-        //R#[cfg(feature = "nb_targets_detected")]
-        //Rinto_matrix(&rr.nb_target_detected, &mut self.targets_detected);
-
-        //R Validity check: expect '.nb_target_detected' to be always >= 1.
-        #[cfg(false)]   //R disabled; conversion does it, below
-        {
-            let raw = &rr.nb_target_detected[..DIM * DIM];  // take only the beginning of the C buffer
-
-            for r in 0..DIM {
-                for c in 0..DIM {
-                    let v = raw[r*DIM+c];
-                    assert!( v>0, "Unexpected: no target detected!");
-                }
-            }
-        }
 
         // Results: DIMxDIMxTARGETS
         //
@@ -313,6 +270,7 @@ impl<const DIM: usize> ResultsData<DIM> {
         #[cfg(feature="_multi")]
         for i in 1..TARGETS {
             use Meas::{Valid, SemiValid};
+            use Comment::TargetsTooClose;
 
             let &mut mut meas = &mut self.meas[i];
             let &mut meas_prev = &mut self.meas[i-1];
@@ -339,7 +297,38 @@ impl<const DIM: usize> ResultsData<DIM> {
     }
 }
 
-/***R
+#[derive(Copy, Clone, Debug)]       // 'Clone' needed for 'ResultsData' to be cloneable.
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Meas {
+    Valid(u16),                 // 100% confidence (has target; target status = 5)
+    SemiValid(u16, u8),         // 50% confidence (has target; target status = 6|9)
+    Invalid(i16, u8),           // 0% confidence (all the rest):
+                                //  - distance may be 0 or negative (do not use!)
+                                //  - target status = anything but the above (not 5|6|9)
+    Error(i16, u8, Comment)     // Things the application can either ignore, use with awareness in some cases (targets too close) or report as data glitches to the user!
+}
+
+impl Meas {
+    #[allow(dead_code)]         // only needed for 'feature="_multi"' builds
+    fn status(&self) -> u8 {
+        match self {
+            Self::Valid(_) => 5,
+            Self::SemiValid(_, st) => *st,
+            Self::Invalid(_, st) => *st,
+            Self::Error(_,st,_) => *st
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Comment {
+    TargetStatusButNoTarget,    // target "not detected"; target_status = 5|6|9; v not checked
+    TargetsTooClose             // two "detected targets", but values < 600mm apart
+}
+
+
+/***R prior code
 //---
 // Target status
 //
@@ -390,136 +379,3 @@ impl TargetStatus {
         }
     }
 }***/
-
-#[derive(Copy, Clone, Debug)]       // 'Clone' needed for 'ResultsData' to be cloneable.
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Meas {
-    Valid(u16),                 // 100% confidence (has target; target status = 5)
-    SemiValid(u16, u8),         // 50% confidence (has target; target status = 6|9)
-    Invalid(i16, u8),           // 0% confidence (all the rest):
-                                //  - distance may be 0 or negative (do not use!)
-                                //  - target status = anything but the above (not 5|6|9)
-    Error(i16, u8, Comment)     // Things the application can either ignore, use with awareness in some cases (targets too close) or report as data glitches to the user!
-}
-
-impl Meas {
-    fn status(&self) -> u8 {
-        match self {
-            Meas::Valid(_) => 5,
-            SemiValid(_, st) => *st,
-            Invalid(_, st) => *st,
-            Meas::Error(_,st,_) => *st
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Comment {
-    TargetStatusButNoTarget,    // target "not detected"; target_status = 5|6|9; v not checked
-    TargetsTooClose             // two "detected targets", but values < 600mm apart
-}
-
-
-/***R
-/*
-* Validates that the input we get from ULD C API is according to assumptions (i.e. validate our
-* ASSUMPTIONS; the data of course are fine!!!).
-*/
-fn validate_raw<const DIM: usize>(rr: &VL_ResultsData) {
-
-    // helpers
-    //
-    #[allow(dead_code)]
-    fn assert_matrix_o<X: Copy>(raw: &[X], assert_f: fn(X) -> ()) {
-        let raw = &raw[..DIM * DIM * TARGETS];      // take only the beginning of the C buffer
-
-        for r in 0..DIM {
-            for c in 0..DIM {
-                for offset in 0..TARGETS {  // the targets are in consecutive bytes; best to have this inmost
-                    let v = raw[(r * DIM + c) * TARGETS + offset];
-                    assert_f(v);
-                }
-            }
-        }
-    }
-    // Zone metadata: 'TARGETS' (and 'offset', by extension) are not involved.
-    fn assert_matrix<X: Copy>(raw: &[X], assert_f: fn(X) -> ()) {
-        let raw = &raw[..DIM * DIM];      // take only the beginning of the C buffer
-
-        for r in 0..DIM {
-            for c in 0..DIM {
-                out[r][c] = raw[r*DIM+c];
-            }
-        }
-    }
-
-    // Metadata: DIMxDIM (just once)
-    //
-    // '.ambient_per_spad'
-    //  <<
-    //      [INFO ] .ambient_per_spad: [[1, 2, 0, 3], [1, 4, 1, 0], [2, 1, 3, 0], [9, 2, 1, 2]]
-    //  <<
-    // true
-
-    // '.spads_enabled'
-    //  <<
-    //      [INFO ] .spads_enabled:    [[1280, 3328, 3584, 4352], [1024, 2816, 3584, 3584], [1280, 2816, 4352, 3328], [1280, 3584, 3584, 2816]]
-    //  <<
-    // true
-
-    // '.targets_detected'
-    //  <<
-    //      [INFO ] .targets_detected: [[1, 1, 2, 2], [1, 1, 1, 1], [1, 1, 1, 1], [1, 2, 2, 1]]
-    //  <<
-    //
-    //R #[cfg(feature = "nb_targets_detected")]
-    assert_matrix(&rr.nb_target_detected, |x| => { assert_gt(x, 0, "'.nb_target_detected' == 0"); });
-
-    // Results: DIMxDIMxTARGETS
-    //
-    for i in 0..TARGETS {
-        // '.target_status'
-        //  <<
-        //      [INFO ] .target_status:    [[[Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)]], [[Other(0), Other(0), Valid(5), Other(13)], [Other(0), Other(0), Other(0), Other(0)], [Other(0), Other(0), Other(0), Other(0)], [Other(0), Other(4), Other(13), Other(4)]]]
-        //  <<
-        assert_matrix_o(&rr.target_status, |x| { assert(x.within_range(...)) });
-
-        // '.distance_mm'
-        // <<
-        //      [INFO ] .distance_mm:      [[[13, 13, 12, 5], [12, 23, 23, 12], [13, 17, 19, 10], [10, 13, 6, 0]], [[0, 0, 259, 753], [0, 0, 0, 0], [0, 0, 0, 0], [0, 597, 657, 765]]]
-        // <<
-        //      normally > 0
-        //      can be == 0 if '.target_status' is 0
-        //
-        #[cfg(feature = "distance_mm")]
-        into_matrix_map_o(&rr.distance_mm, i, &mut self.distance_mm[i],
-                          |v: i16| -> u16 {
-                              assert!(v >= 0, "Unexpected 'distance_mm' value: {} < 0", v); v as u16
-                          });
-
-        // '.range_sigma_mm'
-        //  <<
-        //      [INFO ] .range_sigma_mm:   [[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]], [[0, 0, 3, 11], [0, 0, 0, 0], [0, 0, 0, 0], [0, 34, 18, 24]]]
-        //  <<
-        #[cfg(feature = "range_sigma_mm")]
-        into_matrix_o(&rr.range_sigma_mm, i, &mut self.range_sigma_mm[i]);
-
-        // '.reflectance'
-        //  <<
-        //      [INFO ] .reflectance:      [[[1, 0, 0, 0], [1, 1, 1, 0], [1, 1, 0, 0], [0, 0, 0, 0]], [[0, 0, 11, 17], [0, 0, 0, 0], [0, 0, 0, 0], [0, 9, 12, 14]]]
-        //  <<
-        #[cfg(feature = "reflectance_percent")]
-        into_matrix_o(&rr.reflectance, i, &mut self.reflectance[i]);
-
-        // '.signal_per_spad'
-        //  <<
-        //      [INFO ] .signal_per_spad:  [[[5171, 1655, 1377, 1506], [4859, 1815, 1372, 1480], [4910, 1716, 1395, 1717], [4623, 1630, 1359, 2050]], [[0, 0, 119, 21], [0, 0, 0, 0], [0, 0, 0, 0], [0, 17, 20, 17]]]
-        //  <<
-        #[cfg(feature = "signal_per_spad")]
-        into_matrix_o(&rr.signal_per_spad, i, &mut self.signal_per_spad[i]);
-    }
-
-    TempC(rr.silicon_temp_degc)
-}
-***/

@@ -36,27 +36,25 @@ use vl_api::{
     RangingConfig,
     SoloResults,
     TargetOrder::*,
-    //ULD_VERSION,
     VL53,
 };
 
-include!("../tmp/pins_snippet.in");  // pins!, boards!
+include!("../tmp/pins_snippet.in");  // pins!
 
 static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
-
-const BOARDS_N: usize = boards!();
 
 #[allow(non_upper_case_globals)]
 const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
 
 #[allow(dead_code)]     // allow 'SYNC' to not be used
 #[allow(non_snake_case)]
-struct Pins<'a>{
+struct Pins<'a,const BOARDS_N: usize>{
     SDA: AnyPin<'a>,
     SCL: AnyPin<'a>,
     PWR_EN: AnyPin<'a>,
     INT: AnyPin<'a>,
-    SYNC: Option<AnyPin<'a>>,   // 'pins!()' needs the field to exist
+    #[cfg(feature = "vl53l8cx")]
+    SYNC: Option<AnyPin<'a>>,   // 'pins!()' needs the field to exist (even though we don't use it)
     LPn: [AnyPin<'a>;BOARDS_N]
 }
 
@@ -65,7 +63,7 @@ async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
-    let Pins{ SDA, SCL, PWR_EN, INT, LPn, .. } = pins!(peripherals);   // not needing 'SYNC'
+    let Pins{ SDA, SCL, PWR_EN, INT, LPn, .. } = pins!(peripherals);
 
     #[allow(non_snake_case)]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
@@ -114,6 +112,8 @@ async fn main(spawner: Spawner) {
     info!("Init succeeded");
 
     spawner.spawn(ranging(vl, INT)).unwrap();
+
+    debug!("Exiting main"); //TEMP
 }
 
 
@@ -135,20 +135,20 @@ async fn ranging(/*move*/ vl: VL53, pinINT: Input<'static>) {
 
         let SoloResults{res, temp_degc, time_stamp} = ring.get_data() .await
             .unwrap();
-        if _round==0 { info!("Skipping first results (normally not valid)");
-            continue;
-        }
+
+        // Note: Consider skipping the first results. They are taken in a hurry (it seems; only taking
+        //      ~20ms vs. normal 100ms) and are not that great quality.
+        //
+        #[cfg(true)]
+        if _round == 0 { continue }
 
         _t.results();
 
-        // tbd. Consider making output a separate task (feed via a channel)
+        // Output could be a separate task, fed via a channel
         {
-            info!("Data ({}, {})", temp_degc, (time_stamp-t0).as_millis());
+            info!("\n\t\tData ({}, at {:ms}s)", temp_degc, (time_stamp-t0).as_millis());
 
-            info!(".target_status:    {}", res.target_status);
-            #[cfg(any(feature = "targets_per_zone_2", feature = "targets_per_zone_3", feature = "targets_per_zone_4"))]
-            info!(".targets_detected: {}", res.targets_detected);
-
+            info!("{}", res.meas);
             #[cfg(feature = "ambient_per_spad")]
             info!(".ambient_per_spad: {}", res.ambient_per_spad);
             #[cfg(feature = "nb_spads_enabled")]
@@ -157,14 +157,14 @@ async fn ranging(/*move*/ vl: VL53, pinINT: Input<'static>) {
             info!(".signal_per_spad:  {}", res.signal_per_spad);
             #[cfg(feature = "range_sigma_mm")]
             info!(".range_sigma_mm:   {}", res.range_sigma_mm);
-            #[cfg(feature = "distance_mm")]
-            info!(".distance_mm:      {}", res.distance_mm);
             #[cfg(feature = "reflectance_percent")]
             info!(".reflectance:      {}", res.reflectance);
         }
         _t.results_passed();
         _t.report();
     }
+
+    debug!("Exited the loop");  //TEMP
 }
 
 struct Timings {
@@ -202,6 +202,13 @@ impl Timings {
     }
 }
 
+#[allow(dead_code)]
+async fn async_delay_ms(ms: u32) {
+    use embassy_time::Timer;
+
+    Timer::after_millis(ms as _).await;
+}
+
 // DO NOT use within the async portion!!!
 const D_PROVIDER: Delay = Delay::new();
 
@@ -216,9 +223,7 @@ fn blocking_delay_ms(ms: u32) {
 *       error: no global memory allocator found but one is required; link to std or add `#[global_allocator]` to a static item that implements the GlobalAlloc trait
 *   <<
 *
-* tbd. #help What is causing this?  Some dependency needing 'anyhow', perhaps???
-*
-*   "INTERESTINGLY"... this doesn't need to be called. But it needs to exist, as a function. :R
+*   This doesn't need to be called. But it needs to exist, as a function. :R
 */
 fn _init_heap() {
     use core::mem::MaybeUninit;

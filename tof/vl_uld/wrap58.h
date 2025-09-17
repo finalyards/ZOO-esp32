@@ -17,10 +17,10 @@ typedef __SIZE_TYPE__ size_t;
 //      #define VL_POWER_MODE_SLEEP		((uint8_t) 0U)
 //  <<
 //
-// By defining them as 'const' we get them on bindgen's radar. Note: only the entries actually used in the Rust API
-// need to be provided this way.
+// By defining them as 'const' we get them on bindgen's radar.
 //
-// Note 2: While we're at it, we can group them into enums already here (in C side). 🌟🌟🌟
+// Note: only the entries actually used in the Rust API need to be provided this way.
+// Note 2: While we're at it, we can group them into enums already here (in C side).
 
 const char* API_REVISION = VL_API_REVISION;     // "VL_2.0.0"
 

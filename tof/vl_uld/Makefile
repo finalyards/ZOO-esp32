@@ -50,8 +50,7 @@ _T:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f
 	# riscv32imc-unknown-none-elf
 
 ifneq (,$(findstring riscv32, $(_T)))
-  _TARGET_ARCH:=riscv32-unknown-elf
-  _CLANG_FLAGS:=--target=$(_TARGET_ARCH)
+  _CLANG_TARGET:=riscv32-unknown-elf
 else
   $(error Unexpected TARGET: ${_T})
 endif
@@ -72,7 +71,7 @@ tmp/libvendor_uld$(X).a: tmp/vl_api$(X).o
 tmp/vl_api$(X).o: $(_C_SRC)/vl_api.c wrap58.h $(_C_SRC)/vl_api.h $(_C_SRC)/vl_buffers.h $(_OTHER_INCS) tmp/config58.h Makefile \
 	| clang
 	@echo $<
-	clang -nostdinc --target=$(_TARGET_ARCH) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
+	clang -nostdinc --target=$(_CLANG_TARGET) -Ifake -I. -I$(_C_SRC) -c -o $@ $<
 
 #---
 # Patch ST.com sources from './VL53L{58}CX_ULD_API/**' to 'tmp/c_src/'
@@ -177,7 +176,9 @@ $(foreach f,$(_PARTS),$(eval $(call VL53_template,$(f))))
 #
 tmp/uld_raw8.rs tmp/uld_raw5.rs: wrap58.h tmp/config58.h $(_C_SRC)/vl_api.h $(_C_SRC)/vl_buffers.h $(_OTHER_INCS) Makefile \
 	| bindgen
-	  RUST_LOG='warn,bindgen::ir=error' bindgen $< \
+	  RUST_LOG='warn,bindgen::ir=error' \
+	  BINDGEN_EXTRA_CLANG_ARGS="--target=$(_CLANG_TARGET)" \
+		bindgen $< \
 	    --allowlist-file wrap58.h \
 	    --allowlist-type 'VL_.+' \
 	    --allowlist-function 'vl_check_data_ready' \
@@ -195,6 +196,7 @@ tmp/uld_raw8.rs tmp/uld_raw5.rs: wrap58.h tmp/config58.h $(_C_SRC)/vl_api.h $(_C
 	    --raw-line '#![allow(non_snake_case)]' \
 		--raw-line 'use strum::FromRepr;' \
 		--no-copy 'VL_(?:(Configuration)|(Platform))' \
+		\
 	    -- -I. -I$(_C_SRC) \
 	  | sed 's/#[[]repr(u32)[]]/#[repr(u8)]/' \
 	  | sed 's/#[[]derive(Debug, Copy, Clone, Hash, PartialEq, Eq)/#[derive(FromRepr, Copy, Clone, Hash, PartialEq, Eq)/' \

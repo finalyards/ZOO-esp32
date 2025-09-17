@@ -32,7 +32,7 @@ use uld::{
     units::*,
 };
 
-include!("../tmp/pins_snippet.in");  // pins!, boards!
+include!("../tmp/pins_snippet.in");  // pins!
 
 mod common;
 use common::MyPlatform;
@@ -53,14 +53,14 @@ fn main() -> ! {
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]         // hides "field 'SYNC' is never read" -warning
-struct Pins<'a> {
+struct Pins<'a,const BOARDS: usize> {
     SDA: AnyPin<'a>,
     SCL: AnyPin<'a>,
     PWR_EN: AnyPin<'a>,
     INT: AnyPin<'a>,
     #[cfg(feature = "vl53l8cx")]
     SYNC: Option<AnyPin<'a>>,   // not used, but needed by the 'pins!' macro
-    LPn: [AnyPin<'a>; boards!()]
+    LPn: [AnyPin<'a>; BOARDS]
 }
 
 #[allow(non_upper_case_globals)]
@@ -81,53 +81,19 @@ fn main2() -> Result<()> {
     #[allow(non_snake_case)]
     let INT = Input::new(INT, InputConfig::default());  // no pull
 
-    const BOARDS_N: usize = boards!();
-
-    // Set 'LPn' pins (if any) to suitable states:
-    //  - HIGH: sensor's I2C enabled
-    //  - LOW: sensor does not act on I2C bus
+    // Set 'LPn' pins to 'Low'.
     //
-    // We want to enable the first sensor; disable others (if any).
+    // Eventually, we raise one of them (the first) to communicate with it, but the specs state
+    // (tbd. reference) that during power reset also 'LPn' must be low.
     //
-    // Direct push/pull has turned out to be more reliable (at least, provides brighter LED on
-    // L8), than open drain. Both _should_ work, but since the sensor treats 'LPn' only as input,
-    // we choose push/pull.
-    //
-    // Note: Keeping the handle to the pins is optional. 'esp-hal' will likely not reset their
-    //      config, but keeping the handle makes this safe.
+    // Note. Direct push/pull has turned out to be more reliable (at least, provides brighter LED
+    //      on L8), than open drain. Both should work, but since the sensor(s) treat 'LPn' as input
+    //      only, we go with push/pull.
     //
     #[allow(non_snake_case)]
-    #[cfg(false)]   // OPEN DRAIN - feels it wasn't that good (can remove once things work).
-    let LPn: [Output;BOARDS_N] = {
-        use gpio::DriveMode;
-        let c_opendrain: OutputConfig = OutputConfig::default()
-            .with_drive_mode(DriveMode::OpenDrain);  // SATEL has external pull-up resistor
-
-        // Note! Tried with (fancier) '.iter().enumerate().map(|i,pin|)', but that complexity
-        //      isn't well suited to 'AnyPin', 'OutputPin'. It causes a reference ('&AnyPin') to
-        //      be taken, and dealing with that causes errors, no matter which way you take.
-        //      'impl OutputPin' is defined for 'AnyPin', but not for '&AnyPin'.
-        //
-        let mut i=0;
-        LPn.map(|pin| {
-            let lev = if i==0 {Level::High} else {Level::Low};
-            i += 1;
-            Output::new(pin, lev, c_opendrain)
-        })
-    };
-    #[allow(non_snake_case)]
-    let mut LPn: [Output;BOARDS_N] = {  // PUSH/PULL
-        let c: OutputConfig = OutputConfig::default();
-
-        //R Note! Tried with (fancier) '.iter().enumerate().map(|i,pin|)', but that complexity
-        //      isn't well suited to 'AnyPin', 'OutputPin'. It causes a reference ('&AnyPin') to
-        //      be taken, and dealing with that causes errors, no matter which way you take.
-        //      'impl OutputPin' is defined for 'AnyPin', but not for '&AnyPin'.
-        //
-        LPn.map(|pin| {
-            Output::new(pin, Level::Low, c)
-        })
-    };
+    let mut LPn = LPn.map(|pin| {
+        Output::new(pin, Level::Low, OutputConfig::default())
+    });
 
     let pl = {
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()
@@ -202,11 +168,6 @@ fn main2() -> Result<()> {
         info!("Data #{} ({})", round, temp_degc);
 
         info!("        {}", res.meas);
-
-        //R #[cfg(feature = "target_status")]
-        //R info!(".target_status:    {}", res.target_status);
-        //R #[cfg(feature = "nb_targets_detected")]
-        //R info!(".targets_detected: {}", res.targets_detected);
 
         #[cfg(feature = "ambient_per_spad")]
         info!(".ambient_per_spad: {}", res.ambient_per_spad);

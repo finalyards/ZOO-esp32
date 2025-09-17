@@ -13,7 +13,7 @@ Provides:
 ## Compiling
 
 ```
-$ cargo build --release --features=single,distance_mm,defmt,vl53l8cx
+$ cargo build --release --features=single,defmt,vl53l8cx
 ```
 
 ## Running examples
@@ -22,13 +22,12 @@ See that you've wired the board like in [WIRING.md](./WIRING.md).
 
 >[!NOTE]
 >
->In your own project, you are free to deal with the pins any way you like. You may pick up the use of a TOML file (`pins.toml`) - or just fix the pins in your code.
-
+>In your own project, you are free to deal with the pins any way you like.
 
 ### Single board
 
 ```
-$ cargo run --release --features=single,distance_mm,defmt,vl53l8cx --example single-emb
+$ cargo run --release --features=single,defmt,vl53l8cx --example single-emb
 ```
 
 >To use the example against VL53L5CX board, you'll naturally change the feature to `vl53l5cx`. These features steer the underlying `vl_uld` library and enable/disable some sensor specific features (e.g. only L8 has the `SYNC` pin for syncing multisensor scans).
@@ -36,7 +35,7 @@ $ cargo run --release --features=single,distance_mm,defmt,vl53l8cx --example sin
 ### Multiple boards
 
 ```
-$ cargo build --release --features=flock,distance_mm,defmt,vl53l8cx --example many-emb
+$ cargo build --release --features=flock,defmt,vl53l8cx --example many.emb
 ```
 
 <!--R #hidden; not relevant..?

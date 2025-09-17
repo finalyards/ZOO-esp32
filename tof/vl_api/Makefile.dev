@@ -30,7 +30,7 @@ DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 
 REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 
-ALL_FEATURES:="single,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,distance_mm,reflectance_percent"
+ALL_FEATURES:="single,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,reflectance_percent"
 
 # Read the 'TARGET' from './cargo/config.toml'
 #
@@ -54,12 +54,12 @@ all:
 
 single s:
 	EXAMPLE=single-emb \
-	  FEATURES=$(FEATURES),single,distance_mm \
+	  FEATURES=$(FEATURES),single \
 	  $(REMAKE) --no-print-directory _build _run
 
 single2 s2:
 	EXAMPLE=single-emb \
-	  FEATURES=$(FEATURES),single,distance_mm,targets_per_zone_2 \
+	  FEATURES=$(FEATURES),single,targets_per_zone_2 \
 	  $(REMAKE) --no-print-directory _build _run
 
 s_full:
@@ -74,19 +74,13 @@ s_full2:
 
 many m:
 	EXAMPLE=many-emb \
-	  FEATURES=$(FEATURES),flock,distance_mm \
+	  FEATURES=$(FEATURES),flock \
 	  $(REMAKE) --no-print-directory _build _run
 
 m_full:
 	EXAMPLE=many-emb \
 	  FEATURES=$(FEATURES),flock,$(ALL_FEATURES) \
 	  $(REMAKE) --no-print-directory _build _run
-
-#m-dev md:
-#	EXAMPLE=many-emb \
-#	  FEATURES=$(FEATURES),flock,distance_mm \
-#	  BUILD_MODE="" \
-#	  EMBASSY_EXECUTOR_TASK_ARENA_SIZE=50000 $(REMAKE) --no-print-directory _build _run
 
 #---
 _build:

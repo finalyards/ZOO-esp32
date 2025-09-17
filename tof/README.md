@@ -89,17 +89,22 @@ These requirements apply to both the `vl_uld` and `vl_api`.
 $ sudo apt install libclang-dev clang
 ```
 
-### `bindgen`
+### `bindgen-cli`
 
 ```
-$ cargo install bindgen-cli
+$ cargo install --locked bindgen-cli
 ```
 
-<!-- author's note:
-`bindgen` is available also via `apt`, but the version seems to lag behind (perhaps is special for the Linux kernel use; don't know). At the time, `cargo install` is 0.71.1 while `apt show bindgen` gives:
->Version: 0.66.1-4
+>Note: `--locked` in the command ensures that the `bindgen` library you get matches the version of the CLI. `bindgen --version` reports the version of the *library*.
+
+<p />
+
+<!-- #hidden
+>[!NOTE]
+>`bindgen` is available also via `apt`, but the version lags *far* behind. At the time, `cargo install` is at `0.72.1` while `apt show bindgen` gives version `0.66.1-4`
+
+<p />
 -->
-
 >Note: Bindgen docs recommend using it as a library, but we prefer to use it as a command line tool.
 
 <!-- Developed with:

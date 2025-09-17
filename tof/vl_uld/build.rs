@@ -118,7 +118,7 @@ fn main() -> Result<()> {
         }
     }
 
-    // Expose 'OUT_DIR' to an external (Makefile) build system
+    // Expose 'OUT_DIR' to an external (Makefile.dev) build system
     {
         const TMP: &str = ".OUT_DIR";
 
@@ -131,11 +131,17 @@ fn main() -> Result<()> {
 
     //---
     // Turn 'pins.toml' -> 'tmp/pins_snippet.in’
+    //
+    // Note: It's arguable, should the 'pins.toml' be in '../pins.toml' (it is common to us, and
+    //      the 'vl_api/examples'), or just in the 'vl_api/examples'. It's also connected with
+    //      'WIRING.md' and 'build_snippets/'. Ideas, opinions? #feedback
     {
         #[cfg(feature="vl53l8cx")]
         const SENSOR_ID: &str = "vl53l8";   // without "cx"
         #[cfg(feature="vl53l5cx")]
         const SENSOR_ID: &str = "vl53l5cx";
+
+        const PINS_TOML: &str = "../pins.toml";
 
         let toml = include_str!("../pins.toml");    // "argument must be a string literal"
         let snippet: String = process_pins(toml, &board_id, SENSOR_ID)?;
@@ -147,7 +153,7 @@ fn main() -> Result<()> {
         )?;
 
         // Change in TOML retriggers a build
-        println!("cargo::rerun-if-changed={}", "../pins.toml");
+        println!("cargo::rerun-if-changed={}", PINS_TOML);
     }
 
     //---
@@ -176,17 +182,27 @@ fn main() -> Result<()> {
         #[cfg(not(feature = "nb_spads_enabled"))]
         add!("DISABLE_NB_SPADS_ENABLED");
 
-        // Always build C level with '.nb_target_detected'; need it for:
-        //  a) ensuring it's never 0 (we assume that, but validate)
-        //  b) marking missing results (for multiple-target mode)
+        // Always build C level with:
+        //      '.nb_target_detected'
+        //      '.target_status'
+        //
+        // Needing those for data validation: splitting measurements to 'Valid', 'SemiValid', 'Invalid'
+        // enums (in results_data.rs).
+        //
         //add!("DISABLE_NB_TARGET_DETECTED");
+        //add!("DISABLE_TARGET_STATUS");
 
         // Second group: data and metadata (DIMxDIMxTARGETS)
         //
-        //R#[cfg(not(feature = "target_status"))]    // always compile
-        //Radd!("DISABLE_TARGET_STATUS");
-        //R#[cfg(not(feature = "distance_mm"))]      // always compile (can later reconsider this, but 'target_status' we need always)
-        //Radd!("DISABLE_DISTANCE_MM");
+        // Note: could make 'distance_mm' a feature, but it would unnecessarily complicate the source:
+        //      - it's now merged with '.target_status' and '.nb_target_detected' handling; returning
+        //        a "measurement" without actual measurements would be weird.
+        //      - also, presumably most use cases do want to get the distance (if they don't, it hardly
+        //        matters they would just get it and ignore it)
+        //
+        //R#[cfg(not(feature = "distance_mm"))]
+        //Radd!("DISABLE_DISTANCE_MM");     // always compile
+
         #[cfg(not(feature = "range_sigma_mm"))]
         add!("DISABLE_RANGE_SIGMA_MM");
         #[cfg(not(feature = "reflectance_percent"))]

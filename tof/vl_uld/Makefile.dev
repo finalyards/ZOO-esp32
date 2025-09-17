@@ -48,7 +48,7 @@ ALL_FEATURES:=ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,r
 #
 _OUT_DIR:=.OUT_DIR
 
-# Note! Defined with '=' so that it gets re-evaluated on-site!
+# Note! Defined with '=' so that it gets re-evaluated when met.
 _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
 
 all:

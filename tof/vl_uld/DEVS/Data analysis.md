@@ -102,5 +102,6 @@ And it should remain in the role of `vl_uld` to "correct" (filter) such data - n
 
 I don't want to (at this stage) consider other fields than the `nb_target_detected`, `distance_mm` and `target_status` mentioned above. Later, perhaps...
 
-#### Proposed algorithm
+To see what actually got implemented, see `src/results_data.rs`.
+
 

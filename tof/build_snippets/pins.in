@@ -62,7 +62,6 @@ fn process_pins(toml: &str, board_id: &str, sensor_id: &str) -> Result<String> {
 
     let ret = {
         #[allow(non_snake_case)]
-        let LPns_len = LPns.len();
         let s_LPns = LPns.iter().map(|s| { format!("Pin::degrade( $peripherals.GPIO{s} )") })
             .join(", ");
 
@@ -83,16 +82,12 @@ macro_rules! pins {{
             SDA: $peripherals.GPIO{SDA}.into(),
             SCL: $peripherals.GPIO{SCL}.into(),
             PWR_EN: $peripherals.GPIO{PWR_EN}.into(),
-            SYNC: {s_SYNC},
             INT: $peripherals.GPIO{INT}.into(),
+            #[cfg(feature = "vl53l8cx")]
+            SYNC: {s_SYNC},
             LPn: [{s_LPns}],
         }}
     }}}}
-}}
-
-#[allow(unused_macros)]
-macro_rules! boards {{
-    () => {{( {LPns_len} )}}
 }}
 "#)
     };
