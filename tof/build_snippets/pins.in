@@ -61,7 +61,7 @@ fn process_pins(toml: &str, board_id: &str, sensor_id: &str) -> Result<String> {
     let Board { SDA, SCL, PWR_EN, INT, SYNC, LPn: LPns } = board;
 
     let ret = {
-        #[allow(non_snake_case)]
+        let boards = LPns.len();
         let s_LPns = LPns.iter().map(|s| { format!("Pin::degrade( $peripherals.GPIO{s} )") })
             .join(", ");
 
@@ -88,6 +88,11 @@ macro_rules! pins {{
             LPn: [{s_LPns}],
         }}
     }}}}
+}}
+
+#[allow(unused_macros)]
+macro_rules! boards {{
+    () => {{ {boards} }}
 }}
 "#)
     };

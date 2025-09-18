@@ -13,13 +13,13 @@ use defmt_rtt as _;
 use esp_backtrace as _;     // needed for the panic handler to actually kick in
 use embassy_time as _;      // show it used in Cargo.toml
 
+use esp_alloc as _;
+
 use core::cell::RefCell;
 
 use embassy_executor::Spawner;
 
-use embassy_sync::{
-    signal::Signal
-};
+use embassy_sync::signal::Signal;
 
 use esp_hal::{
     delay::Delay,
@@ -53,14 +53,14 @@ const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
 
 #[allow(dead_code)]     // allow 'SYNC' to not be used
 #[allow(non_snake_case)]
-struct Pins<'a,const BOARDS_N: usize>{
+struct Pins<'a,const BOARDS: usize>{
     SDA: AnyPin<'a>,
     SCL: AnyPin<'a>,
     PWR_EN: AnyPin<'a>,
     INT: AnyPin<'a>,
     #[cfg(feature = "vl53l8cx")]
     SYNC: Option<AnyPin<'a>>,   // 'pins!()' needs the field to exist (even though we don't use it)
-    LPn: [AnyPin<'a>;BOARDS_N]
+    LPn: [AnyPin<'a>;BOARDS]
 }
 
 static DONE: Signal<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, ()> = Signal::new();
@@ -121,7 +121,7 @@ async fn main(spawner: Spawner) {
     spawner.spawn(ranging(vl, INT)).unwrap();
 
     // Need something to wait, to know the task(s) are done.
-    DONE.wait().await;
+    DONE.wait() .await;
 
     // Return to the host command line
     semihosting::process::exit(0);
@@ -147,15 +147,14 @@ async fn ranging(/*move*/ vl: VL53, pinINT: Input<'static>) {
         let SoloResults{res, temp_degc, time_stamp} = ring.get_data() .await
             .unwrap();
 
-        // Note: Consider skipping the first results. They are taken in a hurry (it seems; only taking
-        //      ~20ms vs. normal 100ms) and are not that great quality.
+        // Note: Skip the first results. They are taken in a hurry (it seems; only taking ~20ms vs.
+        //      normal 100ms) and are not that great quality.
         //
-        #[cfg(true)]
-        if _round == 0 { continue }
+        if _round == 0 { continue; }
 
         _t.results();
 
-        // Output could be a separate task, fed via a channel
+        // Note: For separating the processing from the scanning, see 'many-emb.rs'.
         {
             info!("\n\t\tData ({}, at {:ms}s)", temp_degc, (time_stamp-t0).as_millis());
 
@@ -225,29 +224,4 @@ const D_PROVIDER: Delay = Delay::new();
 
 fn blocking_delay_ms(ms: u32) {
     D_PROVIDER.delay_millis(ms);
-}
-
-/*
-* Would rather not have this, but /something/ (only in 'single-emb', not 'many-emb') requires an allocator.
-* Otherwise:
-*   <<
-*       error: no global memory allocator found but one is required; link to std or add `#[global_allocator]` to a static item that implements the GlobalAlloc trait
-*   <<
-*
-*   This doesn't need to be called. But it needs to exist, as a function. :R
-*/
-fn _init_heap() {
-    use core::mem::MaybeUninit;
-
-    const HEAP_SIZE: usize = 32 * 1024;
-    static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
-
-    unsafe {
-        #[allow(static_mut_refs)]
-        esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
-            HEAP.as_mut_ptr() as *mut u8,
-            HEAP_SIZE,
-            esp_alloc::MemoryCapability::Internal.into(),
-        ));
-    }
 }

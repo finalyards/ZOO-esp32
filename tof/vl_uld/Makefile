@@ -241,7 +241,7 @@ tmp/config58.h.next: Cargo.toml
 # Check that required tools are installed
 bindgen:
 	@which bindgen >/dev/null || ( \
-	  echo >&2 "ERROR: 'bindgen' CLI not detected. Please install via 'cargo install bindgen-cli'."; false \
+	  echo >&2 "ERROR: 'bindgen' CLI not detected. Please install via 'cargo install --locked bindgen-cli'."; false \
 	)
 
 clang:

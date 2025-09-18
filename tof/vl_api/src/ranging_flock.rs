@@ -8,7 +8,7 @@ use defmt::{debug,trace};
 
 use esp_hal::{
     gpio::Input,
-    time::{now, Instant}
+    time::Instant
 };
 
 use vl_uld::{
@@ -96,11 +96,16 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
             // Add new results to the 'self.pending'.
             for (i,uld) in self.ulds.iter_mut().enumerate() /*.rev()*/ {
                 if uld.is_ready()? {
-                    let time_stamp = now();
+                    let time_stamp = Instant::now();
                     let (res,temp_degc) = uld.get_data()?;
                     let o = FlockResults{ board_index: i, res, temp_degc, time_stamp };
 
-                    debug!("New data from #{}, pending becomes {}", i, self.pending.len()+1);
+                    let n = self.pending.len();
+                    if n>0 {
+                        debug!("New data from #{}, prior pending queue length: {}", i, n);
+                    } else {
+                        debug!("New data from #{}", i);
+                    }
                     self.pending.push(o);
                 } else {
                     debug!("No new data from #{}", i);
@@ -115,19 +120,19 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
             // No data; sleep until either edge
             //
             // Falling edge: VM has gotten new data
-            // Rising edge: since we use same INT for all sensors, it might make sense to check
-            //      this edge as well. If we are fast enough to fall in sleep before the INT-low
-            //      ends (100us from the last new result), it's possible there's yet more data we
-            //      didn't hear of. Checking both edges ensures we get even those, with sub-ms delay.
+            // Rising edge: since we use same INT for all sensors, it makes sense to check this
+            //      as well. If we are fast enough to fall in sleep before the INT-low ends
+            //      (100us from the last new result), it's possible there's yet more data we didn't
+            //      hear of. Checking both edges ensures we get even those, with sub-ms delay.
             //
             assert!(self.pending.is_empty());
             {
                 trace!("Going to sleep (INT {}).", if self.pinINT.is_low() {"still low"} else {"high"});
 
-                let t0 = now();
+                let t0 = Instant::now();
                 self.pinINT.wait_for_any_edge().await;
 
-                debug!("Woke up to INT edge (now {}; slept {}ms)", if self.pinINT.is_low() {"low"} else {"high"}, (now() - t0).to_millis());
+                debug!("Woke up to INT edge (now {}; slept {}ms)", if self.pinINT.is_low() {"low"} else {"high"}, (Instant::now() - t0).as_millis());
             }
         }
     }
