@@ -1,0 +1,19 @@
+// Something brings in need for global allocator. Faking (below) works!
+//
+// WARN!: Bringing in 'esp_alloc' and doing 'esp_alloc::heap_allocator!(size: ...);' (or anything
+//      else) causes the 'many-emb' sample to get STUCK BEFORE IT WILL READ ANY DATA. Reason for
+//      this behaviour is unknown.
+//
+pub struct Fake;
+
+unsafe impl core::alloc::GlobalAlloc for Fake {
+    unsafe fn alloc(&self, _layout: core::alloc::Layout) -> *mut u8 {
+        0 as *mut u8
+    }
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
+        unreachable!();     // since we never allocate
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: Fake = Fake;

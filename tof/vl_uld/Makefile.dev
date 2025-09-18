@@ -21,7 +21,7 @@ else
   $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
 endif
 
-LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
+LOG_ENV:=DEFMT_LOG=esp_hal=info,vl_uld=info,$(DEFMT_LOG)
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 

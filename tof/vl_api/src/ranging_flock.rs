@@ -65,6 +65,8 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
     * By design, we provide just one result at a time. This is akin to streaming/generation, and
     *       makes it easier for the recipient, compared to getting 1..N results, at once.
     */
+    // tbd. Consider waiting for 'INT' first, and returning *all* the entries to the caller,
+    //      at once (as a slice?).
     pub async fn get_data(&mut self) -> Result<FlockResults<DIM>> {
 
         // Time stamp the results as fast after knowing they exist, as possible.
@@ -102,7 +104,7 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
 
                     let n = self.pending.len();
                     if n>0 {
-                        debug!("New data from #{}, prior pending queue length: {}", i, n);
+                        debug!("New data from #{}, prior queue length: {}", i, n);
                     } else {
                         debug!("New data from #{}", i);
                     }
@@ -127,12 +129,14 @@ impl<const N: usize, const DIM: usize> RangingFlock<N,DIM> {
             //
             assert!(self.pending.is_empty());
             {
-                trace!("Going to sleep (INT {}).", if self.pinINT.is_low() {"still low"} else {"high"});
+                debug!("Going to sleep (INT {}).", if self.pinINT.is_low() {"still low"} else {"high"});
 
                 let t0 = Instant::now();
                 self.pinINT.wait_for_any_edge().await;
 
-                debug!("Woke up to INT edge (now {}; slept {}ms)", if self.pinINT.is_low() {"low"} else {"high"}, (Instant::now() - t0).as_millis());
+                debug!("Woke up to INT edge (now {}; slept {}ms)",
+                    if self.pinINT.is_low() {"low"} else {"high"}, t0.elapsed().as_millis()
+                );
             }
         }
     }

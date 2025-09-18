@@ -4,8 +4,6 @@
 #![no_std]
 #![no_main]
 
-#![allow(for_loops_over_fallibles)]
-
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
 use defmt_rtt as _;
@@ -13,14 +11,13 @@ use defmt_rtt as _;
 use esp_backtrace as _;     // needed for the panic handler to actually kick in
 use embassy_time as _;      // show it used in Cargo.toml
 
-use esp_alloc as _;
-
 use core::cell::RefCell;
 
 use embassy_executor::Spawner;
 
+use embassy_futures::yield_now;
 use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex,
+    blocking_mutex::raw::CriticalSectionRawMutex,   // nb. 'NoopRawMutex' didn't cut it; tried
     channel::{Channel, DynamicReceiver, DynamicSender},
     signal::Signal,
 };
@@ -52,6 +49,8 @@ use vl_api::{
 
 include!("../tmp/pins_snippet.in");  // pins!, boards!
 
+include!("fake_alloc.in");
+
 const RESO: usize = 4;
 type FRes = FlockResults<RESO>;
 
@@ -75,12 +74,11 @@ struct Pins<'a, const BOARDS: usize>{
 // Need to have it; no way around (see below).
 const BOARDS_N: usize = boards!();
 
+// 'NoopRawMutex' is suitable, since: "in the context of a single executor".
 static DONE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-    esp_alloc::heap_allocator!(size: 32 * 1024);
-
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
@@ -149,12 +147,13 @@ async fn main(spawner: Spawner) {
     // Check that the queue gets fully emptied, before returning to host OS prompt.
     {
         let n = CHANNEL.len();
-        debug!("After scans are done, {} results still in the Channel.", n);
+        debug!("After scans are done, {} result(s) still in the Channel.", n);
 
-        //|if b {
-        //|    async_delay_ms(1).await;    // does this help it pass?
-        //|    debug!("!!! {}", snd.contains_value());
-        //|}
+        if n>0 {
+            yield_now() .await;     // allow the consuming task to run
+
+            assert!(CHANNEL.is_empty(), "wait wasn't enough to clear the channel");
+        }
     }
 
     semihosting::process::exit(0);

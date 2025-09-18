@@ -4,7 +4,7 @@
 #![no_std]
 #![no_main]
 
-#![allow(for_loops_over_fallibles)]
+//#![allow(for_loops_over_fallibles)]
 
 #[allow(unused_imports)]
 use defmt::{info, debug, error, warn};
@@ -12,8 +12,6 @@ use defmt_rtt as _;
 
 use esp_backtrace as _;     // needed for the panic handler to actually kick in
 use embassy_time as _;      // show it used in Cargo.toml
-
-use esp_alloc as _;
 
 use core::cell::RefCell;
 
@@ -45,6 +43,8 @@ use vl_api::{
 };
 
 include!("../tmp/pins_snippet.in");  // pins!
+
+include!("fake_alloc.in");
 
 static I2C_SC: StaticCell<RefCell<I2c<'static, Blocking>>> = StaticCell::new();
 

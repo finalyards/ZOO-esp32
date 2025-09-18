@@ -23,10 +23,13 @@ else
   $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
 endif
 
-LOG_ENV:=DEFMT_LOG=esp_hal=info,$(DEFMT_LOG)
+LOG_ENV:=DEFMT_LOG=esp_hal=info,vl_api::uld_platform=info,$(DEFMT_LOG)
 	# otherwise, 'esp-hal' dumps all kinds of DEBUG
+	# 'vl_api::uld_platform' tracing is verbose, and can even cause initialization to fail; enable only when debugging I2C.
+	#	^-- #bug
 
 DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
+#DEFMT_HOST_FMT:='{c} {m} {t:dimmed} [{L:bold}] {s}'		# DEBUG
 
 REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 
