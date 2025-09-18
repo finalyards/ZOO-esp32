@@ -23,7 +23,6 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::{Channel, DynamicReceiver, DynamicSender},
     signal::Signal,
-    //Rwatch::{DynReceiver, DynSender, Watch}
 };
 
 use esp_hal::{
@@ -80,6 +79,8 @@ static DONE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
+    esp_alloc::heap_allocator!(size: 32 * 1024);
+
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
@@ -142,6 +143,7 @@ async fn main(spawner: Spawner) {
 
     spawner.spawn(print_results(rcv)).unwrap();
 
+    debug!("Waiting... for a signal.");
     DONE.wait() .await;
 
     // Check that the queue gets fully emptied, before returning to host OS prompt.
@@ -171,6 +173,8 @@ async fn main(spawner: Spawner) {
 #[embassy_executor::task]
 #[allow(non_snake_case)]
 async fn ranging(/*move*/ vls: [VL53;BOARDS_N], pin_INT: Input<'static>, snd: DynamicSender<'static, FRes>) {
+
+    debug!("Launched: ranging");
 
     let c = RangingConfig::<4>::default()
         .with_mode(AUTONOMOUS(5.ms(), HzU8(10)))
@@ -204,6 +208,8 @@ async fn ranging(/*move*/ vls: [VL53;BOARDS_N], pin_INT: Input<'static>, snd: Dy
 #[embassy_executor::task]
 async fn print_results(rcv: DynamicReceiver<'static, FRes>) {
     let mut t0: Option<Instant> = None;
+
+    debug!("Launched: print_results");
 
     loop {
         let FlockResults{board_index, res, temp_degc, time_stamp}

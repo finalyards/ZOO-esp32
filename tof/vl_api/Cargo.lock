@@ -522,6 +522,7 @@ dependencies = [
  "allocator-api2",
  "cfg-if",
  "critical-section",
+ "defmt 1.0.1",
  "document-features",
  "enumset",
  "linked_list_allocator",
