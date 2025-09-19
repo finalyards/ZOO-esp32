@@ -64,7 +64,7 @@ struct Pins<'a,const BOARDS: usize> {
 }
 
 #[allow(non_upper_case_globals)]
-const I2C_SPEED: Rate = Rate::from_khz(400);        // max 1000
+const I2C_SPEED: Rate = Rate::from_khz(100);        // max 1000
 
 //?? #[cfg(feature="run_with_espflash")]
 //?? esp_bootloader_esp_idf::esp_app_desc!();
@@ -152,12 +152,13 @@ fn main2() -> Result<()> {
 
         // wait for 'INT' to fall
         loop {
+            const TIMEOUT: u16 = 1000;   // ms
             if INT.is_low() {
-                //debug!("INT after: {}", t0.elapsed());  // tbd. needs 'esp-hal' to have 'defmt' feature enabled
-                debug!("INT after: {}ms", t0.elapsed().as_millis());
+                debug!("INT after: {}", t0.elapsed());  // tbd. needs 'esp-hal' to have 'defmt' feature enabled
+                //debug!("INT after: {}ms", t0.elapsed().as_millis());
                 break;
-            } else if t0.elapsed().as_millis() > 1000 {
-                panic!("No INT detected");
+            } else if t0.elapsed().as_millis() > TIMEOUT as _ {
+                warn!("No INT detected within {:ms}s", TIMEOUT);
             }
             blocking_delay_us(20);   // < 100us
         }
