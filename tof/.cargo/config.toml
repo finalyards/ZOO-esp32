@@ -5,3 +5,7 @@
 #
 [build]
 target = "riscv32imac-unknown-none-elf"      # change this by 'set-target.sh'
+
+# Note: Cannot override the upper 'runner' just for tof's. Means we cannot use 'cargo run' within these subprojects.
+#[target.'cfg(true)']
+#runner = "espflash --log-format defmt --monitor"

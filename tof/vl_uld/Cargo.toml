@@ -1,0 +1,127 @@
+[package]
+name = "vl_uld"   # name matters; used in 'examples' and the 'vl_api' project
+edition = "2024"
+rust-version = "1.89"
+    # 1.88: 'esp-hal' 1.0.0-rc0 (and others) require this
+    #       '#[cfg(true|false)]'
+    # 1.85: stable support for edition "2024"
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+#codegen-units = 16
+#opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+#lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dependencies]
+defmt           = { version = "1.0.1", optional = true }
+strum           = { version = "0.27.2", default-features = false, features = ["derive"] }
+
+esp-hal         = { version = "1.0.0-rc.0", features = ["esp32c6"], optional = true }  # "defmt"
+    # needed for its 'Rate' (with 'esp_hal_api' feature); also under 'dev-dependencies'
+
+#[dev-dependencies]
+# Rust provides no mechanism for conditional 'dev-dependencies'. Thus, we introduce them here. THIS IS UNFORTUNATE:
+# it does make these part of the package's external interface (doesn't it?); any better way is welcome. #rust
+#
+# We could make wholly separate packages ('vl_uld_println' etc.) but that's too complex.
+#
+defmt-rtt       = { version = "1.0.0", optional = true }
+#?? esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32c6"], optional = true }
+esp-println     = { version = "0.15.0", features = ["esp32c6", "timestamp"], optional = true }   # "defmt-espflash"
+
+[dev-dependencies]
+#embedded-test   = { version = "0.6.0", features = ["defmt"] }
+
+esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "esp32c6", "semihosting"] }  # "defmt"
+
+esp-hal         = { version = "1.0.0-rc.0", features = ["esp32c6", "unstable"] }  # "defmt"
+    # "unstable" needed for 'delay' module
+
+semihosting     = { version = "0.1.20" }
+
+[build-dependencies]
+anyhow          = "1.0.99"
+itertools       = "0.14"
+serde           = { version = "1.0", features = ["derive"] }
+toml            = "0.9"
+
+# C compile-time features
+#
+# Note: The names reflect the C side #define's (except for being lower case)
+#
+# Features define what fields are available in the ranging output. They actually drive the C library compilation.
+# More fields means more I2C comms and more code size, so you will benefit from keeping the list tight.
+#
+# NOTE:
+#   Some features are connected to others. We check this in 'build.rs'.
+#
+[features]
+vl53l8cx = []
+vl53l5cx = []
+
+ambient_per_spad=[]     # VL_DISABLE_AMBIENT_PER_SPAD
+nb_spads_enabled=[]     # VL_DISABLE_NB_SPADS_ENABLED
+signal_per_spad=[]      # VL_DISABLE_SIGNAL_PER_SPAD
+range_sigma_mm=[]       # VL_DISABLE_RANGE_SIGMA_MM
+#Rdistance_mm=[]          # VL_DISABLE_DISTANCE_MM
+reflectance_percent=[]  # VL_DISABLE_REFLECTANCE_PERCENT
+
+# Recommended to keep enabled; you'll need this for gaining insight to the reliability of the results.
+#Rtarget_status = []      # VL_DISABLED_TARGET_STATUS
+
+#Rnb_targets_detected=[]  # VL_DISABLE_NB_TARGET_DETECTED (but C-level enabling is decided by 'targets_per_zone_{2..4}')
+
+# The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
+# If you want to see more, enable these:
+targets_per_zone_2=["_multi"]
+targets_per_zone_3=["_multi"]
+targets_per_zone_4=["_multi"]
+
+_multi=[]   # internal; multiple targets requested (some data will be marked as MISSING)
+
+# Note: keep the feature properly named (not '_defmt'); outside use might decide to build the lib without 'defmt'.
+defmt = ["dep:defmt",
+    "esp-hal/defmt",
+    "esp-backtrace/defmt",
+    #?? "esp-bootloader-esp-idf?/defmt",
+    "esp-println?/defmt-espflash"
+]
+
+# Provide interfacing to 'esp_hal::time::Rate'
+esp_hal_api = ["dep:esp-hal"]
+
+default = []
+
+# Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
+esp-hal-next = []
+
+# Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
+# not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
+#
+run_with_espflash = ["defmt", "dep:esp-println"]    # ?? "dep:esp-bootloader-esp-idf" ??
+run_with_probe_rs = ["defmt", "dep:defmt-rtt"]
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
+# this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
+#
+[[example]]
+name = "m3"
+required-features = []
+
+[[test]]
+name = "plain_test"
+harness = false
+required-features = ["defmt"]
+
+# Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }

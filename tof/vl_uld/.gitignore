@@ -1,0 +1,5 @@
+# In case you build natively. For Multipass VM's, use a shared '~/target' instead.
+/target/
+
+/tmp/
+/.OUT_DIR

@@ -1,0 +1,99 @@
+#
+# This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
+#
+# Usage:
+#	$ VARIANT=5|8 [DEFMT_LOG=trace|debug|info|...] [BUILD_MODE=""] [FEATURES=esp-hal-next|...] make -f Makefile.dev {single|many|...}
+#
+#		# builds and runs a certain sample
+#
+DEFMT_LOG?=debug
+BUILD_MODE?=--release
+
+FEATURES?=
+VARIANT?=
+ifndef VARIANT
+  $(error 'VARIANT' env.var. not defined. Provide either 'VARIANT=5' or 'VARIANT=8')
+endif
+
+ifeq ($(VARIANT),5)
+  _VARIANT_FEATURE:=vl53l5cx
+else ifeq ($(VARIANT),8)
+  _VARIANT_FEATURE:=vl53l8cx
+else
+  $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
+endif
+
+LOG_ENV:=DEFMT_LOG=esp_hal=info,vl_api::uld_platform=info,$(DEFMT_LOG)
+	# otherwise, 'esp-hal' dumps all kinds of DEBUG
+	# 'vl_api::uld_platform' tracing is verbose, and can even cause initialization to fail; enable only when debugging I2C.
+	#	^-- #bug
+
+DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
+#DEFMT_HOST_FMT:='{c} {m} {t:dimmed} [{L:bold}] {s}'		# DEBUG
+
+REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
+
+ALL_FEATURES:="single,ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,reflectance_percent"
+
+# Read the 'TARGET' from './cargo/config.toml'
+#
+TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+	# riscv32imac-unknown-none-elf
+
+# Detect 'cargo' build cache
+#
+# 'cargo' stores output in a 'target' dir. We get its path via ’build.rs’ to ’.OUT_DIR’. [1]
+#
+#	[1]: Cargo Book > Build cache
+#		https://doc.rust-lang.org/stable/cargo/guide/build-cache.html
+#
+_OUT_DIR:=.OUT_DIR
+
+# Note! Defined with '=' so that it gets re-evaluated on-site!
+_OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
+
+all:
+	@false
+
+single s:
+	EXAMPLE=single-emb \
+	  FEATURES=$(FEATURES),single \
+	  $(REMAKE) --no-print-directory _build _run
+
+single2 s2:
+	EXAMPLE=single-emb \
+	  FEATURES=$(FEATURES),single,targets_per_zone_2 \
+	  $(REMAKE) --no-print-directory _build _run
+
+s_full:
+	EXAMPLE=single-emb \
+	  FEATURES=$(FEATURES),single,$(ALL_FEATURES) \
+	  $(REMAKE) --no-print-directory _build _run
+
+s_full2:
+	EXAMPLE=single-emb \
+	  FEATURES=$(FEATURES),single,$(ALL_FEATURES),targets_per_zone_2 \
+	  $(REMAKE) --no-print-directory _build _run
+
+many m:
+	EXAMPLE=many-emb \
+	  FEATURES=$(FEATURES),flock \
+	  $(REMAKE) --no-print-directory _build _run
+
+m_full:
+	EXAMPLE=many-emb \
+	  FEATURES=$(FEATURES),flock,$(ALL_FEATURES) \
+	  $(REMAKE) --no-print-directory _build _run
+
+#---
+_build:
+	$(LOG_ENV) cargo build $(BUILD_MODE) --features=$(_VARIANT_FEATURE),$(FEATURES),defmt --example $(EXAMPLE)
+	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
+
+_run:
+	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
+
+echo:
+	@echo $(_OUT_DIR)
+
+.PHONY: all single single2 s_full many m_full _build _run echo

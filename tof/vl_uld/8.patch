@@ -1,0 +1,16 @@
+--- /home/ubuntu/VL53L8CX_ULD_API/src/vl53l8cx_api.c	2024-05-21 16:17:46.000000000 +0300
++++ vl53l8cx_api.c	2025-08-20 09:53:27.512372951 +0300
+@@ -366,5 +366,5 @@
+ 	{
+ 		status |= VL53L8CX_STATUS_FW_CHECKSUM_FAIL;
+-		goto exit
++		goto exit;
+ 	}
+
+@@ -417,5 +417,6 @@
+ 	status |= VL53L8CX_WrByte(&(p_dev->platform), 0x7fff, 0x00);
+ 	status |= VL53L8CX_WrByte(&(p_dev->platform), 0x4, (uint8_t)(i2c_address >> 1));
+-	p_dev->platform.address = i2c_address;
++	// THIS IS BAD ABSTRACTION - should not change things on behalf of the platform; treat 'p_dev' as opaque.
++	//p_dev->platform.address = i2c_address;
+ 	status |= VL53L8CX_WrByte(&(p_dev->platform), 0x7fff, 0x02);

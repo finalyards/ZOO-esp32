@@ -22,5 +22,5 @@ rustflags = [
     "-C", "force-frame-pointers",
 ]
 
-[target.'cfg(all())']   # unconditional
+[target.'cfg(true)']   # unconditional
 runner = ["probe-rs", "run", "--log-format={{t:dimmed} [{L:bold}]} {s}  {{c} {ff}:{l:1}%dimmed}"]

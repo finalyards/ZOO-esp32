@@ -1,0 +1,105 @@
+#
+# This Makefile is only for help - a wrapper around 'cargo build' to shorten the commands.
+#
+# Usage:
+#	$ VARIANT=5|8 [DEFMT_LOG=trace|debug|info|...] [FEATURES=esp-hal-next|...] make -f Makefile.dev {m3|m3-with-espflash|m3-with-probe-rs|...}
+#
+#	..builds and runs a certain sample.
+#
+DEFMT_LOG?=debug
+FEATURES?=
+VARIANT?=
+ifndef VARIANT
+  $(error 'VARIANT' env.var. not defined. Provide either 'VARIANT=5' or 'VARIANT=8')
+endif
+
+ifeq ($(VARIANT),5)
+  _VARIANT_FEATURE:=vl53l5cx
+else ifeq ($(VARIANT),8)
+  _VARIANT_FEATURE:=vl53l8cx
+else
+  $(error Unexpected VARIANT=$(VARIANT); valid: 5,8)
+endif
+
+LOG_ENV:=DEFMT_LOG=esp_hal=info,vl_uld=info,$(DEFMT_LOG)
+
+DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
+
+REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
+
+# Read the 'TARGET' from './cargo/config.toml'
+#
+TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
+	# riscv32imac-unknown-none-elf
+
+ALL_FEATURES:=ambient_per_spad,nb_spads_enabled,signal_per_spad,range_sigma_mm,reflectance_percent
+
+# Detect 'cargo' build cache
+#
+# NOTE: This is not very easy. Cargo only exposes the path (which can be defined in THREE different ways!) within
+#		its own build system (as 'OUT_DIR' env.var.); there is no CLI way to ask for it.. Which is fine.
+#
+#		We have 'build.rs' write the path to '.OUT_DIR', from where we can pick it up, for running.
+#
+# YES: The author knows one can use Cargo runners. But this feels more free.
+#
+#	[1]: Cargo Book > Build cache
+#		https://doc.rust-lang.org/stable/cargo/guide/build-cache.html
+#
+_OUT_DIR:=.OUT_DIR
+
+# Note! Defined with '=' so that it gets re-evaluated when met.
+_OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
+
+all:
+	@false
+
+# Examples
+#|m3:
+#|	EXAMPLE=m3 \
+#|	  FEATURES=targets_per_zone_2,distance_mm,reflectance_percent \
+#|	  $(REMAKE) --no-print-directory _build _run
+
+# Working solution for either C3/C6, preferring 'probe-rs' (if it works).
+ifeq ($(TARGET),riscv32imc-unknown-none-elf)	# C3
+m3: m3-with-espflash
+else
+m3: m3-with-probe-rs
+endif
+
+m3-with-probe-rs:
+	EXAMPLE=m3 \
+	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES),esp_hal_api \
+	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
+
+m3-with-espflash:
+	EXAMPLE=m3 \
+	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api \
+	  $(REMAKE) --no-print-directory _build _run-with-espflash-v4
+
+# Tests
+plain_test pt:
+	TEST=plain_test \
+	  $(REMAKE) --no-print-directory _test
+
+_test:
+	$(LOG_ENV) cargo test --features=defmt --test $(TEST)
+
+#---
+_build:
+	$(LOG_ENV) cargo build --release --features=$(_VARIANT_FEATURE),$(FEATURES) --example $(EXAMPLE)
+	@test -f ${_OUT_DIR} || (echo >&2 "Did not generate ${_OUT_DIR}"; false)
+
+_run-with-espflash:
+	espflash flash --log-format defmt --monitor $(_OUT_EXAMPLE)
+
+_run-with-espflash-v4:
+	espflash flash --log-format defmt --output-format $(DEFMT_HOST_FMT) --monitor $(_OUT_EXAMPLE)
+
+_run-with-probe-rs:
+	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
+
+echo:
+	@echo $(notdir $(_OUT_EXAMPLE))
+
+.PHONY: all m3 m3-with-probe-rs m3-with-espflash _test _build _run echo

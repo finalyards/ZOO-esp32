@@ -1,0 +1,145 @@
+/*
+* Presents one VL53 sensor, with its activation line and unique I2C address.
+*/
+#[cfg(feature = "defmt")]
+use defmt::debug;
+
+use core::cell::RefCell;
+
+use esp_hal::{
+    gpio::Input,
+    i2c::master::I2c,
+    Blocking
+};
+#[cfg(feature = "flock")]
+use esp_hal::gpio::Output;
+
+use vl_uld::{
+    DEFAULT_I2C_ADDR,
+    RangingConfig,
+    Result,
+    State_HP_Idle,
+    VL53 as VL53_ULD    // covers both L8 and L5CX
+};
+
+use crate::{
+    I2cAddr,
+    uld_platform::Pl,
+};
+
+#[cfg(feature = "single")]
+use crate::ranging::Ranging;
+#[cfg(feature = "flock")]
+use crate::ranging_flock::RangingFlock;
+
+pub struct VL53 {
+    uld: State_HP_Idle,   // initialized ULD level driver, with dedicated I2C address
+}
+
+impl VL53 {
+    // tbd. make so that caller can give either 'I2cAddr' or a reference
+    //
+    pub fn new_and_setup(i2c_shared: &'static RefCell<I2c<'static, Blocking>>,
+        i2c_addr: &I2cAddr
+    ) -> Result<Self> {
+
+        // The VL53L5CX doesn't retain its I2C address. Thus, we start each session by initializing
+        // the firmware using the default I2C address, then changing to the requested one.
+        //
+        let pl = Pl::new(i2c_shared);
+
+        let mut uld = VL53_ULD::new_with_ping(pl)?.init()?;
+
+        // Also, we can let the board know here, whether SYNC pin should be enabled. This affects
+        // the "autonomous" scan cycles. The abstraction taken in the 'vl_api' is to go all-or-nothing
+        // for the SYNC. This makes sense since it's a matter of physical wiring. Only applicable
+        // when we have multiple boards to drive (that's an assumption; please prove it wrong;
+        // the ULD level doesn't place such limitations, only us).
+        //
+        #[cfg(all(feature="flock_synced", feature = "vl53l8cx"))]
+        uld.set_sync_pin_enable(true)?;
+
+        let a = i2c_addr;
+        if *a != DEFAULT_I2C_ADDR {
+            uld.set_i2c_address(a)?;     // tbd. '.as_8bit()' if public
+        }
+        debug!("Board now reachable as: {}", i2c_addr);
+
+        Ok(Self{
+            uld,
+        })
+    }
+
+    /*
+    * Start ranging on a single board, with an 'INT' pin wired.
+    */
+    #[cfg(feature = "single")]
+    pub fn start_ranging<const DIM: usize>(self, cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<Ranging<DIM>> {
+        Ranging::start(self, cfg, pinINT)
+    }
+
+    /*
+    * A consuming method, used when moving to "Ranging" state.
+    */
+    pub(crate) fn into_uld(self) -> State_HP_Idle {
+        self.uld
+    }
+
+    pub(crate) fn recreate(uld: State_HP_Idle) -> Self {
+        Self { uld }
+    }
+
+    #[cfg(feature = "flock")]
+    pub fn new_flock<const BOARDS: usize>(
+        LPns: [Output;BOARDS],
+        i2c_shared: &'static RefCell<I2c<'static, Blocking>>,
+        i2c_addr_gen: impl Fn(usize) -> I2cAddr
+    ) -> Result<[Self;BOARDS]> {
+        fn array_try_map_mut_enumerated<A,B, const N: usize>(mut aa: [A;N], f: impl FnMut((usize,&mut A)) -> Result<B>) -> Result<[B;N]> {
+            use arrayvec::ArrayVec;
+            let bs_av = aa.iter_mut().enumerate().map(f)
+                .collect::<Result<ArrayVec<B,N>>>();
+
+            bs_av.map(|x| x.into_inner().ok().unwrap())
+        }
+
+        let tmp: Result<[VL53;BOARDS]> = array_try_map_mut_enumerated(LPns, #[allow(non_snake_case)] |(i,LPn)| {
+            LPn.set_high();     // enable this chip and leave it on
+
+            let i2c_addr = i2c_addr_gen(i);
+            debug!("I2C ADDR: {} -> {}", i, i2c_addr);   // TEMP
+            let vl = VL53::new_and_setup(i2c_shared, &i2c_addr)?;
+
+            debug!("Init of board {} succeeded", i);
+            Ok(vl)
+        });
+        tmp
+    }
+}
+
+/*
+* For multiple boards, we can extend the slice itself; this is really handy!
+*
+* Note: Ranging for a single board is done differently than for multiple, because there are
+*       differences. The single board case doesn't need to suffer from unneeded complexity.
+*/
+#[cfg(feature = "flock")]
+pub trait VLsExt<const N: usize, const DIM: usize> {
+    fn start_ranging(self, cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<RangingFlock<N,DIM>>;
+}
+
+#[cfg(feature = "flock")]
+impl<const N: usize, const DIM: usize> VLsExt<N,DIM> for [VL53;N] {
+    fn start_ranging(self, cfg: &RangingConfig<DIM>, pinINT: Input<'static>) -> Result<RangingFlock<N,DIM>> {
+        RangingFlock::start(self, cfg, pinINT)
+    }
+    /***
+    <<
+        Trait `FromIterator<Result<State_Ranging<{ DIM }>, Error>>` is not implemented for `[State_Ranging<{ DIM }>; N]` [E0277]
+    <<
+    let tmp = self.into_iter().map(|x|
+        x.into_uld().start_ranging(cfg)
+    ).collect::<[State_Ranging<DIM>;N]>();
+    ...
+    ***/
+}
