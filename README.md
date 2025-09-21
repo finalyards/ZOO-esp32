@@ -42,9 +42,9 @@ Embassy means to this repo that instead of polling your hardware (and consuming 
 ||folder|what is it?|stability|comments|
 |---|---|---|---|---|
 |**Distance sensors**|
-|![](.images/about/vl53l8.jpg) *VL53L8* ![](.images/about/vl53l5cx.jpg) *VL53L5CX*<br />*The actual sensors are the small components to the left.*|[`tof`](tof/README.md), [`tof/vl_api`](tof/vl_api/README.md)|Time-of-flight distance sensors; 4x4 (60Hz) or 8x8 (15Hz)|beta|VL53L8 and VL53L5CX sensors supported, over I2C bus.|
+|![](.images/about/vl53l8.jpg) *VL53L8* ![](.images/about/vl53l5cx.jpg) *VL53L5CX*<br />*The actual sensors are the small components to the left.*|[`tof`](tof/README.md), [`tof/vl_api`](tof/vl_api/README.md)|Time-of-flight distance sensors|code is stable|VL53L8 and VL53L5CX sensors supported, over I2C bus.|
 |**Wireless**|
-|![](.images/about/ble.png)<br/>*BLE*|[`comms/ble`](comms/ble/README.md)|Working as custom Bluetooth (BLE) service|alpha|No external components needed; shows how to bake custom BLE interface into your project.|
+|![](.images/about/ble_logo.png)<br/>*BLE*|[`comms/ble`](comms/ble/README.md)|Custom Bluetooth (BLE) service for your peripheral.|alpha|No external components needed; shows how to bake custom BLE interface into your project.|
 |**Development kits**|
 |![](.images/about/devkit.png)|[`devkit/rgb`](devkit/rgb/README.md)|RGB LED|WIP||
 ||[`devkit/button`](devkit/button/README.md)|Button|--||

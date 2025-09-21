@@ -6,43 +6,53 @@ Exposing an ESP32 device via the *Bluetooth Low Energy* protocol.
 
 The BLE protocol is independent of the "Bluetooth Classic" stack (which continues to co-exist with it). It is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
 
-Some devices (like most Espressif's and all Nordic Semiconductor's) only support BLE, not the classic profiles. Likewise, some libraries (e.g. [TrouBLE](https://github.com/embassy-rs/trouble) are specific to BLE only.
+Some devices (like most Espressif's and all of Nordic Semiconductor's) only support BLE, not the classic profiles. Likewise, some libraries (e.g. [TrouBLE](https://github.com/embassy-rs/trouble)) are BLE only.
 
 
 ## Sample case
 
-![](.images/bluetooth-human-app-80%.png)
+![](.images/cloud-ble-app.png)
 
-BLE, together with *Web Bluetooth API*<sup>`[1]`</sup> allows one to make mobile user interfaces that:
+BLE, together with *Web Bluetooth API*<sup>`|1|`</sup> allows one to make mobile user interfaces that:
 
 - directly interface with a BLE device
 - don't need any installation
 
-This is widely beneficial for embedded systems, since the UI can be completely detached from the embedded product - and done using latest web development tools. This folder (and its sister folder for the web app) aims to show, how this can be done.
+This is widely beneficial for embedded systems, since the UI can be completely detached from the embedded product - and done using latest web development tools. This folder, and a [related repo](http://github.com/finalyards/ZOO-BLE-webapp) that provides the web app aim to show how this can be done.
 
+<small>
+1. [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (Chrome docs)
+</small>
 
 ## Requirements
 
-- ESP32-C6 or ESP32-C3 devkit (with [JTAG/USB cable added](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html)).
+- ESP32-C6 or ESP32-C3 devkit
 
-   No wiring required.
+	>for ESP32-C3 devkit, [a JTAG/USB cable](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html) must be connected
+
+No wiring is required.
 
 ### Debug tooling
 
-Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play store), or a similar debugging tool on your mobile phone or tablet - and learning to use it.
+Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play store<sup>`|1|`</sup>), or a similar debugging tool on your mobile phone or tablet - and learning to use it.
 
-The tool allows you to "see" the BLE environment and read/write/listen to GATT characteristics of your embedded device. It also gives you an idea, what kind of tools malicious users might try to use, to break into your data chain - i.e. it gives a nudge for building in security.
+The tool allows you to "see" the BLE environment and read/write/listen to GATT characteristics of your embedded device. It also gives you an idea, what kind of tools malicious users might try to use, to break into your connection - i.e. it gives a nudge for building in security.
 
+<small>
+`|1|`: ; available also on [App Store](https://apps.apple.com/fi/app/nrf-connect-for-mobile/id1054362403) (iOS) and as [nRF Connect for Desktop](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop) (Win64/Linux/macOS)
+</small>
+
+<!--R
 > [!NOTE]
 >`Recommended Training material` section (below) covers how to learn to use this tool.
-
+-->
 
 ## Steps
 
 ### Build and launch the example
 
 ```
-DEFMT_LOG=debug cargo build --release --features= --example custom-emb
+DEFMT_LOG=debug cargo build --release --features=defmt --example custom-emb
    Compiling comms-ble v0.0.0 (/home/ubuntu/ZOO.comms/comms/ble)
     Finished `release` profile [optimized + debuginfo] target(s) in 5.52s
 probe-rs run --log-format '{t:dimmed} [{L:bold}] {s}' /home/ubuntu/target/riscv32imc-unknown-none-elf/release/examples/custom-emb
@@ -81,9 +91,10 @@ Using the [nRF Connect for Mobile](https://play.google.com/store/apps/details?id
 
 	The icons show which characteristics you can write to (up arrow), read from (down arrow), or be notified of changes (three down arrows).
 	
-	>Note: Please ignore the "Unknown" titles. It simply means that the UUID's are not within the set of standardized services/characteristics of the Bluetooth specification. You cannot set them, anyways, and `nRF Connect for Mobile` could simply list them as "Custom". The UUID's are what matters.
+	>[!NOTE]
+	>Please ignore the "Unknown" titles. It simply means that the UUID's are not within the set of standardized services/characteristics of the Bluetooth specification. You cannot set them, anyways, and `nRF Connect for Mobile` could simply list them as "Custom". The UUID's are what matters.
 
-### Observer the data (in real time)
+### Observe the data (in real time)
 
 Press the three-down-arrows (notify) icon.
 
@@ -91,19 +102,19 @@ Press the three-down-arrows (notify) icon.
 
 Note that the value keeps increasing, once a second.
 
-This could be a measurement you are observing, off the ESP32 device. It is transmitted *on demand*, the *device* making the initiative of telling the BLE stack that something has changed. It *is* cool.
+This could be any measurement you are observing, off the ESP32 device. It is transmitted *on demand*, the *device* making the initiative of telling the BLE stack that something has changed. It *is* cool.
 
-### Make your mark
+### Show your color
 
 One of the characteristics is for steering the RGB LED on the devkit. Provide three-byte values for its red, green and blue components, to set it to different values.
 
 <!--
-*tbd. screenshots*
+*tbd. image*
 -->
 
 ### Logs
 
-While that happened, the ESP32 has provided some logs, telling how it sees the events:
+While that happened, the ESP32 has provided some logs, telling us how it sees the events:
 
 ```
 [...]
@@ -127,32 +138,53 @@ As always, logs are there to help you debug your code.
 
 ## Next - Web client!!! 👽🚀🎰🪗🎉
 
-As promised, we have a [Bluetooth Web API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) application that makes steering the device quite a bit more intuitive!
+As promised, we have a [web application](https://...tbd...) that makes steering the device quite a bit more intuitive!
 
-Leave the device running and head to: [`{some URL once deployed}`](..). 
+<!-- tbd. image of the web app, on mobile (emulator); have the image as a link to it.
+-->
 
-> [!WARN]
->Oh, and please use a Chrome or Edge browser. Because.. [caniuse](https://caniuse.com/web-bluetooth).
+Leave the device running and open the link.
 
-<p />
+>[!WARN]
+>Oh, and please use a Chrome or Edge browser. Because.. [Safari is firmly on red](https://caniuse.com/web-bluetooth).
 
->The source for the web app is available at [`../extras/ble-web-app`](../extras/ble-web-app/README.md).
+Note that you don't need any discussions with a web server. No sign-up, it's all local, and actually "offline" as much as the Internet is concerned. :)
+
+The source for the web app is available at [ZOO-BLE-webapp](http://github.com/finalyards/ZOO-BLE-webapp) (GitHub).
+
+
+# Learning resources
+
+The Bluetooth Low Energy ecosystem is more complex than normal sensors would be. Thus, we want to offer a list of in-depth dive to the protocols.
+
+- [Introduction to Bluetooth Low Energy](https://learn.adafruit.com/introduction-to-bluetooth-low-energy?view=all) (Adafruit; updated Mar'14)
+
+	Simple introduction (maybe 5-10 min).
+
+	>Note: The text has *some* inaccuracies, for example a Bluetooth Peripheral can be in connection with multiple Centrals, at the same time.
+
+- [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/) (DevAcademy by Nordic Semiconductor)
+
+	- 6 lessons
+	- "8–10 hours to complete"
+	- Exercises use Nordic hardware, but can also just be read through.
+
+	Author opinion: <u>*If you only plan to attend one course, this is a good one!*</u>
+
+You will be "living" on the "host" side of the HCI (Host/Client Interface). Most BLE devices (ESP32 included) have such an interface, even when the same chip would handle both roles. The interface is standardized, so essentially it means serializing/deserializing whatever goes on in BLE. The [TrouBLE](https://github.com/embassy-rs/trouble) library takes care of this for you, but it's good to know what's under the hood...
+
 
 
 ## References
 
-- `[1]`: [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (Chrome docs)
-
-### Training material
-
-- Nordic Semiconductors > DevAcademy > [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/)
-
 - [Bluetooth Classic & BLE with ESP32](https://dronebotworkshop.com/esp32-bluetooth/) (DroneBot Workshop; May 2024)	<!-- date based on associated Youtube video's timestamp -->
 	
-- ESP FAQ > ... > [Bluetooth LE & Bluetooth](https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/bt/ble.html) (Espressif; 2025)
+- [Bluetooth LE & Bluetooth](https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/bt/ble.html) (Espressif; 2025)
 
-	66 tidbits of information - you should find one or two that are useful!
-	
-	"C" (esp-idf) based; not Rust.
+	- 66 tidbits of information - you should find one or two that are useful!
+	- "C" (esp-idf) based; not Rust.
+	- be aware when "ESP32" (the chip) is referred to, instead of ESP32 (the family!)
 
-- [Trouble Book](https://embassy.dev/trouble/)
+- [Part A. Data Types Specification](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/CSS_v11/out/en/supplement-to-the-bluetooth-core-specification/data-types-specification.html) (Bluetooth.com; very official)
+
+	Look up here for using the right terms.

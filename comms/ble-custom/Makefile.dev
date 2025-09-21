@@ -28,14 +28,14 @@ TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"
 #
 _OUT_DIR:=.OUT_DIR
 
-# Note! Defined with '=' so that it gets re-evaluated on-site!
+# Note! Defined with '=' so that it gets re-evaluated each time.
 _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
 
 all:
 	@false
 
-y:
-	EXAMPLE=y-emb \
+custom:
+	EXAMPLE=custom-emb \
 	  $(REMAKE) --no-print-directory _build _run
 
 # Expand the '#[gatt...]' macros
@@ -48,7 +48,7 @@ y:
 #	<<
 #
 #|y-expand:
-#|	cargo +nightly expand --features=defmt --example y-emb
+#|	cargo +nightly expand --features=defmt --example custom-emb
 
 #---
 _build:
@@ -58,10 +58,7 @@ _build:
 _run:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
-#|_attach:
-#|	probe-rs attach --log-format $(DEFMT_HOST_FMT) ${_OUT_EXAMPLE}
-
 echo:
 	@echo $(MCU)
 
-.PHONY: all y y-expand _build _run _attach echo
+.PHONY: all custom _build _run echo

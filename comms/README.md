@@ -1,12 +1,10 @@
 # comms
 
-Features of ESP32 MCU's that are communications oriented. Bluetooth, WiFi.
-
-No wiring or external sensors required.
+Features of ESP32 MCU's that are communications oriented.
 
 - [`ble-custom`](ble-custom/README.md)
 
-	A BLE (Bluetooth Low Energy) peripheral of your liking.
+	A BLE (Bluetooth Low Energy) peripheral of your design.
 
 
 ## Sister repos

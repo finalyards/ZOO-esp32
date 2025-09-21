@@ -1,5 +1,5 @@
 /*
-* Awaits BOOT button presses (available on common devkits), and publishes those to a channel.
+* Awaits BOOT button press (available on common devkits), and publishes those to a channel.
 */
 #[allow(unused_imports)]
 use defmt::{debug};
@@ -18,15 +18,12 @@ pub enum ButtonState {
     Depressed
 }
 
-// Note: Once generators are available in embedded Rust, this could be one.
-//      -> https://dev-doc.rust-lang.org/beta/std/ops/trait.Generator.html
-//
 #[embassy_executor::task]
 pub async fn btn_task(mut pin: /*move*/ Input<'static> , signal: &'static BtnSignal) {
 
     loop {
         pin.wait_for_any_edge() .await;
-        debug!("Change detected: -> {}", if pin.is_low() { " low" } else { "hi" } );
+        debug!("Change detected: -> {}", if pin.is_low() { "low" } else { "hi" } );
 
         let st: ButtonState = match pin.level() {
             Level::Low => ButtonState::Pressed,

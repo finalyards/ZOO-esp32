@@ -1,36 +1,35 @@
 # On the BLE Protocol
 
-We'll give a short summary and some references for further reading / viewing.
+Short summary and some references for further reading / viewing. 
 
-This text is meant *only* for being able to understand the source code. 
+>Disclaimer: This text is meant *only* for being able to understand the source code.
 
 
 ## What is it?
 
-The BLE protocol is a separate protocol from "classic" Bluetooth (which is also called BR/EDR, regarding its data rates). BLE became a standard in 2010, and thereafter most improvements to Bluetooth have been on the BLE side of things.
+The BLE protocol is a separate protocol from "classic" Bluetooth (which is also called BR/EDR, regarding its data rates). BLE became a standard in 2010, and thereafter **most improvements to Bluetooth have been on the BLE side of things**.
 
 A device can be Classic only, BLE only, or support parts from both. Some tools and/or companies might be "BLE only":
 
-- Most Espressif MCU's are BLE only (Bluetooth 5.0)
-   - except ESP32: classic+BLE (Bluetooth 4.2)
+- Most Espressif MCU's (Bluetooth 5.0)
 - Nordic Semiconductor company, tools and products
 
-The main difference (reason for existence!) between BLE and "classic" Bluetooth is that in BLE, even when connected, the radio presence is part-time, allowing power savings for both the peripheral and central (BLE terms). Also, it treats the parties asymmetrically, placing more (power, processing) burden on the "central" devices (such as one's mobile phone or a tablet).
+The main difference (reason for existence!) between BLE and "classic" Bluetooth is that in BLE, even when connected, the radio presence is part-time, allowing power savings for both the peripheral and central (BLE terms). Also, it treats the parties asymmetrically, placing more (power, processing) burden on the "central" devices (such as one's mobile phone, or a tablet).
 
 ## Role in IoT
 
-BLE was mentioned to be designed for **fitness** (think: watches, medical monitoring), **home automation** (think: thermostats) and **IoT** (any battery powered ubiquituos devices). IoT is in the essence of BLE, and the companies making products for it!
+BLE was mentioned to be designed for **fitness** (think: watches, medical monitoring), **home automation** (think: thermostats) and **IoT** (any battery powered devices). IoT is in the essence of BLE, and the companies making products for it!
 
->Note: IoT of course is just a marketing term, and a bit aged at that. We try to not mention it. :)
+>Note: IoT of course is just a marketing term, and a bit aged at that. The author tries not to mention it, again. :)
 
-What the author finds great for <strike>IoT</strike> *connected embedded devices* is that one can create *custom profiles*, not needing to piggy-back on existing ones - like the author thinks is the case with Bluetooth Classic (using RFCOMM to build your profile on top). This is the domain that the repo needs and explores!!!
+What the author finds great for <strike>IoT</strike> *connected embedded devices* is that one can create *custom profiles*, not needing to piggy-back on existing ones. This is the domain that the ZOO repo needs and explores!!!
 
 
 ## Security
 
 BLE offers multiple levels of security, depending on your use case.
 
-<!-- #later?
+<!-- #later?; perhaps a diagram? tbd.
 |use cases|advertisement|encryption|authentication|comments|
 |---|---|---|---|---|
 |read-only beacons|yes|no|no|
@@ -38,9 +37,8 @@ BLE offers multiple levels of security, depending on your use case.
 
 The radio communication can be encrypted. Often, a shared 6-digit number is used to establish the connection (and avoid man-in-the-middle attacks), but also other means to provide the keys exist ("out of band", via e.g. NFC).
 
->Using a (freely available) Bluetooth sniffer is a good starting point to see what your Bluetooth environment already is.
+Attending e.g. the [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/) (DevAcademy by Nordic Semiconductor) Nordic training course is invaluable and enlightening, when you have your own application in mind!
 
-Attending e.g. the [Bluetooth Low Energy Fundamentals](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/) (DevAcademy by Nordic Semiconductor) Nordic training course is invaluable and enlightening, when you have your own application in mind!!!
 
 ## References
 

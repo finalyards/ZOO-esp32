@@ -4,7 +4,7 @@
 #[allow(unused_imports)]
 use defmt::{info, debug, warn, error};
 
-use embassy_futures::{join, select};
+use embassy_futures::{join::join, select::{select, select_array};
 use trouble_host::prelude::*;
 
 use crate::boot_btn_ble::BtnService;
@@ -51,7 +51,7 @@ impl Server<'_> {
         }))
             .unwrap();
 
-        let _ = join::join(ble_task(runner), async {
+        let _ = join(ble_task(runner), async {
             loop {
                 debug!("Starting advertising");
 
@@ -59,13 +59,13 @@ impl Server<'_> {
                     Ok(conn) => {
                         let a = gatt_events_task(&server, &conn);
 
-                        let bs = select::select_array([
+                        let bs = select_array([
                             server.bb.notify_task(&server, &conn)
                         ]);
 
                         // Run until one task ends (usually 'gatt_events_task', due to the connection
                         // being closed); then return to advertising.
-                        select::select(a, bs).await;
+                        select(a, bs).await;
                     }
                     Err(e) => {
                         panic!("caught: {:?}", e);

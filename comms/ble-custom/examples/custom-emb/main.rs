@@ -4,29 +4,33 @@
 #[allow(unused_imports)]
 use defmt::{info, debug};
 use defmt_rtt as _;
-use embassy_time as _;  // so IDE shows it as active; we want the time stamp for 'defmt' logs
 
-use esp_alloc as _;
+//use embassy_time as _;  // show enabled in 'Cargo.toml'; we want the time stamp for 'defmt' logs
+
+//use esp_alloc as _;   // tbd. needed???
 use esp_backtrace as _;
+//use static_cell as _;       // enable in 'Cargo.toml'
 
 use bt_hci::controller::ExternalController;
 
 use embassy_executor::Spawner;
-use embassy_sync::{
-    signal::Signal
-};
+use embassy_sync::signal::Signal;
+
 use esp_hal::{
     clock::CpuClock,
     efuse::Efuse,
-    gpio::{Input, Pull},
+    gpio::{AnyPin, Input, Pull},
     timer::timg::TimerGroup
 };
 use esp_wifi::ble::controller::BleConnector;
+
 use trouble_host::Address;
 
 mod boot_btn_task;
 mod boot_btn_ble;
 mod server_ble;
+
+include!("../tmp/pins_snippet.in");  // pins!
 
 use crate::{
     boot_btn_task::{BtnSignal, btn_task},
@@ -34,6 +38,11 @@ use crate::{
 };
 
 pub(crate) static BTN_SIGNAL: BtnSignal = Signal::new();
+
+#[allow(non_snake_case)]
+struct Pins<'a>{
+    BOOT: AnyPin//<'a>
+}
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) -> ! {
@@ -62,27 +71,26 @@ async fn main(spawner: Spawner) -> ! {
         ExternalController::new(tmp)
     };
 
-    //---
+    let Pins{ BOOT } = pins!(peripherals);
+
+    #[allow(non_snake_case)]
+    let BOOT = Input::new(BOOT, InputConfig::default(), Pull::Up);
+
     // Boot button task is being run constantly on the background (even when there's no BLE
     // connection). This is just a matter of taste - use 'AnyServiceTask' for running something
     // just when connected.
-    {
-        let btn_pin = Input::new(peripherals.GPIO9, Pull::Up);  // BOOT button
-
-        esp_hal::gpio::Output::new(peripherals.GPIO22);
-        spawner.spawn(btn_task(btn_pin, &BTN_SIGNAL))
-            .unwrap();
-    }
+    //
+    spawner.spawn(btn_task(BOOT, &BTN_SIGNAL))
+        .unwrap();
 
     //---
-
-    // Using a fixed address can be useful for testing.
-    #[cfg(not(all()))]
-    let address: Address = Address::random(b"rand0m".into());
-    #[cfg(all())]
     let a: Address = Address::random(Efuse::mac_address());  // 6 bytes MAC
 
-    info!("Our address = {:02x}", a.addr.raw());    // output as: "10:15:07:04:32:54" tbd.!!
+    // Using a fixed address can be useful for testing.
+    #[cfg(false)]
+    let a: Address = Address::random(b"rand0m".into());
 
-    Server::run(controller, a) .await
+    info!("Our address = {:02x}", a.addr.raw());    // output as: "10:15:07:04:32:54" tbd.
+
+    Server::run(controller, a) .await;
 }

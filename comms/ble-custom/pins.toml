@@ -1,0 +1,10 @@
+#
+# pins.toml
+#
+# Pins configuration for the examples. An include is generated, based on information in this file.
+#
+[boards.esp32c3]
+BOOT = 2
+
+[boards.esp32c6]
+BOOT = 9

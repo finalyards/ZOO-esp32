@@ -31,7 +31,7 @@ pub(crate) struct BtnService {
         #[descriptor(uuid = descriptors::VALID_RANGE, read, value = [0, 1])]
     state: bool,
 }
-    // |!| CONVERSIONS:
+    //R?? tbd. closed; can this go? |!| CONVERSIONS:
     //
     // For now, use without conversions gives:
     //  <<
