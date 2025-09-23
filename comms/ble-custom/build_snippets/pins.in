@@ -17,7 +17,7 @@ use std::collections::HashMap;
 //
 #[derive(Debug, serde::Deserialize)]
 struct PinsToml {
-    boards: HashMap<String, HashMap<String,Board>>
+    boards: HashMap<String,Board>
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -30,9 +30,11 @@ struct Board {
 fn process_pins(toml: &str, board_id: &str) -> Result<String> {
     let c: PinsToml = toml::from_str(toml)?;
 
-    let board = c.boards.get(board_id).with_context(
-        || format!("No section '[boards.{board_id}]' found in 'pins.toml'")
-    )?;
+    let board: &Board = {
+        c.boards.get(board_id).with_context(
+            || format!("No section '[boards.{board_id}]' found in 'pins.toml'")
+        )?
+    };
 
     // unpack, because "field access not supported [...] in a format string"
     let Board { BOOT } = board;

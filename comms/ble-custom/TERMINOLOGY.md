@@ -79,6 +79,20 @@ You will face this in defining some buffer sizes, e.g. `L2CAP_MTU`.
 
 <small>[source](https://software-dl.ti.com/lprf/sdg-latest/html/ble-stack-3.x/l2cap.html)</small>
 
+
+## Security 
+
+### Bonding and pairing
+
+>"**Bonds** are created through one-time a process called **pairing**. When devices pair up, they share their addresses, names, and profiles, and usually store them in memory. The also share a common secret key, which allows them to bond whenever they're together in the future."
+
+<p />
+
+>"Bonding refers to storing the exchanged keys for subsequent connections so that they do not have to be transmitted again."
+
+*tbd. Discuss the importance of this, in the context of (this repo) Web Bluetooth API*
+
+
 ## Other picks (not terminology)
 
 >*When using the LE Data Length Extension feature, the length of the LE packet can be up to 251 bytes.*

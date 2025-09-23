@@ -2,7 +2,15 @@
 
 Exposing an ESP32 device via the *Bluetooth Low Energy* protocol.
 
-## BLE vs. Bluetooth Classic
+- with security 
+- and encryption
+
+We use the GATT profiles, making the BLE service usable from a Web Bluetooth API client (no native apps are involved).
+
+
+## Background
+
+### BLE vs. Bluetooth Classic
 
 The BLE protocol is independent of the "Bluetooth Classic" stack (which continues to co-exist with it). It is intended for **fitness**, **home automation** and **internet-of-things** use cases, i.e. anywhere where battery powered devices with non-frequent charging opportunities abound.
 
@@ -18,11 +26,25 @@ BLE, together with *Web Bluetooth API*<sup>`|1|`</sup> allows one to make mobile
 - directly interface with a BLE device
 - don't need any installation
 
-This is widely beneficial for embedded systems, since the UI can be completely detached from the embedded product - and done using latest web development tools. This folder, and a [related repo](http://github.com/finalyards/ZOO-BLE-webapp) that provides the web app aim to show how this can be done.
+This is widely beneficial for embedded systems, since the UI can be completely detached from the embedded product. This folder, and a [related repo](http://github.com/finalyards/ZOO-BLE-webapp) that provides the web app aim to show how this can be done.
 
 <small>
 1. [Communicating with Bluetooth devices over JavaScript](https://developer.chrome.com/docs/capabilities/bluetooth) (Chrome docs)
 </small>
+
+### Security
+
+The dance goes like this:
+
+![](.images/security.png)
+
+*Figure 2. **Preliminary** thought on security*
+
+You'd need not only be in the vicinity of the device, but also know a secret.
+
+- [ ] add info about pairing and bonding (how it happens on later meets)
+- [ ] consider hashed secret vs. blinking lights N times.. :)
+
 
 ## Requirements
 
@@ -34,18 +56,16 @@ No wiring is required.
 
 ### Debug tooling
 
-Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play store<sup>`|1|`</sup>), or a similar debugging tool on your mobile phone or tablet - and learning to use it.
+Consider installing [nRF Connect for Mobile](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) (Google Play store<sup>`|1|`</sup>) on your mobile phone or tablet - and learning to use it.
 
-The tool allows you to "see" the BLE environment and read/write/listen to GATT characteristics of your embedded device. It also gives you an idea, what kind of tools malicious users might try to use, to break into your connection - i.e. it gives a nudge for building in security.
+The tool allows you to "see" the BLE environment and read/write/listen to GATT characteristics of your embedded device. We use it here for manually testing that the service functions.
+
+You also get an idea, what kind of tools malicious users might try to use, to break into your connection - i.e. it gives a nudge for building in security.
 
 <small>
 `|1|`: ; available also on [App Store](https://apps.apple.com/fi/app/nrf-connect-for-mobile/id1054362403) (iOS) and as [nRF Connect for Desktop](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop) (Win64/Linux/macOS)
 </small>
 
-<!--R
-> [!NOTE]
->`Recommended Training material` section (below) covers how to learn to use this tool.
--->
 
 ## Steps
 

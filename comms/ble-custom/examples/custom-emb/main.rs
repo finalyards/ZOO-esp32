@@ -1,13 +1,14 @@
 #![no_std]
 #![no_main]
 
+use core::convert::Infallible;
 #[allow(unused_imports)]
 use defmt::{info, debug};
 use defmt_rtt as _;
 
 //use embassy_time as _;  // show enabled in 'Cargo.toml'; we want the time stamp for 'defmt' logs
 
-//use esp_alloc as _;   // tbd. needed???
+use esp_alloc;
 use esp_backtrace as _;
 //use static_cell as _;       // enable in 'Cargo.toml'
 
@@ -30,7 +31,7 @@ mod boot_btn_task;
 mod boot_btn_ble;
 mod server_ble;
 
-include!("../tmp/pins_snippet.in");  // pins!
+include!("../../tmp/pins_snippet.in");  // pins!
 
 use crate::{
     boot_btn_task::{BtnSignal, btn_task},
@@ -45,7 +46,7 @@ struct Pins<'a>{
 }
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) -> ! {
+async fn main(spawner: Spawner) -> () /* !*/ {
     let peripherals = esp_hal::init({
         let mut x = esp_hal::Config::default();
         x.cpu_clock = CpuClock::max();

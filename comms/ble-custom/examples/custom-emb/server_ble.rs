@@ -4,7 +4,7 @@
 #[allow(unused_imports)]
 use defmt::{info, debug, warn, error};
 
-use embassy_futures::{join::join, select::{select, select_array};
+use embassy_futures::{join::join, select::{select, select_array}};
 use trouble_host::prelude::*;
 
 use crate::boot_btn_ble::BtnService;
