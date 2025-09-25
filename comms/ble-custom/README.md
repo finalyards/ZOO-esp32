@@ -208,3 +208,6 @@ You will be "living" on the "host" side of the HCI (Host/Client Interface). Most
 - [Part A. Data Types Specification](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/CSS_v11/out/en/supplement-to-the-bluetooth-core-specification/data-types-specification.html) (Bluetooth.com; very official)
 
 	Look up here for using the right terms.
+
+- [Trouble documentation](https://embassy.dev/trouble/)
+

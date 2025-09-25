@@ -8,15 +8,20 @@
 *           $ uuidgen | tr '[:upper:]' '[:lower:]'
 *           719ba6d4-6bad-4ed5-bd4d-7e64d184d8bf
 *       <<
-*       |1|: https://stackoverflow.com/a/65670536/14455
+*           |1|: https://stackoverflow.com/a/65670536/14455
 */
+#[allow(non_snake_case)]
+#[allow(dead_code)]
+struct Config {
+    pub(crate) NAME: &'static str,
+    pub(crate) AD_NAME: &'static str,
+    BTN_SERVICE_UUID: u128,
+    BTN_STATE_CHARACTERISTIC_UUID: u128,
+}
 
-#[allow(dead_code)]
-const AD_NAME: &str = "ZOO";    // tbd. where does this show?
-#[allow(dead_code)]
-const AD_NAME2: &str = "ZOO sample";    // Server name visible in BLE sniffer
-
-#[allow(dead_code)]
-const BB_SERVICE_UUID: u128 = 0x_92996405_8C0E_4FA1_A417_67D36995B563;      // "92996405-8C0E-4FA1-A417-67D36995B563";
-#[allow(dead_code)]
-const BB_STATE_CTIC_UUID: u128 = 0x_719ba6d4_6bad_4ed5_bd4d_7e64d184d8bf;
+const CONFIG: Config = Config {
+    NAME: "ZOO",             // tbd. where does this show?
+    AD_NAME: "ZOO sample",     // name advertised on BLE
+    BTN_SERVICE_UUID: 0x_92996405_8C0E_4FA1_A417_67D36995B563,
+    BTN_STATE_CHARACTERISTIC_UUID: 0x_719ba6d4_6bad_4ed5_bd4d_7e64d184d8bf
+};

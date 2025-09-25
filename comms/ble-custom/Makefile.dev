@@ -14,11 +14,6 @@ DEFMT_HOST_FMT:='{t:dimmed} [{L:bold}] {s}'
 
 REMAKE:=$(MAKE) -f $(MAKEFILE_LIST)
 
-# Read the 'TARGET' from (nearest) '.cargo/config.toml'
-#
-TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"' -f2)
-	# riscv32imac-unknown-none-elf
-
 # Detect 'cargo' build cache
 #
 # 'cargo' stores output in a 'target' dir. We get its path via ’build.rs’ to ’.OUT_DIR’. [1]
@@ -28,7 +23,9 @@ TARGET:=$(shell cat ../.cargo/config.toml | grep -e '^target\s*=\s"' | cut -d '"
 #
 _OUT_DIR:=.OUT_DIR
 
-# Note! Defined with '=' so that it gets re-evaluated each time.
+# Note! Defined with '=' so that it gets re-evaluated each time. This way, the build
+#		(that generates '.OUT_DIR') has a chance of running first.
+#
 _OUT_EXAMPLE=$(shell cat ${_OUT_DIR} | sed -E 's^/build/.+$$^/examples/^')$(EXAMPLE)
 
 all:
@@ -59,6 +56,6 @@ _run:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)
 
 echo:
-	@echo $(MCU)
+	@echo $(XX)
 
 .PHONY: all custom _build _run echo
