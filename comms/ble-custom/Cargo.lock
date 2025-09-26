@@ -103,7 +103,6 @@ dependencies = [
  "esp-hal-embassy",
  "esp-preempt",
  "esp-radio",
- "rand_core 0.6.4",
  "serde",
  "static_cell",
  "toml",
@@ -121,9 +120,9 @@ dependencies = [
 
 [[package]]
 name = "bt-hci"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9172c3df73e30f9bcbf80d0f5a4700fbc6d6771329142d05c06bb7ece7032c7"
+checksum = "bb938a3b4c5cc6c2409275bad789c0346a0495fa071a0acc5d72b9bd3175a2f7"
 dependencies = [
  "btuuid",
  "defmt 1.0.1",
@@ -670,7 +669,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "esp-alloc"
 version = "0.8.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "allocator-api2",
  "cfg-if",
@@ -685,7 +684,7 @@ dependencies = [
 [[package]]
 name = "esp-backtrace"
 version = "0.17.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "cfg-if",
  "defmt 1.0.1",
@@ -701,7 +700,7 @@ dependencies = [
 [[package]]
 name = "esp-bootloader-esp-idf"
 version = "0.2.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "cfg-if",
  "defmt 1.0.1",
@@ -716,7 +715,7 @@ dependencies = [
 [[package]]
 name = "esp-config"
 version = "0.5.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "document-features",
  "esp-metadata-generated",
@@ -728,7 +727,7 @@ dependencies = [
 [[package]]
 name = "esp-hal"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "bitfield",
  "bitflags 2.9.4",
@@ -779,7 +778,7 @@ dependencies = [
 [[package]]
 name = "esp-hal-embassy"
 version = "0.9.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "cfg-if",
  "defmt 1.0.1",
@@ -802,7 +801,7 @@ dependencies = [
 [[package]]
 name = "esp-hal-procmacros"
 version = "0.19.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "document-features",
  "litrs",
@@ -816,7 +815,7 @@ dependencies = [
 [[package]]
 name = "esp-metadata"
 version = "0.8.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "anyhow",
  "basic-toml",
@@ -830,15 +829,28 @@ dependencies = [
 [[package]]
 name = "esp-metadata-generated"
 version = "0.1.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "esp-metadata",
 ]
 
 [[package]]
+name = "esp-phy"
+version = "0.0.1"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
+dependencies = [
+ "cfg-if",
+ "esp-config",
+ "esp-hal",
+ "esp-metadata-generated",
+ "esp-sync",
+ "esp-wifi-sys",
+]
+
+[[package]]
 name = "esp-preempt"
 version = "0.0.1"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "allocator-api2",
  "cfg-if",
@@ -856,7 +868,7 @@ dependencies = [
 [[package]]
 name = "esp-println"
 version = "0.15.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "document-features",
  "esp-metadata-generated",
@@ -867,7 +879,7 @@ dependencies = [
 [[package]]
 name = "esp-radio"
 version = "0.15.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "allocator-api2",
  "bt-hci",
@@ -882,6 +894,7 @@ dependencies = [
  "esp-hal",
  "esp-hal-procmacros",
  "esp-metadata-generated",
+ "esp-phy",
  "esp-radio-preempt-driver",
  "esp-sync",
  "esp-wifi-sys",
@@ -897,12 +910,12 @@ dependencies = [
 [[package]]
 name = "esp-radio-preempt-driver"
 version = "0.0.1"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 
 [[package]]
 name = "esp-riscv-rt"
 version = "0.12.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "defmt 1.0.1",
  "document-features",
@@ -913,7 +926,7 @@ dependencies = [
 [[package]]
 name = "esp-rom-sys"
 version = "0.1.1"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "cfg-if",
  "document-features",
@@ -923,7 +936,7 @@ dependencies = [
 [[package]]
 name = "esp-sync"
 version = "0.0.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "cfg-if",
  "defmt 1.0.1",
@@ -1644,9 +1657,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
+checksum = "80ece43fc6fbed4eb5392ab50c07334d3e577cbf40997ee896fe7af40bba4245"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -1654,18 +1667,18 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba2ba63999edb9dac981fb34b3e5c0d111a69b0924e253ed29d83f7c99e966a4"
+checksum = "7a576275b607a2c86ea29e410193df32bc680303c82f31e275bbfcafe8b33be5"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8db53ae22f34573731bafa1db20f04027b2d25e02d8205921b569171699cdb33"
+checksum = "51e694923b8824cf0e9b382adf0f60d4e05f348f357b38833a3fa5ed7c2ede04"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1889,7 +1902,9 @@ checksum = "d163a63c116ce562a22cda521fcc4d79152e7aba014456fb5eb442f6d6a10109"
 
 [[package]]
 name = "trouble-host"
-version = "0.3.0"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78a852f6e193f71732ce3c33661fea2575ba3dac6f48bbe1713059373f96e864"
 dependencies = [
  "aes",
  "bt-hci",
@@ -1912,7 +1927,9 @@ dependencies = [
 
 [[package]]
 name = "trouble-host-macros"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcb85bec3a8393c22ca1a7c25c82c2d33689ab412f3487c492fd01a033ede7c2"
 dependencies = [
  "convert_case",
  "darling 0.20.11",
@@ -2062,9 +2079,9 @@ checksum = "45e46c0661abb7180e7b9c281db115305d49ca1709ab8242adf09666d2173c65"
 
 [[package]]
 name = "windows-sys"
-version = "0.61.0"
+version = "0.61.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e201184e40b2ede64bc2ea34968b28e33622acdbbf37104f0e4a33f7abe657aa"
+checksum = "6f109e41dd4a3c848907eb83d5a42ea98b3769495597450cf6d153507b166f0f"
 dependencies = [
  "windows-link",
 ]
@@ -2081,7 +2098,7 @@ dependencies = [
 [[package]]
 name = "xtensa-lx"
 version = "0.12.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "critical-section",
 ]
@@ -2089,7 +2106,7 @@ dependencies = [
 [[package]]
 name = "xtensa-lx-rt"
 version = "0.20.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "defmt 1.0.1",
  "document-features",
@@ -2100,7 +2117,7 @@ dependencies = [
 [[package]]
 name = "xtensa-lx-rt-proc-macros"
 version = "0.4.0"
-source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-0.5#2bddef9b5f1e8b74b22fcaca117b29f9cdbaa50c"
+source = "git+https://github.com/lulf/esp-hal.git?branch=bt-hci-fix#e61e6e7a2521138a7949bf9912e84fed59ca2536"
 dependencies = [
  "proc-macro2",
  "quote",

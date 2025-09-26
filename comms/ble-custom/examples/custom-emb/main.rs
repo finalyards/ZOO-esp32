@@ -30,7 +30,7 @@ use esp_radio::{
 use static_cell::StaticCell;
 #[allow(unused_imports)]
 use trouble_host::{
-    prelude::{DefaultPacketPool, ExternalController},
+    prelude::*,
     Address,
 };
 
@@ -61,18 +61,26 @@ async fn main(spawner: Spawner) -> () /* !*/ {      // '!' is still a nightly ty
     );
     esp_alloc::heap_allocator!(size: 72 * 1024);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    esp_preempt::start(timg0.timer0);
+
+    // only RISC V boards supported
+    //#[cfg(target_arch = "riscv32")]
+    let software_interrupt = esp_hal::interrupt::software::SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+
+    esp_preempt::start(
+        timg0.timer0,
+        software_interrupt.software_interrupt0
+    );
 
     static RADIO: StaticCell<Controller<'static>> = StaticCell::new();
     let radio = RADIO.init(esp_radio::init().unwrap());
 
-    // only non-ESP32 boards supported
+    // only RISC V boards supported
     {
         let tmp = SystemTimer::new(peripherals.SYSTIMER);
         esp_hal_embassy::init(tmp.alarm0);
     }
 
-    let controller: ExternalController<_, 10 /*SLOTS*/> = {
+    let controller: ExternalController<_, 20 /*SLOTS*/> = {
         let bluetooth = peripherals.BT;
         let tmp = BleConnector::new(radio, bluetooth);
         ExternalController::new(tmp)
