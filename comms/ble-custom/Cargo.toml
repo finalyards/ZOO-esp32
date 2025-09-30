@@ -37,8 +37,7 @@ esp-preempt     = { version = "0.0.1", features = ["defmt", "esp32c3"] }
 esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "defmt", "esp32c3" ] }
 static_cell     = { version = "2" }
 trouble-host    = { version = "0.4.0", default-features = false, features = [
-    # Since we disable default features, 'default-packet-pool' needs to be separately enabled; it's not implied by
-    # setting its MTU size by '"default-packet-pool-mtu-255". See -> https://github.com/embassy-rs/trouble/pull/458
+    # Since we disable default features (to avoid 'central' creeping in), 'default-packet-pool' needs to be separately enabled.
     "default-packet-pool",
     "default-packet-pool-mtu-255",  # as in the 'trouble' ESP32 examples
     "derive",

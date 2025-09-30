@@ -20,8 +20,8 @@ struct Config {
 }
 
 const CONFIG: Config = Config {
-    NAME: "ZOO",             // tbd. where does this show?
-    AD_NAME: "ZOO sample",     // name advertised on BLE
+    NAME: "ZOO",                // tbd. where does this show?
+    AD_NAME: "custom example",  // advertised name
     BTN_SERVICE_UUID: 0x_92996405_8C0E_4FA1_A417_67D36995B563,
     BTN_STATE_CHARACTERISTIC_UUID: 0x_719ba6d4_6bad_4ed5_bd4d_7e64d184d8bf
 };
