@@ -26,7 +26,7 @@ defmt-rtt       = { version = "1.0.0" }
 embassy-executor = { version = "0.9.1" }
 embassy-futures = { version = "0.1.2" }
 embassy-sync    = { version = "0.7.2" }
-embassy-time    = { version = "0.5.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}    # for time-stamp in logs
+embassy-time    = { version = "0.5.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}
 
 esp-alloc       = { version = "0.8.0" }
 esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "defmt", "esp32c3"] }
@@ -37,7 +37,7 @@ esp-preempt     = { version = "0.0.1", features = ["defmt", "esp32c3"] }
 esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "defmt", "esp32c3" ] }
 static_cell     = { version = "2" }
 trouble-host    = { version = "0.4.0", default-features = false, features = [
-    # Since we disable default features (to avoid 'central' creeping in), 'default-packet-pool' needs to be separately enabled.
+    # tbd. remove 'default-packet-pool' when 'trouble-host' > 0.4.0
     "default-packet-pool",
     "default-packet-pool-mtu-255",  # as in the 'trouble' ESP32 examples
     "derive",
@@ -54,19 +54,29 @@ toml            = "0.9"
 [features]
 defmt = ["dep:defmt", "bt-hci/defmt", "esp-bootloader-esp-idf/defmt", "esp-hal/defmt", "trouble-host/defmt"]
 
-# According to TrouBLE ESP32 examples: note, uses 'lulf's fork of 'esp-hal' sources!!
-#   -> https://github.com/embassy-rs/trouble/blob/main/examples/esp32/Cargo.toml
-#
 [patch.crates-io]
-esp-alloc =             { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
-esp-backtrace =         { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
-esp-bootloader-esp-idf = { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
-esp-hal =               { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
-esp-hal-embassy =       { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
-esp-preempt =           { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
-esp-radio =             { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+# Checked (1-Oct-25) and 'lulf/bt-hci-fix' changes seem to be included:
+# https://github.com/esp-rs/esp-hal/commit/9930c10747bc243d1bc47f0009204d63cb8e57f8
+#
+#|# According to TrouBLE ESP32 examples: note, uses 'lulf's fork of 'esp-hal' sources!!
+#|#   -> https://github.com/embassy-rs/trouble/blob/main/examples/esp32/Cargo.toml
+#|#
+#|esp-alloc =             { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+#|esp-backtrace =         { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+#|esp-bootloader-esp-idf ={ git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+#|esp-hal =               { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+#|esp-hal-embassy =       { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+#|esp-preempt =           { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
+#|esp-radio =             { git = "https://github.com/lulf/esp-hal.git", branch = "bt-hci-fix" }
 
-#trouble-host =          { path = "../../../trouble/host" }
+# ..remove when path 1.0.0-rc0 :9
+esp-alloc =             { git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
+esp-backtrace =         { git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
+esp-bootloader-esp-idf ={ git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
+esp-hal =               { git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
+esp-hal-embassy =       { git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
+esp-preempt =           { git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
+esp-radio =             { git = "https://github.com/esp-rs/esp-hal.git", rev="9930c10" }
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #
