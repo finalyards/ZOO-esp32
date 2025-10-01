@@ -44,7 +44,7 @@ The following debug probes were found:
 ### Build and launch the example
 
 ```
-DEFMT_LOG=esp_preempt=info,debug cargo run --release --features=defmt --example custom-emb
+DEFMT_LOG=esp_hal=info,esp_rtos=info,debug cargo run --release --features=defmt --example custom-emb
    Compiling comms-ble v0.0.0 (/home/ubuntu/ZOO.comms/comms/ble)
 [...compiling...]
 [...flashing...]

@@ -7,9 +7,7 @@ use defmt_rtt as _;
 
 use embassy_time as _;      // show enabled in 'Cargo.toml'; we want the time stamp for 'defmt' logs
 
-//use esp_alloc;
 use esp_backtrace as _;
-//use static_cell as _;       // enable in 'Cargo.toml'
 
 use embassy_executor::Spawner;
 use embassy_sync::signal::Signal;
@@ -17,17 +15,15 @@ use esp_hal::{
     clock::CpuClock,
     efuse::Efuse,
     gpio::{AnyPin, Input, InputConfig, Pull},
+    interrupt::software::SoftwareInterruptControl,
     rng::{Trng, TrngSource},
     timer::{
-        systimer::SystemTimer,
         timg::TimerGroup
     }
 };
 use esp_radio::{
     ble::controller::BleConnector,
-    Controller,
 };
-use static_cell::StaticCell;
 #[allow(unused_imports)]
 use trouble_host::{
     prelude::*,
@@ -53,36 +49,29 @@ struct Pins<'a>{
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
-#[esp_hal_embassy::main]
+#[cfg(not(target_arch = "riscv32"))]
+compile_error!("Only prepared for the RISC V target (not Xtensa)");
+
+#[esp_rtos::main]
 async fn main(spawner: Spawner) -> () /* !*/ {      // '!' is still a nightly type
     let peripherals = esp_hal::init(
         esp_hal::Config::default()
             .with_cpu_clock(CpuClock::max())
     );
     esp_alloc::heap_allocator!(size: 72 * 1024);
+
+    let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-
-    // only RISC V boards supported
-    //#[cfg(target_arch = "riscv32")]
-    let software_interrupt = esp_hal::interrupt::software::SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
-
-    esp_preempt::start(
+    esp_rtos::start(
         timg0.timer0,
-        software_interrupt.software_interrupt0
+        sw_int.software_interrupt0
     );
 
-    static RADIO: StaticCell<Controller<'static>> = StaticCell::new();
-    let radio = RADIO.init(esp_radio::init().unwrap());
-
-    // only RISC V boards supported
-    {
-        let tmp = SystemTimer::new(peripherals.SYSTIMER);
-        esp_hal_embassy::init(tmp.alarm0);
-    }
+    let radio = esp_radio::init().unwrap();
 
     let controller: ExternalController<_, 20 /*SLOTS*/> = {
         let bluetooth = peripherals.BT;
-        let tmp = BleConnector::new(radio, bluetooth);
+        let tmp = BleConnector::new(&radio, bluetooth);
         ExternalController::new(tmp)
     };
 
