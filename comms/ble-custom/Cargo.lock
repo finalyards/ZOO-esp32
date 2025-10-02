@@ -106,6 +106,7 @@ dependencies = [
  "static_cell",
  "toml",
  "trouble-host",
+ "trouble-host-macros",
 ]
 
 [[package]]
@@ -1881,8 +1882,6 @@ checksum = "d163a63c116ce562a22cda521fcc4d79152e7aba014456fb5eb442f6d6a10109"
 [[package]]
 name = "trouble-host"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78a852f6e193f71732ce3c33661fea2575ba3dac6f48bbe1713059373f96e864"
 dependencies = [
  "aes",
  "bt-hci",
@@ -1899,15 +1898,12 @@ dependencies = [
  "rand_chacha",
  "rand_core 0.6.4",
  "static_cell",
- "trouble-host-macros",
  "zerocopy",
 ]
 
 [[package]]
 name = "trouble-host-macros"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcb85bec3a8393c22ca1a7c25c82c2d33689ab412f3487c492fd01a033ede7c2"
 dependencies = [
  "convert_case",
  "darling 0.20.11",

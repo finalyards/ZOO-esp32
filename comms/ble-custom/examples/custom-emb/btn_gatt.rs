@@ -5,6 +5,7 @@
 use defmt::{error, info, debug};
 
 use trouble_host::prelude::*;
+use trouble_host_macros::*;   // unless we use 'trouble' "derive" feature DEBUG
 
 use crate::{
     BTN_SIGNAL,

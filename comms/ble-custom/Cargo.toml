@@ -37,14 +37,14 @@ esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "defmt",
 esp-rtos        = { version = "0.0.1", features = ["defmt", "embassy", "esp32c3"] }
 static_cell     = { version = "2" }
 trouble-host    = { version = "0.4.0", default-features = false, features = [
-    # tbd. remove 'default-packet-pool' when 'trouble-host' > 0.4.0
-    "default-packet-pool",
+    "default-packet-pool",          # implied after 0.4.0
     "default-packet-pool-mtu-255",  # as in the 'trouble' ESP32 examples
-    "derive",
+    #"derive",
     "gatt",
     "peripheral",
     "security"
 ] } # "defmt"
+trouble-host-macros = { path = "../../../trouble/host-macros" }
 
 [build-dependencies]
 anyhow          = { version = "1.0", default-features = false }
@@ -62,6 +62,8 @@ esp-bootloader-esp-idf ={ git = "https://github.com/esp-rs/esp-hal.git" }
 esp-hal =               { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-radio =             { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-rtos =              { git = "https://github.com/esp-rs/esp-hal.git" }
+
+trouble-host =          { path = "../../../trouble/host" }
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #

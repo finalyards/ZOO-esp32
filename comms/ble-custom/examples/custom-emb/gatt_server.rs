@@ -9,6 +9,7 @@ use embassy_futures::{
     select::{select, select_array}
 };
 use trouble_host::prelude::*;
+use trouble_host_macros::*;     // unless we use 'trouble' "derive" feature DEBUG
 
 use crate::btn_gatt::BtnService;
 
@@ -19,11 +20,27 @@ const AD_NAME: &'static str = "custom example";  // advertised name
 pub struct Server {
     btn_service: BtnService,
 }
+    // Expands to:
+    //  <<
+    //      pub struct Server<'values> {
+    //          pub server: trouble_host::prelude::AttributeServer<
+    //              'values,
+    //              embassy_sync::blocking_mutex::raw::NoopRawMutex,
+    //              trouble_host::prelude::DefaultPacketPool,
+    //              _ATTRIBUTE_TABLE_SIZE,      // trouble_host::gap::GAP_SERVICE_ATTRIBUTE_COUNT + BtnService::ATTRIBUTE_COUNT
+    //              _CCCD_TABLE_SIZE,           // 0 + BtnService::CCCD_COUNT
+    //              _CONNECTIONS_MAX,           // 1
+    //          >,
+    //          [...]   // services
+    //      }
+    //  <<
+    //
+
 
 // Run the BLE stack.
 //
-pub async fn run<'a,C, /*P*/>(host: Host<'a,C,/*P*/ DefaultPacketPool>) -> !
-    where C: Controller, /*P: PacketPool*/
+pub async fn run<'a,C,P>(host: Host<'a,C,P>) -> !
+    where C: Controller, P: PacketPool
 {
     let Host {
         mut peripheral,
@@ -76,11 +93,12 @@ async fn ble_task<C: Controller, P: PacketPool>(mut runner: Runner<'_, C, P>) {
 }
 
 // An advertiser to connect to a BLE Central    <-- tbd. better comment, once works?
-async fn advertise<'values, 'server, C: Controller /*, P: PacketPool*/>(
+async fn advertise<'values, 'server, C: Controller, P: PacketPool>( //, M: RawMutex, const AT: usize, const CT: usize, const CN: usize>(
     name: &'values str,
-    peripheral: &mut Peripheral<'values, C, /*P*/ DefaultPacketPool>,
-    srv: &'server Server<'values>
-) -> Result<GattConnection<'values, 'server, /*P*/ DefaultPacketPool>, BleHostError<C::Error>> {
+    peripheral: &mut Peripheral<'values, C, P>,
+    srv: //&'server AttributeServer<'values, M,P,AT,CT,CN>
+        &'server Server<'values>
+) -> Result<GattConnection<'values, 'server, P>, BleHostError<C::Error>> {
 
     let mut buf = [0; 31];      // outside for lifespan
     let adv_data: &[u8] = {
@@ -94,7 +112,7 @@ async fn advertise<'values, 'server, C: Controller /*, P: PacketPool*/>(
         &buf[..len]
     };
 
-    let advertiser: Advertiser<C,DefaultPacketPool> = peripheral
+    let advertiser: Advertiser<C,P> = peripheral
         .advertise(
             &Default::default(),
             Advertisement::ConnectableScannableUndirected {
@@ -104,6 +122,13 @@ async fn advertise<'values, 'server, C: Controller /*, P: PacketPool*/>(
         )
         .await?;
 
+    let srv: &'server AttributeServer<'_, _,P,_,_,_>  = &srv.server;    // DEBUG
+
+    // Below:
+    //  <<
+    //   note: expected reference `&AttributeServer<'_, _, P, _, _, _>`
+    //                found reference `&gatt_server::Server<'values>`
+    //  <<
     info!("[adv] advertising");
     let conn = advertiser.accept().await?
         .with_attribute_server(srv)?;

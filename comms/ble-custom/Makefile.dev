@@ -44,8 +44,10 @@ custom:
 #	  $ cargo +nightly install cargo-expand
 #	<<
 #
-#|y-expand:
-#|	cargo +nightly expand --features=defmt --example custom-emb
+# Note: I's really handy to add the module at the end of the command.
+#
+_nightly-expand:
+	cargo +nightly expand --features=defmt --example custom-emb gatt_server
 
 #---
 _build:
