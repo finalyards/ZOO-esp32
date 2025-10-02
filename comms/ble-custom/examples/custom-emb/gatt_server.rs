@@ -12,9 +12,8 @@ use trouble_host::prelude::*;
 
 use crate::btn_gatt::BtnService;
 
-include!("./config.in");
-    // AD_NAME
-    // AD_NAME2
+const NAME: &'static str = "ZOO";               // tbd. where does this show?
+const AD_NAME: &'static str = "custom example";  // advertised name
 
 #[gatt_server]
 pub struct Server {
@@ -23,7 +22,7 @@ pub struct Server {
 
 // Run the BLE stack.
 //
-pub async fn run<'a,C/*,P*/>(host: Host<'a,C,/*P*/ DefaultPacketPool>) -> !
+pub async fn run<'a,C, /*P*/>(host: Host<'a,C,/*P*/ DefaultPacketPool>) -> !
     where C: Controller, /*P: PacketPool*/
 {
     let Host {
@@ -34,8 +33,8 @@ pub async fn run<'a,C/*,P*/>(host: Host<'a,C,/*P*/ DefaultPacketPool>) -> !
     debug!("Starting GATT server");
 
     let srv = Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
-        name: CONFIG.NAME,
-        appearance: &appearance::UNKNOWN,
+        name: NAME,
+        appearance: &appearance::sensor::GENERIC_SENSOR,    // tbd. document what it affects
     }))
         .unwrap();
 
@@ -43,7 +42,7 @@ pub async fn run<'a,C/*,P*/>(host: Host<'a,C,/*P*/ DefaultPacketPool>) -> !
         loop {
             debug!("Starting advertising");
 
-            match advertise(CONFIG.AD_NAME, &mut peripheral, &srv).await {
+            match advertise(AD_NAME, &mut peripheral, &srv).await {
                 Ok(conn) => {
                     let a = gatt_events_until_disconnect(&srv, &conn);
 

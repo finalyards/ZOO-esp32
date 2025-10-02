@@ -70,8 +70,8 @@ async fn main(spawner: Spawner) -> () /* !*/ {      // '!' is still a nightly ty
     let radio = esp_radio::init().unwrap();
 
     let controller: ExternalController<_, 20 /*SLOTS*/> = {
-        let bluetooth = peripherals.BT;
-        let tmp = BleConnector::new(&radio, bluetooth);
+        let bt = peripherals.BT;
+        let tmp = BleConnector::new(&radio, bt, Default::default());
         ExternalController::new(tmp)
     };
 
