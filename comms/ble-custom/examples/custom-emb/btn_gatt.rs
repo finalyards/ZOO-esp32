@@ -5,7 +5,8 @@
 use defmt::{error, info, debug};
 
 use trouble_host::prelude::*;
-use trouble_host_macros::*;   // unless we use 'trouble' "derive" feature DEBUG
+
+use static_cell as _;   // 'host-macros' needs it
 
 use crate::{
     BTN_SIGNAL,

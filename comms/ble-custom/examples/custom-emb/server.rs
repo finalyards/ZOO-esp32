@@ -1,5 +1,5 @@
 /*
-* BLE server
+* GATT server
 */
 #[allow(unused_imports)]
 use defmt::{info, debug, warn, error, panic};
@@ -8,16 +8,23 @@ use embassy_futures::{
     join::join,
     select::{select, select_array}
 };
-use trouble_host::prelude::*;
-use trouble_host_macros::*;     // unless we use 'trouble' "derive" feature DEBUG
 
-use crate::btn_gatt::BtnService;
+use rand_core::{RngCore, CryptoRng};
+use trouble_host::prelude::*;
+
+use crate::{
+    BleConnector,
+    btn_gatt::BtnService
+};
 
 const NAME: &'static str = "ZOO";               // tbd. where does this show?
 const AD_NAME: &'static str = "custom example";  // advertised name
 
+const CONNECTIONS_MAX: usize = 1;       // max nbr of connections
+const L2CAP_CHANNELS_MAX: usize = 2;    // max nbr of L2CAP channels    // tbd. pls explain...
+
 #[gatt_server]
-pub struct Server {
+pub(crate) struct Server {
     btn_service: BtnService,
 }
     // Expands to:
@@ -36,69 +43,97 @@ pub struct Server {
     //  <<
     //
 
+impl Server<'_> {
+    /*
+    * Entry from 'main'; launches the server and pumps it.
+    *
+    * This side does 'trouble' specific things.
+    */
+    pub(crate) async fn run<RNG>(ble_controller: BleConnector<'_>, a: Address, mut trng: RNG) -> !
+    where
+        RNG: RngCore + CryptoRng,
+    {
+        use trouble_host::prelude::{
+            HostResources,
+        };
+
+        let controller = ExternalController::<_,20 /*SLOTS*/>::new(ble_controller);
+
+        let (mut ress, stack);   // for lifespan
+
+        let Host {
+            peripheral,
+            runner,
+            ..
+        } = {
+            ress = HostResources::<DefaultPacketPool, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX>::new();
+
+            stack = trouble_host::new(controller, &mut ress)
+                .set_random_address(a)
+                .set_random_generator_seed(&mut trng);
+            stack.build()
+        };
+
+        let gs = Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
+            name: NAME,
+            appearance: &appearance::sensor::GENERIC_SENSOR,    // tbd. document what it affects
+        }))
+            .unwrap();
+
+        run2/*::<_,DefaultPacketPool>*/(gs, peripheral, runner) .await;
+    }
+}
 
 // Run the BLE stack.
 //
-pub async fn run<'a,C,P>(host: Host<'a,C,P>) -> !
-    where C: Controller, P: PacketPool
+async fn run2<'a,C/*,P*/>(gs: Server<'a>, mut peripheral: Peripheral<'a,C,DefaultPacketPool/*P*/>, mut runner: Runner<'a,C,DefaultPacketPool/*P*/>) -> !
+    where C: Controller, //P: PacketPool, M: RawMutex
 {
-    let Host {
-        mut peripheral,
-        runner, ..
-    } = host;
+    // Note: Copilot says that 'defmt' logging may have problems with 'async' blocks. If so,
+    //      use 'async fn'. "This gives better type inference, IDE support, and stack traces." //their words
 
-    debug!("Starting GATT server");
-
-    let srv = Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
-        name: NAME,
-        appearance: &appearance::sensor::GENERIC_SENSOR,    // tbd. document what it affects
-    }))
-        .unwrap();
-
-    let _ = join(ble_task(runner), async {
-        loop {
-            debug!("Starting advertising");
-
-            match advertise(AD_NAME, &mut peripheral, &srv).await {
-                Ok(conn) => {
-                    let a = gatt_events_until_disconnect(&srv, &conn);
-
-                    let bs = [
-                        srv.btn_service.notify_runner(&conn)
-                    ];
-
-                    // Pump them, until one ends ('gatt_events_until_disconnect').
-                    select(a, select_array(bs) ).await;
-                }
-                Err(e) => {
-                    let e = defmt::Debug2Format(&e);
-                    panic!("caught: {:?}", e);
-                }
-            }
-        }
-    }).await;
-
-    unreachable!();
-}
-
-// tbd. comment
-async fn ble_task<C: Controller, P: PacketPool>(mut runner: Runner<'_, C, P>) {
-    loop {
+    let loop1 = async { loop {
         if let Err(e) = runner.run().await {
             let e = defmt::Debug2Format(&e);
             panic!("[ble_task] error: {:?}", e);
         }
         debug!("[ble_task] runner gave up; launching another");     // tbd. when does this happen
-    }
+    }};
+
+    let Server{ ref btn_service, .. } = gs;
+
+    let loop2 = async { loop {
+        debug!("Starting advertising");
+
+        match advertise(AD_NAME, &mut peripheral, &gs).await {
+            Ok(conn) => {
+                let a = gatt_events_until_disconnect(&gs, &conn);
+
+                let bs = [
+                    btn_service.notify_runner(&conn)
+                ];
+
+                // Pump them, until one ends ('gatt_events_until_disconnect').
+                select(a, select_array(bs) ).await;
+            }
+            Err(e) => {
+                let e = defmt::Debug2Format(&e);
+                panic!("caught: {:?}", e);
+            }
+        }
+    }};
+
+    join(loop1, loop2) .await;
+
+    unreachable!();
 }
 
 // An advertiser to connect to a BLE Central    <-- tbd. better comment, once works?
-async fn advertise<'values, 'server, C: Controller, P: PacketPool>( //, M: RawMutex, const AT: usize, const CT: usize, const CN: usize>(
+async fn advertise<'values, 'server, C: Controller /*, P: PacketPool, M: RawMutex*/>(
     name: &'values str,
-    peripheral: &mut Peripheral<'values, C, P>,
-    srv: //&'server AttributeServer<'values, M,P,AT,CT,CN>
-        &'server Server<'values>
-) -> Result<GattConnection<'values, 'server, P>, BleHostError<C::Error>> {
+    peripheral: &mut Peripheral<'values, C, DefaultPacketPool/*P*/>,
+    gs: &'server Server<'values>
+) -> Result<GattConnection<'values, 'server, DefaultPacketPool/*P*/>, BleHostError<C::Error>> {
 
     let mut buf = [0; 31];      // outside for lifespan
     let adv_data: &[u8] = {
@@ -112,7 +147,7 @@ async fn advertise<'values, 'server, C: Controller, P: PacketPool>( //, M: RawMu
         &buf[..len]
     };
 
-    let advertiser: Advertiser<C,P> = peripheral
+    let advertiser = peripheral
         .advertise(
             &Default::default(),
             Advertisement::ConnectableScannableUndirected {
@@ -122,18 +157,20 @@ async fn advertise<'values, 'server, C: Controller, P: PacketPool>( //, M: RawMu
         )
         .await?;
 
-    let srv: &'server AttributeServer<'_, _,P,_,_,_>  = &srv.server;    // DEBUG
-
-    // Below:
+    // Below - IF we were to bring 'P: PacketPool' as generic.
     //  <<
     //   note: expected reference `&AttributeServer<'_, _, P, _, _, _>`
     //                found reference `&gatt_server::Server<'values>`
     //  <<
-    info!("[adv] advertising");
-    let conn = advertiser.accept().await?
-        .with_attribute_server(srv)?;
+    // Not sure why this doesn't work (no conversion from 'Server' to '&AttributeServer');
+    // 'trouble' examples has it, and it works, there.
+    //
+    debug!("[adv] advertising...");
 
-    info!("[adv] connection established");
+    let conn: GattConnection<DefaultPacketPool> = advertiser.accept().await?
+        .with_attribute_server(&gs)?;
+
+    debug!("[adv] connection established");
     Ok(conn)
 }
 

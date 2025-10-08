@@ -21,9 +21,10 @@ use esp_hal::{
         timg::TimerGroup
     }
 };
-use esp_radio::{
-    ble::controller::BleConnector,
+use {
+    esp_radio::ble::controller::BleConnector
 };
+
 #[allow(unused_imports)]
 use trouble_host::{
     prelude::*,
@@ -32,15 +33,17 @@ use trouble_host::{
 
 mod btn_task;
 mod btn_gatt;
-mod gatt_server;
+mod server;
+
+use server::Server;
 
 include!("../../tmp/pins_snippet.in");  // pins!
 
 use crate::{
-    btn_task::{BtnSignal, btn_task},
+    btn_task::BtnSignal
 };
 
-pub(crate) static BTN_SIGNAL: BtnSignal = Signal::new();
+static BTN_SIGNAL: BtnSignal = Signal::new();
 
 #[allow(non_snake_case)]
 struct Pins<'a>{
@@ -52,8 +55,15 @@ esp_bootloader_esp_idf::esp_app_desc!();
 #[cfg(not(target_arch = "riscv32"))]
 compile_error!("Only prepared for the RISC V target (not Xtensa)");
 
+/*
+* In 'main', we prepare the hardware.
+*/
 #[esp_rtos::main]
-async fn main(spawner: Spawner) -> () /* !*/ {      // '!' is still a nightly type
+async fn main(spawner: Spawner) -> ! {      // '!' is still a nightly type
+    use {
+        btn_task::btn_task,
+    };
+
     let peripherals = esp_hal::init(
         esp_hal::Config::default()
             .with_cpu_clock(CpuClock::max())
@@ -67,13 +77,12 @@ async fn main(spawner: Spawner) -> () /* !*/ {      // '!' is still a nightly ty
         sw_int.software_interrupt0
     );
 
-    let radio = esp_radio::init().unwrap();
-
-    let controller: ExternalController<_, 20 /*SLOTS*/> = {
+    let radio;  // life span
+    let ble_controller = {
+        radio = esp_radio::init().unwrap();
         let bt = peripherals.BT;
-        let tmp = BleConnector::new(&radio, bt, Default::default());
-        ExternalController::new(tmp)
-    };
+        BleConnector::new(&radio, bt, Default::default())
+    }.unwrap();
 
     #[allow(non_snake_case)]
     let Pins{ BOOT } = pins!(peripherals);
@@ -90,30 +99,15 @@ async fn main(spawner: Spawner) -> () /* !*/ {      // '!' is still a nightly ty
     spawner.spawn(btn_task(BOOT, &BTN_SIGNAL))
         .unwrap();
 
-    let _trng_source = TrngSource::new(peripherals.RNG, peripherals.ADC1);
-    let mut trng = Trng::try_new().unwrap();    // "succeeds, when '_trng_source' is alive" (but  when the 'Trng' is used) #unsure #tbd.
-
     // Address is Random, as in -> https://embassy.dev/trouble/#_random_address
     let a: Address = Address::random(Efuse::mac_address());     // 6 bytes MAC
     #[cfg(false)]   // Using a fixed address can be useful for testing.
     let a: Address = Address::random(b"rand0m".into());
 
-    debug!("Our address = {:02x}", a.addr.raw());    // output as: "10:15:07:04:32:54" tbd.
+    debug!("Our address = {:?}", a);    // output as: "10:15:07:04:32:54" tbd.
 
-    let (mut ress, stack);   // for lifespan
-    let host = {
-        use trouble_host::HostResources;
+    let _stay = TrngSource::new(peripherals.RNG, peripherals.ADC1);  // must be - and stay - alive, for 'Trng'
+    let trng = Trng::try_new().unwrap();
 
-        const CONNECTIONS_MAX: usize = 1;       // max nbr of connections
-        const L2CAP_CHANNELS_MAX: usize = 2;    // max nbr of L2CAP channels    // tbd. pls explain...
-
-        ress = HostResources::<DefaultPacketPool, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX>::new();
-
-        stack = trouble_host::new(controller, &mut ress)
-            .set_random_address(a)
-            .set_random_generator_seed(&mut trng);
-        stack.build()
-    };
-
-    gatt_server::run(host) .await;
+    Server::run(ble_controller, a, trng) .await;
 }

@@ -14,37 +14,36 @@ debug = 2
 #lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
                         #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
-# We don't have a library, so no regular 'dependencies'. Well, except optional deps need to
-# be under such a grouping.
+# We don't have a library, so no regular 'dependencies'.
 #
 [dependencies]
 defmt           = { version = "1.0.1", optional = true }
 
 [dev-dependencies]
-bt-hci          = { version = "0.6.0" } # "defmt"
+bt-hci          = { version = "0.6.0", features = [] }  # "defmt"
 defmt-rtt       = { version = "1.0.0" }
-embassy-executor = { version = "0.9.1" }
-embassy-futures = { version = "0.1.2" }
-embassy-sync    = { version = "0.7.2" }
-embassy-time    = { version = "0.5.0", features = ["generic-queue-8", "defmt", "defmt-timestamp-uptime-us"]}
+embassy-executor = { version = "0.9.1", features = [] } # "defmt"
+embassy-futures = { version = "0.1.2", features = [] }  # "defmt"
+embassy-sync    = { version = "0.7.2", features = [] }  # "defmt"
+embassy-time    = { version = "0.5.0", features = ["generic-queue-8", "defmt-timestamp-uptime-us"]}     # "defmt"
 
-esp-alloc       = { version = "0.8.0" }
-esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "defmt", "esp32c3"] }
-esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32c3"] } # "defmt"
-esp-hal         = { version = "1.0.0-rc.0", features = ["unstable", "esp32c3"] }   # "defmt"
-#esp-preempt     = { version = "0.0.1", features = ["defmt", "esp32c3"] }
-esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "defmt", "esp32c3" ] }
-esp-rtos        = { version = "0.0.1", features = ["defmt", "embassy", "esp32c3"] }
+esp-alloc       = { version = "0.8.0", features = [] }  # "defmt"
+esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "esp32c3"] }   # "defmt"
+esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32c3"] }  # "defmt"
+esp-hal         = { version = "1.0.0-rc.0", features = ["unstable", "esp32c3"] }    # "defmt"
+esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "esp32c3" ] }   # "defmt"
+esp-rtos        = { version = "0.0.1", features = ["embassy", "esp32c3"] }  # "defmt"
+rand_core       = { version = "0.6", default-features = false }
+    # follow the version in 'trouble': 0.6 (now), or 0.9 (future)
 static_cell     = { version = "2" }
 trouble-host    = { version = "0.4.0", default-features = false, features = [
     "default-packet-pool",          # implied after 0.4.0
     "default-packet-pool-mtu-255",  # as in the 'trouble' ESP32 examples
-    #"derive",
+    "derive",
     "gatt",
     "peripheral",
-    "security"
+    "security",
 ] } # "defmt"
-trouble-host-macros = { path = "../../../trouble/host-macros" }
 
 [build-dependencies]
 anyhow          = { version = "1.0", default-features = false }
@@ -52,7 +51,19 @@ serde           = { version = "1.0", features = ["derive"] }
 toml            = "0.9"
 
 [features]
-defmt = ["dep:defmt", "bt-hci/defmt", "esp-bootloader-esp-idf/defmt", "esp-hal/defmt", "trouble-host/defmt"]
+defmt = ["dep:defmt",
+    "bt-hci/defmt",
+    "embassy-executor/defmt",
+    "embassy-futures/defmt",
+    "embassy-sync/defmt",
+    "esp-alloc/defmt",
+    "esp-backtrace/defmt",
+    "esp-bootloader-esp-idf/defmt",
+    "esp-hal/defmt",
+    "esp-radio/defmt",
+    "esp-rtos/defmt",
+    "trouble-host/defmt"
+]
 
 [patch.crates-io]
 # ..remove when past 1.0.0-rc0 :9
@@ -63,7 +74,7 @@ esp-hal =               { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-radio =             { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-rtos =              { git = "https://github.com/esp-rs/esp-hal.git" }
 
-trouble-host =          { path = "../../../trouble/host" }
+#trouble-host =          { path = "../../../trouble/host" }
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared.
 #
