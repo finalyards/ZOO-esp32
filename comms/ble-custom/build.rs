@@ -60,8 +60,8 @@ fn main() -> Result<()> {
             || format!("Unable to write {fn_}")
         )?;
 
-        // Change in TOML retriggers a build
-        println!("cargo::rerun-if-changed={}", PINS_TOML);
+        // Do NOT declare a 'rerun-if-changed'. We want to be run on every build.
+        //no-no: println!("cargo::rerun-if-changed={}", PINS_TOML);
     }
 
     Ok(())

@@ -32,10 +32,10 @@ esp-backtrace   = { version = "0.17.0", features = ["panic-handler", "esp32c3"] 
 esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32c3"] }  # "defmt"
 esp-hal         = { version = "1.0.0-rc.0", features = ["unstable", "esp32c3"] }    # "defmt"
 esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "esp32c3" ] }   # "defmt"
-esp-rtos        = { version = "0.0.1", features = ["embassy", "esp32c3"] }  # "defmt"
-rand_core       = { version = "0.6", default-features = false }
+esp-rtos        = { version = "0.0.1", features = ["embassy", "esp-radio", "esp-alloc", "esp32c3"] }  # "defmt"
+#rand_core       = { version = "0.6", default-features = false }
     # follow the version in 'trouble': 0.6 (now), or 0.9 (future)
-static_cell     = { version = "2" }
+#static_cell     = { version = "2" }     # trouble-host-macros?
 trouble-host    = { version = "0.4.0", default-features = false, features = [
     "default-packet-pool",          # implied after 0.4.0
     "default-packet-pool-mtu-255",  # as in the 'trouble' ESP32 examples

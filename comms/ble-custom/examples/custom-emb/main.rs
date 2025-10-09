@@ -10,7 +10,6 @@ use embassy_time as _;      // show enabled in 'Cargo.toml'; we want the time st
 use esp_backtrace as _;
 
 use embassy_executor::Spawner;
-use embassy_sync::signal::Signal;
 use esp_hal::{
     clock::CpuClock,
     efuse::Efuse,
@@ -21,9 +20,12 @@ use esp_hal::{
         timg::TimerGroup
     }
 };
-use {
-    esp_radio::ble::controller::BleConnector
+use esp_radio::ble::{
+    controller::BleConnector,
+    Config
 };
+
+//use static_cell as _;   // so IDE shows it as active
 
 #[allow(unused_imports)]
 use trouble_host::{
@@ -31,19 +33,20 @@ use trouble_host::{
     Address,
 };
 
-mod btn_task;
-mod btn_gatt;
-mod server;
+mod tasks;
+//mod server;
+//mod state;
 
-use server::Server;
+//use server::Server;
 
 include!("../../tmp/pins_snippet.in");  // pins!
 
 use crate::{
-    btn_task::BtnSignal
+    tasks::btn_task::{
+        btn_task,
+        BTN_SIGNAL
+    }
 };
-
-static BTN_SIGNAL: BtnSignal = Signal::new();
 
 #[allow(non_snake_case)]
 struct Pins<'a>{
@@ -52,17 +55,11 @@ struct Pins<'a>{
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
-#[cfg(not(target_arch = "riscv32"))]
-compile_error!("Only prepared for the RISC V target (not Xtensa)");
-
 /*
 * In 'main', we prepare the hardware.
 */
 #[esp_rtos::main]
-async fn main(spawner: Spawner) -> ! {      // '!' is still a nightly type
-    use {
-        btn_task::btn_task,
-    };
+async fn main(spawner: Spawner) -> ! {
 
     let peripherals = esp_hal::init(
         esp_hal::Config::default()
@@ -80,8 +77,7 @@ async fn main(spawner: Spawner) -> ! {      // '!' is still a nightly type
     let radio;  // life span
     let ble_controller = {
         radio = esp_radio::init().unwrap();
-        let bt = peripherals.BT;
-        BleConnector::new(&radio, bt, Default::default())
+        BleConnector::new(&radio, peripherals.BT, Config::default().with_task_priority(10))
     }.unwrap();
 
     #[allow(non_snake_case)]
@@ -92,13 +88,6 @@ async fn main(spawner: Spawner) -> ! {      // '!' is still a nightly type
         .with_pull(Pull::Up)
     );
 
-    // Boot button task is being run constantly on the background (even when there's no BLE
-    // connection). This is just a matter of taste - use 'AnyServiceTask' for running something
-    // just when connected.
-    //
-    spawner.spawn(btn_task(BOOT, &BTN_SIGNAL))
-        .unwrap();
-
     // Address is Random, as in -> https://embassy.dev/trouble/#_random_address
     let a: Address = Address::random(Efuse::mac_address());     // 6 bytes MAC
     #[cfg(false)]   // Using a fixed address can be useful for testing.
@@ -106,8 +95,26 @@ async fn main(spawner: Spawner) -> ! {      // '!' is still a nightly type
 
     debug!("Our address = {:?}", a);    // output as: "10:15:07:04:32:54" tbd.
 
-    let _stay = TrngSource::new(peripherals.RNG, peripherals.ADC1);  // must be - and stay - alive, for 'Trng'
-    let trng = Trng::try_new().unwrap();
+    let trng_src = TrngSource::new(peripherals.RNG, peripherals.ADC1);  // must be _stay_ alive, for 'Trng' instances to function
 
-    Server::run(ble_controller, a, trng) .await;
+    let btn_signal = &BTN_SIGNAL;
+
+    // Background tasks
+    {
+        spawner.spawn(btn_task(BOOT))
+            .unwrap();
+    }
+
+    // Start the state circus
+    {
+        //let state_wheel = State::new(ble_controller, a, trng_src);
+
+    }
+
+    loop {
+        let x = btn_signal.wait() .await;
+        info!("Heard: {}", x.is_pressed())
+    }
 }
+
+//R Server::run(ble_controller, a, trng).await
