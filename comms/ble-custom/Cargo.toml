@@ -33,6 +33,14 @@ esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32c3"] }  # "defmt
 esp-hal         = { version = "1.0.0-rc.0", features = ["unstable", "esp32c3"] }    # "defmt"
 esp-radio       = { version = "0.15.0", features = [ "ble", "unstable", "esp32c3" ] }   # "defmt"
 esp-rtos        = { version = "0.0.1", features = ["embassy", "esp-radio", "esp-alloc", "esp32c3"] }  # "defmt"
+
+# ESP32 community crates
+esp-hal-smartled = { version = "0.16.0", features = ["esp32c3"] }  # "defmt"
+
+smart-leds      = { version = "0.4.0" }
+
+static_assertions = "1.1.0"
+
 #rand_core       = { version = "0.6", default-features = false }
     # follow the version in 'trouble': 0.6 (now), or 0.9 (future)
 #static_cell     = { version = "2" }     # trouble-host-macros?
@@ -60,6 +68,7 @@ defmt = ["dep:defmt",
     "esp-backtrace/defmt",
     "esp-bootloader-esp-idf/defmt",
     "esp-hal/defmt",
+    "esp-hal-smartled/defmt",
     "esp-radio/defmt",
     "esp-rtos/defmt",
     "trouble-host/defmt"
@@ -73,6 +82,10 @@ esp-bootloader-esp-idf ={ git = "https://github.com/esp-rs/esp-hal.git" }
 esp-hal =               { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-radio =             { git = "https://github.com/esp-rs/esp-hal.git" }
 esp-rtos =              { git = "https://github.com/esp-rs/esp-hal.git" }
+
+# A branch that's compatible with 'esp-hal' 'main' API
+esp-hal-smartled =      { git = "https://github.com/finalyards/esp-hal-community.fork.git", branch = "pr-esphal-tracking2" }
+#esp-hal-smartled =      { path = "../../../esp-hal-community/esp-hal-smartled" }
 
 #trouble-host =          { path = "../../../trouble/host" }
 

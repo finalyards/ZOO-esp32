@@ -2,3 +2,5 @@
 /tmp/
 /.OUT_DIR
 
+# Since an example app
+/Cargo.lock

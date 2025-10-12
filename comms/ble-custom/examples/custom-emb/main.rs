@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+extern crate alloc;
 
 #[allow(unused_imports)]
 use defmt::{info, debug};
@@ -13,8 +14,9 @@ use embassy_executor::Spawner;
 use esp_hal::{
     clock::CpuClock,
     efuse::Efuse,
-    gpio::{AnyPin, Input, InputConfig, Pull},
+    gpio::{AnyPin, Input, InputConfig, Output, OutputConfig, Pull},
     interrupt::software::SoftwareInterruptControl,
+    peripherals::RMT,
     rng::{Trng, TrngSource},
     timer::{
         timg::TimerGroup
@@ -39,18 +41,24 @@ mod tasks;
 
 //use server::Server;
 
-include!("../../tmp/pins_snippet.in");  // pins!
+include!(concat!(env!("OUT_DIR"), "/pins_snippet.in")); // pins!
 
 use crate::{
     tasks::btn_task::{
         btn_task,
         BTN_SIGNAL
+    },
+    tasks::led_task::{
+        led_task,
+        LedState,
+        LED_SIGNAL
     }
 };
 
 #[allow(non_snake_case)]
 struct Pins<'a>{
-    BOOT: AnyPin<'a>
+    BOOT: AnyPin<'a>,
+    RGB_LED: AnyPin<'a>,
 }
 
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -81,7 +89,7 @@ async fn main(spawner: Spawner) -> ! {
     }.unwrap();
 
     #[allow(non_snake_case)]
-    let Pins{ BOOT } = pins!(peripherals);
+    let Pins{ BOOT, RGB_LED } = pins!(peripherals);
 
     #[allow(non_snake_case)]
     let BOOT = Input::new(BOOT, InputConfig::default()
@@ -98,10 +106,14 @@ async fn main(spawner: Spawner) -> ! {
     let trng_src = TrngSource::new(peripherals.RNG, peripherals.ADC1);  // must be _stay_ alive, for 'Trng' instances to function
 
     let btn_signal = &BTN_SIGNAL;
+    let led_signal = &LED_SIGNAL;
 
     // Background tasks
     {
         spawner.spawn(btn_task(BOOT))
+            .unwrap();
+
+        spawner.spawn(led_task(peripherals.RMT, RGB_LED))
             .unwrap();
     }
 
@@ -113,7 +125,14 @@ async fn main(spawner: Spawner) -> ! {
 
     loop {
         let x = btn_signal.wait() .await;
-        info!("Heard: {}", x.is_pressed())
+        info!("Heard: {}", x);
+
+        let color = match x.is_pressed() {
+            true => LedState::State1,
+            false => LedState::State2
+        };
+        info!("Signalling: {}", color);
+        led_signal.signal(color);
     }
 }
 

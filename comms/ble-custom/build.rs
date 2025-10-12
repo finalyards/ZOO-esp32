@@ -1,17 +1,19 @@
-use anyhow::*;
-
 include!("build_snippets/pins.in");  // process_pins()
 
-const PINS_OUT_FN: &str = "tmp/pins_snippet.in";
+const PINS_OUT_FN: &str = "pins_snippet.in";
 
-fn main() -> Result<()> {
+// Note!
+//  - Do NOT declare 'rerun-if-changed' files, since handling the TOML is not all we do:
+//      exposing 'OUT_DIR' needs to be run for every build!
+//
+fn main() {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
-    {
-        let ide = std::env::var("__CFBundleIdentifier").is_ok();
-        if ide { return Ok(()) };
-    }
+    //
+    const IDE: bool = option_env!("__CFBundleIdentifier").is_some();
 
     // Pick the current MCU.
     //
@@ -34,35 +36,33 @@ fn main() -> Result<()> {
     };
 
     // Expose 'OUT_DIR' to an external (Makefile) build system
-    {
-        use std::{fs, env};
+    //
+    // Note: disabled for IDE, to allow for VM development.
+    if !IDE {
+        use std::fs;
         const TMP: &str = ".OUT_DIR";
 
-        let out_dir = env::var("OUT_DIR")
-            .expect("OUT_DIR to have a value");
-
-        fs::write(TMP, out_dir)
+        fs::write(TMP, &out_dir)
             .expect(format!("Unable to write {TMP}").as_str());
     }
 
     //---
-    // Turn 'pins.toml' -> 'tmp/pins_snippet.in’
+    // Turn 'pins.toml' -> '{output dir}/pins_snippet.in’
     {
-        use std::fs;
-        const PINS_TOML: &str = "./pins.toml";
+        use std::{
+            fs,
+            path::{PathBuf}
+        };
 
-        let toml = include_str!("./pins.toml");    // "argument must be a string literal"
-        let snippet: String = process_pins(toml, &mcu)?;
+        let toml = include_str!("./pins.toml");    // "argument must be a string literal" (i.e. 'PINS_TOML' won't work)
+        let snippet: String = process_pins(toml, &mcu)
+            .unwrap();
 
-        let fn_ = PINS_OUT_FN;
+        let fn_ = PathBuf::from(&out_dir).join(PINS_OUT_FN);
 
-        fs::write(fn_, snippet).with_context(
-            || format!("Unable to write {fn_}")
-        )?;
-
-        // Do NOT declare a 'rerun-if-changed'. We want to be run on every build.
-        //no-no: println!("cargo::rerun-if-changed={}", PINS_TOML);
+        fs::write(fn_, snippet)
+            .expect(format!("Unable to write {{ fn_.display() }}").as_str());
     }
 
-    Ok(())
+    // ok
 }

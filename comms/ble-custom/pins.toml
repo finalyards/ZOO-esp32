@@ -5,6 +5,8 @@
 #
 [boards.esp32c3]
 BOOT = 9
+RGB_LED = 8
 
 [boards.esp32c6]
-BOOT = 8
+BOOT = 9
+RGB_LED = 8
