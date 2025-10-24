@@ -210,3 +210,7 @@ You will be "living" on the "host" side of the HCI (Host/Client Interface). Most
 - [Trouble documentation](https://embassy.dev/trouble/)
 
 	A book about the library; the source for its Cargo features.
+
+- [ESP32-C3-DevKitC-02 schematic (V1.1)](https://dl.espressif.com/dl/schematics/SCH_ESP32-C3-DEVKITC-02_V1_1_20210126A.pdf) (PDF; May 2021)
+- [ESP32-C6-DevKitM-1 schematic (V1.0)](https://dl.espressif.com/dl/schematics/esp32-c6-devkitm-1-schematics.pdf) (PDF; Feb 2023)
+

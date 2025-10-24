@@ -1,23 +1,18 @@
 #![no_std]
 #![no_main]
-extern crate alloc;
+//likely needed: extern crate alloc;
 
 #[allow(unused_imports)]
 use defmt::{info, debug};
 use defmt_rtt as _;
 
-use embassy_time as _;      // show enabled in 'Cargo.toml'; we want the time stamp for 'defmt' logs
-
-use esp_backtrace as _;
-
 use embassy_executor::Spawner;
 use esp_hal::{
     clock::CpuClock,
     efuse::Efuse,
-    gpio::{AnyPin, Input, InputConfig, Output, OutputConfig, Pull},
+    gpio::{AnyPin, Input, InputConfig, /*Output, OutputConfig,*/ Pull},
     interrupt::software::SoftwareInterruptControl,
-    peripherals::RMT,
-    rng::{Trng, TrngSource},
+    rng::{/*Trng,*/ TrngSource},
     timer::{
         timg::TimerGroup
     }
@@ -27,7 +22,8 @@ use esp_radio::ble::{
     Config
 };
 
-//use static_cell as _;   // so IDE shows it as active
+use embassy_time as _;      // show enabled in 'Cargo.toml'; we want the time stamp for 'defmt' logs
+use esp_backtrace as _;
 
 #[allow(unused_imports)]
 use trouble_host::{
@@ -93,17 +89,14 @@ async fn main(spawner: Spawner) -> ! {
 
     #[allow(non_snake_case)]
     let BOOT = Input::new(BOOT, InputConfig::default()
-        .with_pull(Pull::Up)
+        .with_pull(Pull::Up)    // also the devkit has its own, external pull-up
     );
 
     // Address is Random, as in -> https://embassy.dev/trouble/#_random_address
     let a: Address = Address::random(Efuse::mac_address());     // 6 bytes MAC
-    #[cfg(false)]   // Using a fixed address can be useful for testing.
-    let a: Address = Address::random(b"rand0m".into());
+    debug!("Our address: {:?}", a);    // "10:15:07:04:32:54"
 
-    debug!("Our address = {:?}", a);    // output as: "10:15:07:04:32:54" tbd.
-
-    let trng_src = TrngSource::new(peripherals.RNG, peripherals.ADC1);  // must be _stay_ alive, for 'Trng' instances to function
+    let trng_src = TrngSource::new(peripherals.RNG, peripherals.ADC1);  // must _stay_ alive, for 'Trng' instances to function
 
     let btn_signal = &BTN_SIGNAL;
     let led_signal = &LED_SIGNAL;
@@ -121,19 +114,32 @@ async fn main(spawner: Spawner) -> ! {
     {
         //let state_wheel = State::new(ble_controller, a, trng_src);
 
+        let _ = ble_controller;
+        let _ = trng_src;
     }
 
-    loop {
-        let x = btn_signal.wait() .await;
-        info!("Heard: {}", x);
+    for count in 0_u32.. {
+        // Wait for a full button press; a release that is.
+        //
+        // Note: On first round, we fly just through (button already depressed), and get an initial
+        //      color.
+        //
+        loop {
+            let x = btn_signal.wait() .await;
+            if !x.is_pressed() { break; }
+        }
 
-        let color = match x.is_pressed() {
-            true => LedState::State1,
-            false => LedState::State2
+        let color = match count%4 {
+            0 => LedState::State1,
+            1|3 => LedState::State2,
+            2 => LedState::State3,
+            _ => unreachable!()
         };
         info!("Signalling: {}", color);
         led_signal.signal(color);
-    }
+    };
+
+    unreachable!()
 }
 
 //R Server::run(ble_controller, a, trng).await
